@@ -11,6 +11,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { SheetsMapping } from '@/lib/sheets';
+import { ImportConnection, ImportSteps } from './ImportParts';
+import { useT } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/locales';
+import { importerMessages } from '@/lib/i18n/importer';
 
 interface SheetMeta {
   id: string;
@@ -47,14 +51,15 @@ interface ImportState {
 }
 
 const COLS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+/** label is a dictionary key. */
 const FIELDS: { key: keyof SheetsMapping | 'statusMap'; label: string; required?: boolean }[] = [
-  { key: 'contentCol', label: 'Content', required: true },
-  { key: 'dateCol', label: 'Publish date' },
-  { key: 'platformCol', label: 'Platform(s)' },
-  { key: 'titleCol', label: 'Title' },
-  { key: 'mediaCol', label: 'Media URL(s)' },
-  { key: 'statusCol', label: 'Status' },
-  { key: 'tagsCol', label: 'Tags' },
+  { key: 'contentCol', label: 'sfContent', required: true },
+  { key: 'dateCol', label: 'sfDate' },
+  { key: 'platformCol', label: 'sfPlatform' },
+  { key: 'titleCol', label: 'sfTitle' },
+  { key: 'mediaCol', label: 'sfMedia' },
+  { key: 'statusCol', label: 'sfStatus' },
+  { key: 'tagsCol', label: 'sfTags' },
 ];
 
 function extractSpreadsheetId(input: string): string | null {
@@ -66,6 +71,7 @@ function extractSpreadsheetId(input: string): string | null {
 
 export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
   const router = useRouter();
+  const t = useT(importerMessages);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -109,7 +115,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
         const clientId =
           (config as { youtube?: { client_id?: string } } | null)?.youtube?.client_id ?? '';
         if (!clientId) {
-          setErr('Google is not configured yet, try again shortly.');
+          setErr(t('sNotConfigured'));
           return;
         }
         const params = new URLSearchParams({
@@ -123,7 +129,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
         });
         window.open(`https://accounts.google.com/o/oauth2/v2/auth?${params}`, 'sosial-sheets', 'width=640,height=720');
       } catch {
-        setErr('Could not start the Google connection, try again.');
+        setErr(t('sStartFail'));
         return;
       }
     })();
@@ -133,7 +139,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
       if (d?.type !== 'sosial-cloud' || d.nonce !== nonce) return;
       window.removeEventListener('message', onMsg);
       if (!d.ok || !d.code) {
-        setErr(d.error ?? 'Google connection was cancelled.');
+        setErr(d.error ?? t('sCancelled'));
         return;
       }
       void (async () => {
@@ -145,10 +151,10 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
             body: JSON.stringify({ code: d.code }),
           });
           const j = (await res.json()) as { error?: string };
-          if (!res.ok) throw new Error(j.error ?? 'Could not connect Google Sheets.');
+          if (!res.ok) throw new Error(j.error ?? t('sConnectFail'));
           await loadStatus();
         } catch (ex) {
-          setErr(ex instanceof Error ? ex.message : 'Could not connect Google Sheets.');
+          setErr(ex instanceof Error ? ex.message : t('sConnectFail'));
         } finally {
           setBusy(false);
         }
@@ -158,7 +164,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
   };
 
   const disconnect = async () => {
-    if (!window.confirm('Disconnect Google Sheets? Imported posts are kept.')) return;
+    if (!window.confirm(t('sDisconnectQ'))) return;
     setBusy(true);
     try {
       await fetch('/api/sheets', { method: 'DELETE' });
@@ -173,7 +179,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
   const openSheet = async () => {
     const id = extractSpreadsheetId(url);
     if (!id) {
-      setErr('Paste a Google Sheets link (…/spreadsheets/d/…) or the spreadsheet ID.');
+      setErr(t('sBadLink'));
       return;
     }
     setBusy(true);
@@ -183,13 +189,13 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
       const j = (await res.json()) as SheetMeta & { error?: string; code?: string };
       if (!res.ok) {
         if (j.code === 'auth_expired') setConnected(false);
-        throw new Error(j.error ?? 'Could not open the spreadsheet.');
+        throw new Error(j.error ?? t('sOpenFail'));
       }
       setMeta(j);
       setSheetTitle(j.sheets[0]?.title ?? 'Sheet1');
       setPreview(null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not open the spreadsheet.');
+      setErr(e instanceof Error ? e.message : t('sOpenFail'));
     } finally {
       setBusy(false);
     }
@@ -219,13 +225,13 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
       };
       if (!res.ok) {
         if (j.code === 'auth_expired') setConnected(false);
-        throw new Error(j.error ?? 'Preview failed.');
+        throw new Error(j.error ?? t('previewFail'));
       }
       setHeader(j.header ?? []);
       setMapping(m ?? j.suggested ?? null);
       setPreview(j.rows ?? []);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Preview failed.');
+      setErr(e instanceof Error ? e.message : t('previewFail'));
     } finally {
       setBusy(false);
     }
@@ -252,7 +258,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
         }),
       });
       let st = (await res.json()) as ImportState & { error?: string };
-      if (!res.ok) throw new Error(st.error ?? 'Import failed.');
+      if (!res.ok) throw new Error(st.error ?? t('importFail'));
       setImportState(st);
       while (st.status === 'running') {
         await new Promise((r) => setTimeout(r, 500));
@@ -262,12 +268,12 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
           body: JSON.stringify({ import_id: st.import_id }),
         });
         st = (await c.json()) as ImportState & { error?: string };
-        if (!c.ok) throw new Error(st.error ?? 'Import failed.');
+        if (!c.ok) throw new Error(st.error ?? t('importFail'));
         setImportState(st);
       }
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Import failed.');
+      setErr(e instanceof Error ? e.message : t('importFail'));
     } finally {
       setBusy(false);
     }
@@ -280,27 +286,29 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
   const invalidCount = preview ? preview.length - validCount : 0;
 
   return (
-    <div className="mt-4 space-y-4">
-      <section className="card p-5" aria-label="Google Sheets connection">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1E8E3E] text-xl text-white" aria-hidden="true">▦</span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold">Google Sheets</span>
-            <span className="block text-xs text-muted">
-              {connected === null ? 'Checking…' : connected ? 'Connected' : 'Bulk import posts from a spreadsheet'}
-            </span>
-          </span>
-          {connected ? (
-            <button type="button" onClick={() => void disconnect()} disabled={busy} className="btn btn-ghost">
-              Disconnect
-            </button>
-          ) : (
-            <button type="button" onClick={connect} disabled={busy || connected === null} className="btn btn-primary">
-              {busy ? 'Connecting…' : 'Connect Google'}
-            </button>
-          )}
-        </div>
-      </section>
+    <div className="mt-5 space-y-4">
+      <ImportConnection
+        mark="sheets"
+        name="Google Sheets"
+        status={connected === null ? t('checking') : connected ? t('connected') : t('sStatusIdle')}
+        connected={connected}
+        busy={busy}
+        connectLabel={t('sConnect')}
+        onConnect={connect}
+        onDisconnect={() => void disconnect()}
+        points={[
+          t('sP1'),
+          t('sP2'),
+          t('sP3'),
+        ]}
+      />
+
+      {connected ? (
+        <ImportSteps
+          current={!meta ? 1 : importState ? 4 : preview ? 3 : 2}
+          done={!!importState && importState.status !== 'running'}
+        />
+      ) : null}
 
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
@@ -308,19 +316,19 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
 
       {connected ? (
         <>
-          <section className="card p-5" aria-label="Pick a spreadsheet">
-            <h2 className="font-display text-base font-extrabold tracking-tight">Paste a spreadsheet link</h2>
+          <section className="card p-5" aria-label={t('sPasteTitle')}>
+            <h2 className="font-display text-base font-extrabold tracking-tight">{t('sPasteTitle')}</h2>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <input
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://docs.google.com/spreadsheets/d/…"
                 className="field flex-1"
-                aria-label="Spreadsheet URL or ID"
+                aria-label={t('sUrlLabel')}
                 inputMode="url"
               />
               <button type="button" onClick={() => void openSheet()} disabled={busy} className="btn btn-primary">
-                {busy ? 'Opening…' : 'Open'}
+                {busy ? t('sOpening') : t('sOpen')}
               </button>
             </div>
             {meta ? (
@@ -346,46 +354,46 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
           </section>
 
           {meta ? (
-            <section className="card p-5" aria-label="Date options and mapping">
-              <h2 className="font-display text-base font-extrabold tracking-tight">Options</h2>
+            <section className="card p-5" aria-label={t('sOptionsLabel')}>
+              <h2 className="font-display text-base font-extrabold tracking-tight">{t('sOptions')}</h2>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-soft">Timezone for naive dates</span>
-                  <input value={timeZone} onChange={(e) => setTimeZone(e.target.value)} className="field !py-2 !text-sm" aria-label="Timezone" />
+                  <span className="mb-1 block text-xs font-bold text-soft">{t('sTz')}</span>
+                  <input value={timeZone} onChange={(e) => setTimeZone(e.target.value)} className="field !py-2 !text-sm" aria-label={t('sTzLabel')} />
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-soft">Ambiguous dates (01/02/2026)</span>
-                  <select value={dateOrder} onChange={(e) => setDateOrder(e.target.value as 'auto' | 'dmy' | 'mdy')} className="field !py-2 !text-sm" aria-label="Date order">
-                    <option value="auto">Day first (auto)</option>
-                    <option value="dmy">Day/Month/Year</option>
-                    <option value="mdy">Month/Day/Year</option>
+                  <span className="mb-1 block text-xs font-bold text-soft">{t('sAmbig')}</span>
+                  <select value={dateOrder} onChange={(e) => setDateOrder(e.target.value as 'auto' | 'dmy' | 'mdy')} className="field !py-2 !text-sm" aria-label={t('sDateOrder')}>
+                    <option value="auto">{t('sDayFirst')}</option>
+                    <option value="dmy">{t('sDmy')}</option>
+                    <option value="mdy">{t('sMdy')}</option>
                   </select>
                 </label>
                 <label className="block">
-                  <span className="mb-1 block text-xs font-bold text-soft">Header row</span>
-                  <input type="number" min={1} defaultValue={1} disabled className="field !py-2 !text-sm" aria-label="Header row (fixed at 1)" />
+                  <span className="mb-1 block text-xs font-bold text-soft">{t('sHeaderRow')}</span>
+                  <input type="number" min={1} defaultValue={1} disabled className="field !py-2 !text-sm" aria-label={t('sHeaderRowFixed')} />
                 </label>
               </div>
 
               {header.length > 0 ? (
                 <>
-                  <h3 className="mt-5 font-display text-sm font-extrabold">Column mapping</h3>
+                  <h3 className="mt-5 font-display text-sm font-extrabold">{t('sColMapping')}</h3>
                   <div className="mt-2 grid gap-3 sm:grid-cols-3">
                     {FIELDS.map((f) => (
                       <label key={String(f.key)} className="block">
                         <span className="mb-1 block text-xs font-bold text-soft">
-                          {f.label}
-                          {f.required ? ' (required)' : ''}
+                          {t(f.label)}
+                          {f.required ? ` ${t('sRequired')}` : ''}
                         </span>
                         <select
                           value={mapping && f.key !== 'statusMap' ? String(mapping[f.key as keyof SheetsMapping] ?? '') : ''}
                           onChange={(e) => setCol(f.key as keyof SheetsMapping, e.target.value === '' ? null : Number(e.target.value))}
                           className="field !py-2 !text-sm"
                         >
-                          <option value="">- none -</option>
+                          <option value="">{t('none')}</option>
                           {header.map((h, i) => (
                             <option key={i} value={i}>
-                              {COLS[i] ?? `col${i}`} · {h || '(untitled)'}
+                              {COLS[i] ?? `col${i}`} · {h || t('sUntitled')}
                             </option>
                           ))}
                         </select>
@@ -393,7 +401,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
                     ))}
                   </div>
                   <button type="button" onClick={() => void loadPreview(mapping ?? undefined)} disabled={busy} className="btn btn-primary mt-4">
-                    {busy ? 'Validating…' : 'Validate rows'}
+                    {busy ? t('sValidating') : t('sValidate')}
                   </button>
                 </>
               ) : null}
@@ -401,18 +409,18 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
           ) : null}
 
           {preview ? (
-            <section className="card p-5" aria-label="Validation report">
+            <section className="card p-5" aria-label={t('sReport')}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="font-display text-base font-extrabold tracking-tight">
-                  {validCount} valid · {invalidCount} need changes
+                  {fill(t('sSummary'), { valid: validCount, invalid: invalidCount })}
                 </h2>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => void revalidate()} disabled={busy} className="btn btn-ghost">
-                    Re-validate
+                    {t('sRevalidate')}
                   </button>
                   {validCount > 0 ? (
                     <button type="button" onClick={() => void runImport()} disabled={busy} className="btn btn-bolt">
-                      {busy ? 'Importing…' : `Import ${validCount} post${validCount === 1 ? '' : 's'}`}
+                      {busy ? t('importing') : validCount === 1 ? t('sImportOne') : fill(t('sImportN'), { n: validCount })}
                     </button>
                   ) : null}
                 </div>
@@ -420,13 +428,13 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
               <ul className="mt-3 max-h-96 space-y-1.5 overflow-y-auto">
                 {preview.map((r) => (
                   <li key={r.row} className={`rounded-xl border px-3 py-2 text-sm ${r.ok ? 'border-line' : 'border-[#E8B4B4] bg-[#FDF3F3] dark:bg-[#2c1b1b]'}`}>
-                    <span className="text-xs font-bold text-faint">Row {r.row}</span>
+                    <span className="text-xs font-bold text-faint">{fill(t('sRow'), { n: r.row })}</span>
                     {r.ok ? (
                       <>
-                        <p className="truncate font-bold">{r.draft?.title || '(no title)'}</p>
+                        <p className="truncate font-bold">{r.draft?.title || t('noTitle')}</p>
                         <p className="text-[11px] text-faint">
-                          {r.draft?.channels.length ?? 0} channel(s){r.draft?.scheduled_at ? ` · ${new Date(r.draft.scheduled_at).toLocaleString()}` : ' · draft'}
-                          {r.draft?.media_count ? ` · ${r.draft.media_count} media` : ''}
+                          {fill(t('channelsN'), { n: r.draft?.channels.length ?? 0 })}{r.draft?.scheduled_at ? ` · ${new Date(r.draft.scheduled_at).toLocaleString()}` : ` · ${t('draft')}`}
+                          {r.draft?.media_count ? ` · ${fill(t('mediaN'), { n: r.draft.media_count })}` : ''}
                         </p>
                         {(r.draft?.warnings ?? []).map((w) => (
                           <p key={w} className="text-[11px] font-bold text-[#8a6d1a]">{w}</p>
@@ -434,7 +442,7 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
                       </>
                     ) : (
                       r.errors.map((e) => (
-                        <p key={e} className="text-xs font-bold text-[#9F2F2D]">❌ {e}</p>
+                        <p key={e} className="text-xs font-bold text-[#9F2F2D] dark:text-[#f2a8a8]">{e}</p>
                       ))
                     )}
                   </li>
@@ -444,12 +452,15 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
           ) : null}
 
           {importState && importState.status !== 'running' ? (
-            <section className="card p-5" aria-label="Import results">
-              <h2 className="font-display text-base font-extrabold tracking-tight">Import complete</h2>
+            <section className="card p-5" aria-label={t('sResults')}>
+              <h2 className="font-display text-base font-extrabold tracking-tight">{t('importComplete')}</h2>
               <p className="mt-1 text-sm">
-                <span className="font-bold">{importState.result?.imported ?? 0} imported</span> ·{' '}
-                {importState.result?.duplicates ?? 0} already imported · {importState.result?.changed ?? 0} changed upstream ·{' '}
-                {importState.result?.failed ?? 0} need attention
+                <span className="font-bold">{fill(t('resultImported'), { n: importState.result?.imported ?? 0 })}</span> ·{' '}
+                {[
+                  fill(t('resultDupes'), { n: importState.result?.duplicates ?? 0 }),
+                  fill(t('resultChanged'), { n: importState.result?.changed ?? 0 }),
+                  fill(t('resultAttention'), { n: importState.result?.failed ?? 0 }),
+                ].join(' · ')}
               </p>
               {(importState.result?.errors ?? []).length > 0 ? (
                 <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs text-muted">
@@ -460,10 +471,10 @@ export default function ImportSheets({ workspaceId }: { workspaceId: string }) {
               ) : null}
               <div className="mt-3 flex gap-2">
                 <button type="button" onClick={() => router.push('/post')} className="btn btn-primary">
-                  View imported posts
+                  {t('viewImported')}
                 </button>
                 <button type="button" onClick={() => { setImportState(null); setPreview(null); }} className="btn btn-ghost">
-                  Import another sheet
+                  {t('sImportAnother')}
                 </button>
               </div>
             </section>

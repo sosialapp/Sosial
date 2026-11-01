@@ -10,6 +10,7 @@ import { loadManagedPosts, onManagedPostsChanged, ManagedPost } from '../utils/m
 import { loadMetaState, connectedChannelIds, loadAccounts } from '../utils/metaStore';
 import { PROVIDER_KEYS, schedulableProviders } from '../utils/socialAccounts';
 import { fetchAnalytics } from '../utils/analytics';
+import { fetchCloudAnalytics, requestAnalyticsRefresh } from '../utils/cloudAnalytics';
 import { fmtDateTime, platformsLabel } from '../utils/reminders';
 import { requiresTitle, SOCIAL_META } from '../constants';
 import { supabase, currentSession, isSupabaseConfigured } from '../utils/supabase';
@@ -164,8 +165,31 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
       setChannels(ct ? ct.channelsLive : live.length);
       setConnected(ct ? ct.channelsLive > 0 : live.length > 0);
       // Analytics snapshot (last 7 days), only when channels exist; the
-      // full screen owns ranges, trends and per-channel detail.
-      if (live.length > 0) {
+      // full screen owns ranges, trends and per-channel detail. Signed in,
+      // read the same cloud snapshots as the Analytics screen and web (device
+      // tokens only cover accounts connected on this phone, so the two used
+      // to disagree), and nudge the worker for fresh follower counts.
+      if (ct && ct.channelsLive > 0) {
+        void requestAnalyticsRefresh().catch(() => false);
+        try {
+          const a = await fetchCloudAnalytics();
+          if (!a) throw new Error('signed out');
+          const live7 = new Set(a.channels.filter((c) => c.status === 'connected').map((c) => c.id));
+          const followerRows = a.channelStats.filter((r) => live7.has(r.channel_id));
+          const followers = followerRows.reduce((n, r) => n + (r.followers ?? 0), 0);
+          const hasFollowers = followerRows.some((r) => r.followers !== null);
+          const since = Date.now() - 7 * 86400000;
+          const recentPosts = new Set(
+            a.posts.filter((po) => po.sent_at && Date.parse(po.sent_at) >= since).map((po) => po.id),
+          );
+          const engagement = a.postStats
+            .filter((r) => recentPosts.has(r.post_id) && live7.has(r.channel_id))
+            .reduce((n, r) => n + r.likes + r.comments + r.shares, 0);
+          setSummary({ followers, engagement, hasFollowers });
+        } catch {
+          setSummary(null);
+        }
+      } else if (live.length > 0) {
         try {
           const a = await fetchAnalytics(meta, 'last7');
           const followers = a.channels.reduce((n, c) => n + (c.followers ?? 0), 0);

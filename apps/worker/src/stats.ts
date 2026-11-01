@@ -502,6 +502,25 @@ interface TargetRow {
   provider: string;
 }
 
+/**
+ * Followers-only snapshot (hourly sweep + "refresh" on the analytics screens):
+ * one profile read, no per-post reads. Never throws, a miss just leaves the
+ * previous snapshot in place so a flaky provider can't spin the retry loop.
+ */
+export async function snapshotChannelFollowers(channelId: string): Promise<{ ok: boolean; skipped: string | null }> {
+  const got = await getChannel(channelId);
+  if (!got) return { ok: false, skipped: 'channel gone' };
+  const { c, t } = got;
+  if (c.status !== 'connected') return { ok: false, skipped: `channel ${c.status}` };
+  try {
+    await snapshotFollowers(c, t);
+    return { ok: true, skipped: null };
+  } catch (e: any) {
+    warn(`followers ${c.provider}/${c.external_id}: ${String(e?.message ?? e).slice(0, 160)}`);
+    return { ok: false, skipped: null };
+  }
+}
+
 export async function snapshotChannel(channelId: string): Promise<{ updated: number; failed: number; skipped: string | null }> {
   const got = await getChannel(channelId);
   if (!got) return { updated: 0, failed: 0, skipped: 'channel gone' };

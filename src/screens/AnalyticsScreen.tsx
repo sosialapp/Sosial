@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
@@ -12,6 +12,7 @@ import { SOCIAL_META, requiresTitle } from '../constants';
 import { currentSession } from '../utils/supabase';
 import {
   fetchCloudAnalytics,
+  syncAnalytics,
   type CloudAnalytics,
   type CloudChannel,
   type CloudPost,
@@ -95,13 +96,27 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
     }
   }, []);
 
+  // Snapshots used to refresh only once a day, so pulling down re-read stale
+  // rows. Now opening the screen and pulling both ask the worker for fresh
+  // numbers and re-read every time a newer snapshot lands.
+  const stopSync = useRef<(() => void) | null>(null);
+  const startSync = useCallback(() => {
+    stopSync.current?.();
+    stopSync.current = syncAnalytics(() => {
+      void fetchCloudAnalytics().then((d) => d && setData(d)).catch(() => {});
+    });
+  }, []);
+
   useEffect(() => {
     void load();
     void currentSession().catch(() => null);
-  }, [load]);
+    startSync();
+    return () => stopSync.current?.();
+  }, [load, startSync]);
 
   const onRefresh = async () => {
     setRefreshing(true);
+    startSync();
     try {
       setData(await fetchCloudAnalytics());
     } finally {
@@ -557,7 +572,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                 {/* Channels */}
                 <View style={{ paddingHorizontal: 20, marginTop: 24 }}>
                   <Text style={s.secT}>{tr('iChannels')}</Text>
-                  <Text style={s.secS}>Followers refresh daily · engagement is interactions ÷ followers</Text>
+                  <Text style={s.secS}>Followers refresh hourly and on pull-down · engagement is interactions ÷ followers</Text>
                   {perfRows.length === 0 ? (
                     <Text style={s.hint}>Connect a channel and publish, audience and engagement land here within a day.</Text>
                   ) : (

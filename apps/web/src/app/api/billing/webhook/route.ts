@@ -3,6 +3,7 @@ import type Stripe from 'stripe';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import {
   stripe,
+  stripeConfigured,
   resolveFromPriceId,
   primaryPriceId,
   subscriptionPeriod,
@@ -152,6 +153,12 @@ async function grantLifetime(workspaceId: string | null, customerId: string | nu
 export async function POST(req: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) return bad('Webhook secret not configured.', 503);
+
+  // stripe() throws when the API key is missing. Checked BEFORE verification so
+  // a misconfigured deploy reports 503 instead of being caught below and
+  // reported as 'Invalid signature' (which makes Stripe retry a non-existent
+  // signature problem for days and hides the real cause in the dashboard).
+  if (!stripeConfigured()) return bad('Stripe is not configured.', 503);
 
   const signature = req.headers.get('stripe-signature');
   if (!signature) return bad('Missing stripe-signature header.');

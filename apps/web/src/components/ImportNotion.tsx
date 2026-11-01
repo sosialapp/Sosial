@@ -9,6 +9,10 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ImportConnection, ImportSteps } from './ImportParts';
+import { useT } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/locales';
+import { importerMessages } from '@/lib/i18n/importer';
 
 interface SchemaProp {
   name: string;
@@ -49,6 +53,7 @@ const CONTENT_OPTIONS = [
 
 export default function ImportNotion({ workspaceId }: { workspaceId: string; canImport?: boolean }) {
   const router = useRouter();
+  const t = useT(importerMessages);
   const [connected, setConnected] = useState<boolean | null>(null);
   const [wsName, setWsName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -140,7 +145,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
       if (d?.type !== 'sosial-cloud' || d.nonce !== nonce) return;
       window.removeEventListener('message', onMsg);
       if (!d.ok || !d.code) {
-        setErr(d.error ?? 'Notion connection was cancelled.');
+        setErr(d.error ?? t('nCancelled'));
         return;
       }
       void (async () => {
@@ -152,10 +157,10 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
             body: JSON.stringify({ code: d.code }),
           });
           const j = (await res.json()) as { error?: string };
-          if (!res.ok) throw new Error(j.error ?? 'Could not connect Notion.');
+          if (!res.ok) throw new Error(j.error ?? t('nConnectFail'));
           await loadStatus();
         } catch (ex) {
-          setErr(ex instanceof Error ? ex.message : 'Could not connect Notion.');
+          setErr(ex instanceof Error ? ex.message : t('nConnectFail'));
         } finally {
           setBusy(false);
         }
@@ -165,7 +170,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
   };
 
   const disconnect = async () => {
-    if (!window.confirm('Disconnect Notion? Imported posts are kept.')) return;
+    if (!window.confirm(t('nDisconnectQ'))) return;
     setBusy(true);
     try {
       await fetch('/api/notion', { method: 'DELETE' });
@@ -186,17 +191,17 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
       if (!res.ok) {
         if (j.code === 'auth_expired') {
           setConnected(false);
-          throw new Error(j.error ?? 'Reconnect Notion.');
+          throw new Error(j.error ?? t('nReconnect'));
         }
-        throw new Error(j.error ?? 'Could not list databases.');
+        throw new Error(j.error ?? t('nListFail'));
       }
       setDbs((prev) => (cursor ? [...prev, ...(j.databases ?? [])] : j.databases ?? []));
       setDbCursor(j.next_cursor ?? null);
       if ((j.databases ?? []).length === 0 && !cursor && !q) {
-        setErr('No databases visible. In Notion, open a database → ••• menu → Connections → add Sosial, then try again.');
+        setErr(t('nNoDbs'));
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not list databases.');
+      setErr(e instanceof Error ? e.message : t('nListFail'));
     } finally {
       setBusy(false);
     }
@@ -208,7 +213,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
     try {
       const res = await fetch(`/api/notion/schema?id=${encodeURIComponent(d.id)}`);
       const j = (await res.json()) as { properties?: SchemaProp[]; error?: string };
-      if (!res.ok) throw new Error(j.error ?? 'Could not read the database.');
+      if (!res.ok) throw new Error(j.error ?? t('nReadFail'));
       const props = j.properties ?? [];
       setSchema(props);
       setDb(d);
@@ -235,7 +240,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
       }).catch(() => null);
       void pRes;
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Could not open the database.');
+      setErr(e instanceof Error ? e.message : t('nOpenFail'));
     } finally {
       setBusy(false);
     }
@@ -275,11 +280,11 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
         body: JSON.stringify({ database_id: db!.id, mapping }),
       });
       const j = (await res.json()) as { rows?: PreviewRow[]; error?: string };
-      if (!res.ok) throw new Error(j.error ?? 'Preview failed.');
+      if (!res.ok) throw new Error(j.error ?? t('previewFail'));
       setPreview(j.rows ?? []);
       setStep('preview');
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Preview failed.');
+      setErr(e instanceof Error ? e.message : t('previewFail'));
     } finally {
       setBusy(false);
     }
@@ -296,7 +301,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
         body: JSON.stringify({ database_id: db!.id, database_title: db!.title, mapping }),
       });
       let st = (await res.json()) as ImportState & { error?: string };
-      if (!res.ok) throw new Error(st.error ?? 'Import failed.');
+      if (!res.ok) throw new Error(st.error ?? t('importFail'));
       setImportState(st);
       while (st.status === 'running') {
         await new Promise((r) => setTimeout(r, 600));
@@ -306,13 +311,13 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
           body: JSON.stringify({ import_id: st.import_id }),
         });
         st = (await c.json()) as ImportState & { error?: string };
-        if (!c.ok) throw new Error(st.error ?? 'Import failed.');
+        if (!c.ok) throw new Error(st.error ?? t('importFail'));
         setImportState(st);
       }
       setStep('importing');
       router.refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Import failed.');
+      setErr(e instanceof Error ? e.message : t('importFail'));
       setStep('preview');
     } finally {
       setBusy(false);
@@ -322,28 +327,29 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
   const setMap = (field: string, value: string) => setMapping((m) => ({ ...m, [field]: value }));
 
   return (
-    <div className="mt-4 space-y-4">
-      {/* Connection card */}
-      <section className="card p-5" aria-label="Notion connection">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink text-xl text-white" aria-hidden="true">N</span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold">Notion</span>
-            <span className="block text-xs text-muted">
-              {connected === null ? 'Checking…' : connected ? `Connected${wsName ? ` · ${wsName}` : ''}` : 'Import posts from a Notion database'}
-            </span>
-          </span>
-          {connected ? (
-            <button type="button" onClick={() => void disconnect()} disabled={busy} className="btn btn-ghost">
-              Disconnect
-            </button>
-          ) : (
-            <button type="button" onClick={connect} disabled={busy || connected === null} className="btn btn-primary">
-              {busy ? 'Connecting…' : 'Connect Notion'}
-            </button>
-          )}
-        </div>
-      </section>
+    <div className="mt-5 space-y-4">
+      <ImportConnection
+        mark="notion"
+        name="Notion"
+        status={connected === null ? t('checking') : connected ? `${t('connected')}${wsName ? ` · ${wsName}` : ''}` : t('nStatusIdle')}
+        connected={connected}
+        busy={busy}
+        connectLabel={t('nConnect')}
+        onConnect={connect}
+        onDisconnect={() => void disconnect()}
+        points={[
+          t('nP1'),
+          t('nP2'),
+          t('nP3'),
+        ]}
+      />
+
+      {connected ? (
+        <ImportSteps
+          current={step === 'pick' ? 1 : step === 'map' ? 2 : step === 'preview' ? 3 : 4}
+          done={step === 'importing' && importState?.status !== 'running'}
+        />
+      ) : null}
 
       {err ? (
         <p className="rounded-xl bg-[#FDEBEC] px-3.5 py-2.5 text-xs font-bold text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]">{err}</p>
@@ -352,8 +358,8 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
       {connected ? (
         <>
           {step === 'pick' ? (
-            <section className="card p-5" aria-label="Pick a database">
-              <h2 className="font-display text-base font-extrabold tracking-tight">Pick a database</h2>
+            <section className="card p-5" aria-label={t('nPickDb')}>
+              <h2 className="font-display text-base font-extrabold tracking-tight">{t('nPickDb')}</h2>
               <div className="mt-3 flex gap-2">
                 <input
                   value={dbQuery}
@@ -361,12 +367,12 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') void loadDbs(dbQuery);
                   }}
-                  placeholder="Search databases…"
+                  placeholder={t('nSearchPh')}
                   className="field flex-1"
-                  aria-label="Search Notion databases"
+                  aria-label={t('nSearchLabel')}
                 />
                 <button type="button" onClick={() => void loadDbs(dbQuery)} disabled={busy} className="btn btn-primary">
-                  Search
+                  {t('search')}
                 </button>
               </div>
               <ul className="mt-3 divide-y divide-line-soft">
@@ -383,43 +389,43 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
                     </button>
                   </li>
                 ))}
-                {dbs.length === 0 ? <li className="py-2 text-sm text-faint">No databases yet, search, or share one in Notion first.</li> : null}
+                {dbs.length === 0 ? <li className="py-2 text-sm text-faint">{t('nNoDbsYet')}</li> : null}
               </ul>
               {dbCursor ? (
                 <button type="button" onClick={() => void loadDbs(dbQuery, dbCursor)} disabled={busy} className="btn btn-ghost mt-2">
-                  Load more
+                  {t('loadMore')}
                 </button>
               ) : null}
             </section>
           ) : null}
 
           {step === 'map' && db ? (
-            <section className="card p-5" aria-label="Map fields">
+            <section className="card p-5" aria-label={t('stMap')}>
               <div className="flex items-center justify-between">
-                <h2 className="font-display text-base font-extrabold tracking-tight">Map fields, {db.title}</h2>
+                <h2 className="font-display text-base font-extrabold tracking-tight">{fill(t('nMapTitle'), { db: db.title })}</h2>
                 <button type="button" onClick={() => setStep('pick')} className="text-xs font-bold text-muted hover:text-ink">
-                  Change database
+                  {t('nChangeDb')}
                 </button>
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {([
-                  { key: 'content', label: 'Content (required)' },
-                  { key: 'title', label: 'Title' },
-                  { key: 'platform', label: 'Platform (select → channel)' },
-                  { key: 'status', label: 'Status' },
-                  { key: 'date', label: 'Publish date' },
-                  { key: 'media', label: 'Media (files)' },
-                  { key: 'tags', label: 'Tags' },
+                  { key: 'content', label: 'nMContent' },
+                  { key: 'title', label: 'nMTitle' },
+                  { key: 'platform', label: 'nMPlatform' },
+                  { key: 'status', label: 'nMStatus' },
+                  { key: 'date', label: 'nMDate' },
+                  { key: 'media', label: 'nMMedia' },
+                  { key: 'tags', label: 'nMTags' },
                 ] as const).map((f) => (
                   <label key={f.key} className="block">
-                    <span className="mb-1 block text-xs font-bold text-soft">{f.label}</span>
+                    <span className="mb-1 block text-xs font-bold text-soft">{t(f.label)}</span>
                     <select
                       value={mapping[f.key] ?? ''}
                       onChange={(e) => setMap(f.key, e.target.value)}
                       className="field !py-2 !text-sm"
                     >
-                      <option value="">- none -</option>
-                      {f.key === 'content' ? <option value="__page_body__">Page body (text)</option> : null}
+                      <option value="">{t('none')}</option>
+                      {f.key === 'content' ? <option value="__page_body__">{t('nPageBody')}</option> : null}
                       {schema.map((p) => (
                         <option key={p.name} value={p.name}>
                           {p.name} · {p.type}
@@ -430,29 +436,29 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
                 ))}
               </div>
               <p className="mt-2 text-[11px] leading-relaxed text-faint">
-                Unsupported property types (people, relation, rollup…) are skipped with a warning. Unmapped select values import as flagged errors, never guessed.
+                {t('nMapNote')}
               </p>
               <div className="mt-4 flex gap-2">
                 <button type="button" onClick={() => void runPreview()} disabled={busy} className="btn btn-primary">
-                  {busy ? 'Loading…' : 'Preview rows'}
+                  {busy ? t('loading') : t('nPreviewRows')}
                 </button>
               </div>
             </section>
           ) : null}
 
           {step === 'preview' && preview ? (
-            <section className="card p-5" aria-label="Preview">
-              <h2 className="font-display text-base font-extrabold tracking-tight">Preview (first rows)</h2>
+            <section className="card p-5" aria-label={t('stReview')}>
+              <h2 className="font-display text-base font-extrabold tracking-tight">{t('nPreviewTitle')}</h2>
               <ul className="mt-3 space-y-2">
                 {preview.map((r) => (
                   <li key={r.page_id} className={`rounded-xl border px-3 py-2 text-sm ${r.ok ? 'border-line' : 'border-[#E8B4B4] bg-[#FDF3F3] dark:bg-[#2c1b1b]'}`}>
                     {r.ok ? (
                       <>
-                        <p className="font-bold">{r.draft?.title || '(no title)'}</p>
+                        <p className="font-bold">{r.draft?.title || t('noTitle')}</p>
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted">{r.draft?.body}</p>
                         <p className="mt-1 text-[11px] text-faint">
-                          {r.draft?.channels.length ?? 0} channel(s){r.draft?.scheduled_at ? ` · ${new Date(r.draft.scheduled_at).toLocaleString()}` : ' · draft'}
-                          {r.draft?.media_count ? ` · ${r.draft.media_count} media` : ''}
+                          {fill(t('channelsN'), { n: r.draft?.channels.length ?? 0 })}{r.draft?.scheduled_at ? ` · ${new Date(r.draft.scheduled_at).toLocaleString()}` : ` · ${t('draft')}`}
+                          {r.draft?.media_count ? ` · ${fill(t('mediaN'), { n: r.draft.media_count })}` : ''}
                         </p>
                         {(r.draft?.warnings ?? []).map((w) => (
                           <p key={w} className="mt-1 text-[11px] font-bold text-[#8a6d1a]">{w}</p>
@@ -460,7 +466,7 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
                       </>
                     ) : (
                       <>
-                        <p className="font-bold text-[#9F2F2D]">Row will be skipped</p>
+                        <p className="font-bold text-[#9F2F2D]">{t('nRowSkipped')}</p>
                         {r.errors.map((e) => (
                           <p key={e} className="mt-0.5 text-xs text-muted">{e}</p>
                         ))}
@@ -471,29 +477,34 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
               </ul>
               <div className="mt-4 flex gap-2">
                 <button type="button" onClick={() => void runImport()} disabled={busy} className="btn btn-bolt">
-                  {busy ? 'Importing…' : 'Import as drafts'}
+                  {busy ? t('importing') : t('nImportDrafts')}
                 </button>
                 <button type="button" onClick={() => setStep('map')} className="btn btn-ghost">
-                  Back to mapping
+                  {t('nBackToMap')}
                 </button>
               </div>
             </section>
           ) : null}
 
           {step === 'importing' && importState ? (
-            <section className="card p-5" aria-label="Import progress">
+            <section className="card p-5" aria-label={t('progress')}>
               <h2 className="font-display text-base font-extrabold tracking-tight">
-                {importState.status === 'running' ? 'Importing…' : 'Import complete'}
+                {importState.status === 'running' ? t('importing') : t('importComplete')}
               </h2>
               <p className="mt-1 text-sm text-muted">
-                {importState.progress_done} processed
-                {importState.progress_total ? ` of about ${importState.progress_total}` : ''}
+                {importState.progress_total
+                  ? fill(t('nOfAbout'), { done: importState.progress_done, total: importState.progress_total })
+                  : fill(t('nProcessed'), { done: importState.progress_done })}
               </p>
               {importState.status !== 'running' ? (
                 <div className="mt-3 rounded-2xl border border-line bg-surface p-4 text-sm">
                   <p className="font-bold">
-                    {importState.result?.imported ?? 0} imported · {importState.result?.duplicates ?? 0} already imported ·{' '}
-                    {importState.result?.changed ?? 0} changed upstream · {importState.result?.failed ?? 0} skipped
+                    {[
+                      fill(t('resultImported'), { n: importState.result?.imported ?? 0 }),
+                      fill(t('resultDupes'), { n: importState.result?.duplicates ?? 0 }),
+                      fill(t('resultChanged'), { n: importState.result?.changed ?? 0 }),
+                      fill(t('resultSkipped'), { n: importState.result?.failed ?? 0 }),
+                    ].join(' · ')}
                   </p>
                   {(importState.result?.errors ?? []).length > 0 ? (
                     <ul className="mt-2 space-y-1 text-xs text-muted">
@@ -504,10 +515,10 @@ export default function ImportNotion({ workspaceId }: { workspaceId: string; can
                   ) : null}
                   <div className="mt-3 flex gap-2">
                     <button type="button" onClick={() => router.push('/post')} className="btn btn-primary">
-                      View imported posts
+                      {t('viewImported')}
                     </button>
                     <button type="button" onClick={() => { setStep('pick'); setImportState(null); }} className="btn btn-ghost">
-                      Import another database
+                      {t('nImportAnother')}
                     </button>
                   </div>
                 </div>

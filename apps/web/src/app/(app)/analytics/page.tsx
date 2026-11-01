@@ -53,6 +53,7 @@ export default async function AnalyticsPage() {
   ]);
   return (
     <AnalyticsDashboard
+      workspaceId={ctx.workspace.id}
       posts={posts}
       channels={channels}
       postStats={postStats as never}

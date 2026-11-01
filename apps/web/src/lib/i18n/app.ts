@@ -2,6 +2,13 @@ import type { Locale } from './locales';
 
 /** App dashboard dictionary (in-app surfaces; blog/legal stay English). */
 const en: Record<string, string> = {
+  anSyncing: 'Syncing with your accounts…',
+  anSyncUpdated: 'Updated {when}',
+  anSyncJustNow: 'just now',
+  anSyncMinAgo: '{n} min ago',
+  anSyncHourAgo: '{n} h ago',
+  anSyncDayAgo: '{n} d ago',
+  anSyncRefresh: 'Refresh analytics',
   tmMembersLbl: 'Members',
   tmLeadsLbl: 'Leads',
   tmPendingShort: 'Pending',
@@ -1093,6 +1100,13 @@ const en: Record<string, string> = {
 };
 
 const es: Record<string, string> = {
+  anSyncing: 'Sincronizando con tus cuentas…',
+  anSyncUpdated: 'Actualizado {when}',
+  anSyncJustNow: 'ahora mismo',
+  anSyncMinAgo: 'hace {n} min',
+  anSyncHourAgo: 'hace {n} h',
+  anSyncDayAgo: 'hace {n} d',
+  anSyncRefresh: 'Actualizar analíticas',
   tmMembersLbl: 'Miembros',
   tmLeadsLbl: 'Líderes',
   tmPendingShort: 'Pendientes',
@@ -2094,6 +2108,13 @@ const es: Record<string, string> = {
 };
 
 const fr: Record<string, string> = {
+  anSyncing: 'Synchronisation avec vos comptes…',
+  anSyncUpdated: 'Mis à jour {when}',
+  anSyncJustNow: 'à l’instant',
+  anSyncMinAgo: 'il y a {n} min',
+  anSyncHourAgo: 'il y a {n} h',
+  anSyncDayAgo: 'il y a {n} j',
+  anSyncRefresh: 'Actualiser les statistiques',
   tmMembersLbl: 'Membres',
   tmLeadsLbl: 'Responsables',
   tmPendingShort: 'En attente',
@@ -3095,6 +3116,13 @@ const fr: Record<string, string> = {
 };
 
 const de: Record<string, string> = {
+  anSyncing: 'Synchronisiere mit deinen Konten…',
+  anSyncUpdated: 'Aktualisiert {when}',
+  anSyncJustNow: 'gerade eben',
+  anSyncMinAgo: 'vor {n} Min.',
+  anSyncHourAgo: 'vor {n} Std.',
+  anSyncDayAgo: 'vor {n} T.',
+  anSyncRefresh: 'Statistiken aktualisieren',
   tmMembersLbl: 'Mitglieder',
   tmLeadsLbl: 'Leitung',
   tmPendingShort: 'Ausstehend',
@@ -4096,6 +4124,13 @@ const de: Record<string, string> = {
 };
 
 const ja: Record<string, string> = {
+  anSyncing: 'アカウントと同期中…',
+  anSyncUpdated: '{when}に更新',
+  anSyncJustNow: 'たった今',
+  anSyncMinAgo: '{n} 分前',
+  anSyncHourAgo: '{n} 時間前',
+  anSyncDayAgo: '{n} 日前',
+  anSyncRefresh: '分析を更新',
   tmMembersLbl: 'メンバー',
   tmLeadsLbl: 'リーダー',
   tmPendingShort: '保留中',
@@ -5097,6 +5132,13 @@ const ja: Record<string, string> = {
 };
 
 const ko: Record<string, string> = {
+  anSyncing: '계정과 동기화 중…',
+  anSyncUpdated: '{when} 업데이트됨',
+  anSyncJustNow: '방금',
+  anSyncMinAgo: '{n}분 전',
+  anSyncHourAgo: '{n}시간 전',
+  anSyncDayAgo: '{n}일 전',
+  anSyncRefresh: '분석 새로고침',
   tmMembersLbl: '멤버',
   tmLeadsLbl: '관리자',
   tmPendingShort: '대기 중',
@@ -6098,6 +6140,13 @@ const ko: Record<string, string> = {
 };
 
 const zh: Record<string, string> = {
+  anSyncing: '正在与账号同步…',
+  anSyncUpdated: '更新于{when}',
+  anSyncJustNow: '刚刚',
+  anSyncMinAgo: '{n} 分钟前',
+  anSyncHourAgo: '{n} 小时前',
+  anSyncDayAgo: '{n} 天前',
+  anSyncRefresh: '刷新分析',
   tmMembersLbl: '成员',
   tmLeadsLbl: '负责人',
   tmPendingShort: '待接受',

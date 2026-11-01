@@ -1,0 +1,63 @@
+# Sosial ingress - canonical Caddy config.
+#
+# Installed by hand (root-owned):
+#   sudo cp infra/caddy/Caddyfile /etc/caddy/Caddyfile
+#   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+#
+# Hosts, all on one VPS (23.111.15.38). Caddy is the only public listener.
+#   sosial.app / www  -> 127.0.0.1:3002  web app (Next.js standalone)  [Cloudflare proxied]
+#   docs.sosial.app   -> 127.0.0.1:3002  same app, docs host           [Cloudflare proxied]
+#   db.sosial.app     -> 127.0.0.1:8000  Supabase gateway (Envoy)      [Cloudflare proxied]
+#   status.sosial.app -> 127.0.0.1:3001  Uptime Kuma                   [Cloudflare proxied]
+#   photos.sosial.app -> 127.0.0.1:3000  TikTok photo host             [DNS only, grey cloud]
+#
+# TLS: the proxied hosts terminate with a Cloudflare Origin Certificate that
+# covers sosial.app + *.sosial.app. Cloudflare is set to Full (strict).
+#
+# photos.sosial.app is grey-clouded because TikTok's fetcher rejects 3xx
+# redirects, so it is hit directly and MUST serve a publicly trusted cert.
+# The origin cert is a wildcard and therefore also matches photos, and a
+# manually loaded cert always wins over ACME - hence `tls force_automate`
+# (Caddy >= 2.11), which excludes that block from the loaded cert and lets
+# Caddy obtain/renew a Let's Encrypt cert via HTTP-01/TLS-ALPN.
+#
+# Do not drop `tls force_automate`: without it, Caddy hands the untrusted
+# origin cert to every client and TLS fails with
+# "unable to verify the first certificate".
+
+db.sosial.app {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8000
+}
+
+status.sosial.app {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	reverse_proxy 127.0.0.1:3001
+}
+
+photos.sosial.app {
+	tls force_automate
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+
+sosial.app {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3002
+}
+
+# Docs host: same container. The app middleware rewrites docs.sosial.app/x to
+# the /docs/x route tree, and sosial.app/docs/* 308s here, so each page has one
+# public URL. Needs the wildcard SAN on the origin cert (*.sosial.app).
+docs.sosial.app {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3002
+}
+
+www.sosial.app {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	redir https://sosial.app{uri} permanent
+}
