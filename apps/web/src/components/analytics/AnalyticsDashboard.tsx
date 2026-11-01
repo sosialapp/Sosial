@@ -870,7 +870,8 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                     <s.icon className="h-3.5 w-3.5" aria-hidden="true" />
                     {s.label}
                   </span>
-                  <Tooltip content={s.hint} align="end">
+                  {/* Opens downward: the card clips anything above its top edge. */}
+                  <Tooltip content={s.hint} align="end" side="bottom">
                     <button
                       type="button"
                       aria-label={s.hint}
