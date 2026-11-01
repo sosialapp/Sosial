@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { DEFAULT_LOCALE, LOCALE_COOKIE } from '@/lib/i18n/locales';
+import { LOCALE_HEADER, isLocalizedPath, splitLocalePath } from '@/lib/i18n/routing';
 
 /** App UI that requires a session. Everything else is public: marketing pages
  *  (including the custom CMS pages at the root), auth flows and API routes.
@@ -81,6 +83,27 @@ function routeDocs(request: NextRequest): NextResponse | null {
   return null;
 }
 
+/** Locale-prefixed public URLs (lib/i18n/routing): /es/pricing renders
+ *  /pricing in Spanish via a request header, and remembers the choice in the
+ *  locale cookie so the next unprefixed page follows it. /en/… and prefixes
+ *  on untranslated pages redirect to the one unprefixed URL. */
+function routeLocale(request: NextRequest): NextResponse | null {
+  const { locale, path } = splitLocalePath(request.nextUrl.pathname);
+  if (!locale) return null;
+  const url = request.nextUrl.clone();
+  url.pathname = path;
+  if (locale === DEFAULT_LOCALE || !isLocalizedPath(path)) {
+    return NextResponse.redirect(url, 308);
+  }
+  const headers = new Headers(request.headers);
+  headers.set(LOCALE_HEADER, locale);
+  const response = NextResponse.rewrite(url, { request: { headers } });
+  if (request.cookies.get(LOCALE_COOKIE)?.value !== locale) {
+    response.cookies.set(LOCALE_COOKIE, locale, { path: '/', maxAge: 31536000, sameSite: 'lax' });
+  }
+  return response;
+}
+
 /** Refreshes the Supabase session cookie for gated app routes and gates them
  *  behind sign-in. No-ops (rather than crashing) when env is missing so the
  *  login page can explain the setup state. */
@@ -94,6 +117,9 @@ export async function middleware(request: NextRequest) {
 
   const docs = routeDocs(request);
   if (docs) return docs;
+
+  const localized = routeLocale(request);
+  if (localized) return localized;
 
   const path = request.nextUrl.pathname;
 

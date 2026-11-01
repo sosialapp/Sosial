@@ -8,6 +8,7 @@ import type { Locale } from './locales';
  */
 
 const en: Record<string, string> = {
+  prMetaTitle: 'Pricing: free plan and paid plans',
   blAnnual: 'Annual',
   blMonthly: 'Monthly',
   blBilledMonthly: ' · billed monthly',
@@ -84,6 +85,7 @@ const en: Record<string, string> = {
 };
 
 const es: Record<string, string> = {
+  prMetaTitle: 'Precios: plan gratuito y planes de pago',
   blAnnual: 'Anual',
   blMonthly: 'Mensual',
   blBilledMonthly: ' · facturación mensual',
@@ -160,6 +162,7 @@ const es: Record<string, string> = {
 };
 
 const fr: Record<string, string> = {
+  prMetaTitle: 'Tarifs : offre gratuite et offres payantes',
   blAnnual: 'Annuel',
   blMonthly: 'Mensuel',
   blBilledMonthly: ' · facturé mensuellement',
@@ -236,6 +239,7 @@ const fr: Record<string, string> = {
 };
 
 const de: Record<string, string> = {
+  prMetaTitle: 'Preise: Gratis-Plan und bezahlte Pläne',
   blAnnual: 'Jährlich',
   blMonthly: 'Monatlich',
   blBilledMonthly: ' · monatlich abgerechnet',
@@ -312,6 +316,7 @@ const de: Record<string, string> = {
 };
 
 const ja: Record<string, string> = {
+  prMetaTitle: '料金：無料プランと有料プラン',
   blAnnual: '年払い',
   blMonthly: '月払い',
   blBilledMonthly: ' · 月毎に請求',
@@ -388,6 +393,7 @@ const ja: Record<string, string> = {
 };
 
 const ko: Record<string, string> = {
+  prMetaTitle: '요금: 무료 플랜과 유료 플랜',
   blAnnual: '연간',
   blMonthly: '월간',
   blBilledMonthly: ' · 매월 청구',
@@ -464,6 +470,7 @@ const ko: Record<string, string> = {
 };
 
 const zh: Record<string, string> = {
+  prMetaTitle: '价格：免费计划与付费计划',
   blAnnual: '按年',
   blMonthly: '按月',
   blBilledMonthly: ' · 按月计费',

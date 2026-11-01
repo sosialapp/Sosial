@@ -3,6 +3,8 @@ import { allArticles } from '@/lib/blog';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { allResources } from '@/content/resources';
 import { allCustomPages } from '@/lib/sitePages';
+import { LOCALES } from '@/lib/i18n/locales';
+import { hreflangAlternates, localizedPath } from '@/lib/i18n/routing';
 
 const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app';
 
@@ -13,9 +15,22 @@ const BASE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://sosial.app';
  * canonical copies are on docs.sosial.app, which has its own sitemap.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Translated pages: one entry per locale URL, each listing all of them.
+  const localized: MetadataRoute.Sitemap = (
+    [
+      ['/', 'weekly', 1],
+      ['/pricing', 'monthly', 0.9],
+    ] as const
+  ).flatMap(([path, changeFrequency, priority]) =>
+    LOCALES.map((l) => ({
+      url: `${BASE}${localizedPath(path, l)}`,
+      changeFrequency,
+      priority,
+      alternates: { languages: hreflangAlternates(path, BASE) },
+    })),
+  );
+
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${BASE}/`, changeFrequency: 'weekly', priority: 1 },
-    { url: `${BASE}/pricing`, changeFrequency: 'monthly', priority: 0.9 },
     { url: `${BASE}/integrations`, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE}/blog`, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${BASE}/features`, changeFrequency: 'monthly', priority: 0.7 },
@@ -57,5 +72,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...channels, ...posts, ...resources, ...custom];
+  return [...localized, ...staticRoutes,...channels, ...posts, ...resources, ...custom];
 }

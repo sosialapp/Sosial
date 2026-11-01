@@ -10,6 +10,7 @@ import { dashboardUrl, docsUrl } from '@/lib/site';
 import { useMessages, useLocale } from '@/lib/i18n/client';
 import LanguageSwitcher from '@/components/site/LanguageSwitcher';
 import Logo from './Logo';
+import { localizedPath } from '@/lib/i18n/routing';
 
 // The sign-in form and the Supabase client only download when a visitor opens
 // the modal (or already has a session), not with every marketing page.
@@ -169,7 +170,7 @@ export default function SiteNav() {
       }`}
     >
       <nav className="relative mx-auto flex h-16 max-w-[1440px] items-center px-4" aria-label={t('a11yMain')}>
-        <Logo />
+        <Logo href={localizedPath('/', locale)} />
 
         <div className="ml-8 hidden items-center gap-5 lg:flex xl:absolute xl:left-1/2 xl:ml-0 xl:-translate-x-1/2">
           <DesktopDropdown label={t('navFeatures')}>
@@ -206,7 +207,7 @@ export default function SiteNav() {
             </div>
           </DesktopDropdown>
 
-          <Link href="/pricing" className="py-2 text-sm font-semibold text-soft transition hover:text-ink">
+          <Link href={localizedPath('/pricing', locale)} className="py-2 text-sm font-semibold text-soft transition hover:text-ink">
             {t('navPricing')}
           </Link>
         </div>
@@ -273,7 +274,7 @@ export default function SiteNav() {
             />
             <MobileSection label={t('navResources')} links={RESOURCES} onGo={close} />
             <Link
-              href="/pricing"
+              href={localizedPath('/pricing', locale)}
               onClick={close}
               className="rounded-xl px-3 py-3 text-sm font-semibold text-soft hover:bg-card"
             >

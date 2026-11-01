@@ -6,6 +6,7 @@ import { translator } from '@/lib/i18n/locales';
 import { landingMessages } from '@/lib/i18n/landing';
 import { getLocale } from '@/lib/i18n/server';
 import Logo from './Logo';
+import { localizedPath } from '@/lib/i18n/routing';
 
 /** Footer for every public page. Only links to routes that exist. */
 const SOCIALS: BrandProvider[] = [
@@ -29,7 +30,7 @@ export default async function SiteFooter() {
       <div className="mx-auto max-w-[1440px] overflow-hidden rounded-[28px] bg-black text-paper">
         <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-6 py-14 sm:px-10 md:grid-cols-3 md:py-20 lg:grid-cols-[1.4fr_1fr_1.1fr_1fr]">
           <div className="col-span-2 md:col-span-1">
-            <Logo />
+            <Logo href={localizedPath('/', locale)} />
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-paper/60">
               {t('footTag')}
             </p>
@@ -77,7 +78,7 @@ export default async function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/pricing" className="hover:text-paper">
+                <Link href={localizedPath('/pricing', locale)} className="hover:text-paper">
                   {t('footPricing')}
                 </Link>
               </li>

@@ -7,6 +7,9 @@ import { LOCALES, type Locale } from './locales';
  */
 
 const en = {
+  // Search title and description for the home page (/, /es, /fr…).
+  metaTitle: 'Sosial: social media scheduler for every channel',
+  metaDesc: 'Schedule posts to Instagram, TikTok, X, Facebook, Threads, LinkedIn, YouTube and more from one composer, calendar and queue. AI writer and a free plan.',
   // SiteNav
   navFeatures: 'Features',
   navIntegrations: 'Integrations',
@@ -227,6 +230,9 @@ const en = {
 };
 
 const es: Record<string, string> = {
+  // Search title and description for the home page (/, /es, /fr…).
+  metaTitle: 'Sosial: programador de redes sociales para cada canal',
+  metaDesc: 'Programa publicaciones en Instagram, TikTok, X, Facebook, Threads, LinkedIn, YouTube y más desde un editor, calendario y cola. Redactor con IA y plan gratis.',
   navFeatures: 'Funciones',
   navIntegrations: 'Integraciones',
   navResources: 'Recursos',
@@ -434,6 +440,9 @@ const es: Record<string, string> = {
 };
 
 const fr: Record<string, string> = {
+  // Search title and description for the home page (/, /es, /fr…).
+  metaTitle: 'Sosial : planificateur de réseaux sociaux pour chaque canal',
+  metaDesc: 'Planifiez vos posts sur Instagram, TikTok, X, Facebook, Threads, LinkedIn, YouTube et plus depuis un éditeur, un calendrier et une file. IA et offre gratuite.',
   navFeatures: 'Fonctionnalités',
   navIntegrations: 'Intégrations',
   navResources: 'Ressources',
@@ -640,6 +649,9 @@ const fr: Record<string, string> = {
   tag_vk: 'Touchez le public russophone sur le réseau qu’il utilise chaque jour.',
 };
 const de: Record<string, string> = {
+  // Search title and description for the home page (/, /es, /fr…).
+  metaTitle: 'Sosial: Social-Media-Planer für jeden Kanal',
+  metaDesc: 'Plane Beiträge für Instagram, TikTok, X, Facebook, Threads, LinkedIn, YouTube und mehr in einem Editor, Kalender und Queue. Mit KI-Texter und Gratis-Plan.',
   navFeatures: 'Funktionen',
   navIntegrations: 'Integrationen',
   navResources: 'Ressourcen',
@@ -847,6 +859,9 @@ const de: Record<string, string> = {
 };
 
 const ja: Record<string, string> = {
+  // Search title and description for the home page (/, /es, /fr…).
+  metaTitle: 'Sosial：すべてのチャネルに対応したSNS予約投稿ツール',
+  metaDesc: 'Instagram、TikTok、X、Facebook、Threads、LinkedIn、YouTubeなどへの投稿を、1つのエディター・カレンダー・キューで予約。AIライターと無料プラン付き。',
   navFeatures: '機能',
   navIntegrations: '連携',
   navResources: 'リソース',
@@ -1054,6 +1069,9 @@ const ja: Record<string, string> = {
 };
 
 const ko: Record<string, string> = {
+  // Search title and description for the home page (/, /es, /fr…).
+  metaTitle: 'Sosial: 모든 채널을 위한 소셜 미디어 예약 도구',
+  metaDesc: 'Instagram, TikTok, X, Facebook, Threads, LinkedIn, YouTube 등에 올릴 게시물을 하나의 작성기, 캘린더, 대기열에서 예약하세요. AI 작성 도우미와 무료 요금제 제공.',
   navFeatures: '기능',
   navIntegrations: '연동',
   navResources: '리소스',
@@ -1261,6 +1279,9 @@ const ko: Record<string, string> = {
 };
 
 const zh: Record<string, string> = {
+  // Search title and description for the home page (/, /es, /fr…).
+  metaTitle: 'Sosial：适用于所有渠道的社交媒体排期工具',
+  metaDesc: '在一个编辑器、日历和队列中，为 Instagram、TikTok、X、Facebook、Threads、LinkedIn、YouTube 等排期发布。内置 AI 写作助手，提供免费套餐。',
   navFeatures: '功能',
   navIntegrations: '集成',
   navResources: '资源',

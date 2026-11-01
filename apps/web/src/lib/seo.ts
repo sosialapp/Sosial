@@ -1,10 +1,15 @@
 import type { Metadata } from 'next';
+import { LOCALES, type Locale } from '@/lib/i18n/locales';
+import { OG_LOCALE, hreflangAlternates, isLocalizedPath, localizedPath } from '@/lib/i18n/routing';
 
 /**
  * One place that shapes a page's search and share metadata, so every public
  * page gets the same complete set: a title that fits Google's ~60 character
  * cut, a description inside 160, a canonical URL, Open Graph (with og:url and
  * a 1200×630 card) and a Twitter card.
+ *
+ * Pages in LOCALIZED_PATHS get a canonical per locale plus hreflang
+ * alternates when `locale` is passed; every other page has one English URL.
  *
  * Paths are site-relative; `metadataBase` (sosial.app, or docs.sosial.app in
  * the docs layout) makes them absolute.
@@ -60,6 +65,8 @@ export interface SeoInput {
   suffix?: string;
   siteName?: string;
   noindex?: boolean;
+  /** Locale of this render; only changes URLs on LOCALIZED_PATHS pages. */
+  locale?: Locale;
 }
 
 export function seo(i: SeoInput): Metadata {
@@ -68,16 +75,20 @@ export function seo(i: SeoInput): Metadata {
   const image =
     i.image === false ? null : i.image ?? ogImagePath({ title: i.cardTitle ?? i.title, kicker: i.kicker, channel: i.channel });
   const images = image ? [{ url: image, width: 1200, height: 630, alt: i.cardTitle ?? i.title }] : undefined;
+  const localized = !!i.locale && isLocalizedPath(i.path);
+  const locale: Locale = localized && i.locale ? i.locale : 'en';
+  const url = localizedPath(i.path, locale);
   return {
     title: { absolute: title },
     description,
-    alternates: { canonical: i.path },
+    alternates: localized ? { canonical: url, languages: hreflangAlternates(i.path) } : { canonical: i.path },
     ...(i.noindex ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       type: i.type ?? 'website',
-      url: i.path,
+      url,
       siteName: i.siteName ?? 'Sosial',
-      locale: 'en_US',
+      locale: OG_LOCALE[locale],
+      ...(localized ? { alternateLocale: LOCALES.filter((l) => l !== locale).map((l) => OG_LOCALE[l]) } : {}),
       title,
       description,
       ...(images ? { images } : {}),
