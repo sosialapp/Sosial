@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -480,12 +480,16 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     }
   };
 
-  const shownComments = comments.filter((c) => channel === 'all' || c.channel_id === channel);
+  const shownComments = useMemo(
+    () => comments.filter((c) => channel === 'all' || c.channel_id === channel),
+    [comments, channel],
+  );
   const providerOf = (id: string) => channels.find((c) => c.id === id)?.provider ?? 'x';
   const channelLabel = channel === 'all' ? tr('iAll') : channels.find((c) => c.id === channel)?.label ?? 'Channel';
 
-  /** Comments bucketed by the post they were left on: one topic per post. */
-  const groups = (() => {
+  /** Comments bucketed by the post they were left on: one topic per post.
+   *  Memoized: the screen re-renders on every keystroke in the reply box. */
+  const groups = useMemo(() => {
     const by = new Map<string, { key: string; channelId: string; platform: string; postId: string | null; list: CommunityComment[] }>();
     for (const c of shownComments) {
       const key = `${c.channel_id}:${c.external_post_id ?? '-'}`;
@@ -528,7 +532,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         };
       })
       .sort((x, y) => y.last.localeCompare(x.last));
-  })();
+  }, [shownComments, seenC, postCtx]);
   const current = openPost ? groups.find((g) => g.key === openPost) : undefined;
 
   /** One post as a topic card: its caption, who is talking, what needs an answer. */

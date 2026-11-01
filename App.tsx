@@ -46,6 +46,19 @@ type Route = 'home' | 'create' | 'analytics' | 'community' | 'size' | 'editor' |
 const WELCOME_SEEN_KEY = 'zap_welcome_seen_v1';
 const LOCAL_OK_KEY = 'zap_local_ok_v1';
 
+/**
+ * One kept-alive tab. Shell re-renders on every route change and hands the
+ * tabs fresh inline callbacks, which re-rendered all five screens each time.
+ * A hidden pane skips those parent renders (its screen still updates from
+ * its own state and contexts) and catches up as soon as it is shown again.
+ */
+const TabPane = React.memo(
+  function TabPane({ active, children }: { active: boolean; children: React.ReactNode }) {
+    return <View style={{ flex: 1, display: active ? 'flex' : 'none' }}>{children}</View>;
+  },
+  (prev, next) => !prev.active && !next.active,
+);
+
 function Shell() {
   const { C, mode } = useTheme();
   const { openPostById, publishPostById } = useComposer();
@@ -69,7 +82,9 @@ function Shell() {
   const [showLanding, setShowLanding] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const { loadPost, clearPost, setPageIndex } = usePost();
-  const fontsLoaded = useFontsLoaded();
+  // First paint waits for the UI faces only; the design screens below also
+  // wait for the canvas families (they render and export real typography).
+  const { ui: fontsLoaded, all: canvasFontsLoaded } = useFontsLoaded();
   const routeRef = React.useRef(route);
   routeRef.current = route;
   /** p109: the workspace this session was resolved against, so a team switch
@@ -426,17 +441,17 @@ function Shell() {
           {/* Tab screens stay mounted; only the active one is displayed. */}
           <View key={`tabs-${tabEpoch}`} style={{ flex: 1, display: isTab ? 'flex' : 'none' }}>
             {seenTabs.has('home') ? (
-              <View style={{ flex: 1, display: route === 'home' ? 'flex' : 'none' }}>
+              <TabPane active={route === 'home'}>
                 <DashboardScreen
                   team={account.team}
                   onConnect={() => goConnect('home')}
                   onPost={goCreatePost}
                   onAnalytics={() => openInsights('home')}
                 />
-              </View>
+              </TabPane>
             ) : null}
             {seenTabs.has('create') ? (
-              <View style={{ flex: 1, display: route === 'create' ? 'flex' : 'none' }}>
+              <TabPane active={route === 'create'}>
                 <CreateScreen
                   onConnect={() => goConnect('create')}
                   onTemplate={newTemplate}
@@ -444,23 +459,23 @@ function Shell() {
                   postSignal={postSignal}
                   onConsumePostSignal={() => setPostSignal(0)}
                 />
-              </View>
+              </TabPane>
             ) : null}
             {seenTabs.has('analytics') ? (
-              <View style={{ flex: 1, display: route === 'analytics' ? 'flex' : 'none' }}>
+              <TabPane active={route === 'analytics'}>
                 <AnalyticsScreen
                   onConnect={() => goConnect('analytics')}
                   onBack={() => setRoute(insightsFrom)}
                 />
-              </View>
+              </TabPane>
             ) : null}
             {seenTabs.has('community') ? (
-              <View style={{ flex: 1, display: route === 'community' ? 'flex' : 'none' }}>
+              <TabPane active={route === 'community'}>
                 <CommunityScreen onConnect={() => goConnect('community')} />
-              </View>
+              </TabPane>
             ) : null}
             {seenTabs.has('account') ? (
-              <View style={{ flex: 1, display: route === 'account' ? 'flex' : 'none' }}>
+              <TabPane active={route === 'account'}>
                 <AccountScreen
                   email={account.email}
                   team={account.team}
@@ -477,12 +492,17 @@ function Shell() {
                   onLoggedOut={goWelcomeLocked}
                   onTeam={() => { setTeamFrom('account'); setRoute('team'); }}
                 />
-              </View>
+              </TabPane>
             ) : null}
           </View>
-          {route === 'size' ? <SizeScreen onDone={() => setRoute('editor')} onBack={() => setRoute('create')} /> : null}
-          {route === 'editor' ? <EditorScreen onExport={() => setRoute('export')} onHome={() => setRoute('home')} onPosts={goCreatePost} /> : null}
-          {route === 'export' ? <ExportScreen onBack={() => setRoute('editor')} plan={account.plan} /> : null}
+          {(route === 'size' || route === 'editor' || route === 'export') && !canvasFontsLoaded ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="large" color={C.ink} />
+            </View>
+          ) : null}
+          {route === 'size' && canvasFontsLoaded ? <SizeScreen onDone={() => setRoute('editor')} onBack={() => setRoute('create')} /> : null}
+          {route === 'editor' && canvasFontsLoaded ? <EditorScreen onExport={() => setRoute('export')} onHome={() => setRoute('home')} onPosts={goCreatePost} /> : null}
+          {route === 'export' && canvasFontsLoaded ? <ExportScreen onBack={() => setRoute('editor')} plan={account.plan} /> : null}
           {route === 'privacy' ? <PrivacyScreen onBack={() => setRoute(privacyFrom)} /> : null}
           {route === 'connect' ? <ConnectScreen onBack={() => { setTabEpoch((n) => n + 1); setRoute(connectFrom); }} plan={planInternal} channelCap={entitlement ? entitlement.limits.channels : undefined} onTeam={() => { setTeamFrom('connect'); setRoute('team'); }} /> : null}
           {route === 'team' ? (

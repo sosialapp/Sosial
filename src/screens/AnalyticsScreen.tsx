@@ -123,7 +123,11 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
     }
   };
 
-  const now = Date.now();
+  // Pinned to the latest data (and preset change) rather than read on every
+  // render: a fresh Date.now() each render rebuilt the range, so every
+  // memo below (scoped posts, top posts, channel rows) recomputed per frame.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const now = useMemo(() => Date.now(), [data, preset]);
   const range = useMemo((): { from: number; to: number; label: string } => {
     const sod = startOfDay(now);
     if (preset === 'last7') return { from: sod - 6 * DAY, to: sod + DAY - 1, label: tr('dLast7') };
@@ -158,7 +162,9 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const byStatus = (list: string[]) => scoped.filter((p) => list.includes(p.status));
   const drafts = byStatus(['draft']).length;
   const queued = byStatus(['queued', 'publishing', 'approval']).length;
-  const sent = byStatus(['sent', 'partial']);
+  // Memoized: topPosts and perfRows key off this array's identity.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sent = useMemo(() => byStatus(['sent', 'partial']), [scoped]);
   const failed = byStatus(['failed']).length;
   const funnelMax = Math.max(1, drafts, queued, sent.length, failed);
 
