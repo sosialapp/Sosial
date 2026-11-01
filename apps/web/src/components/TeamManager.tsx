@@ -11,8 +11,7 @@ import { fileToAvatarDataUrl } from '@/lib/avatar';
 import { createClient } from '@/lib/supabase/client';
 import { useSignedUrl } from '@/lib/useSignedUrl';
 import { edgeErrorMessage } from '@/lib/functions';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 
 export interface TeamMemberRow {
@@ -103,7 +102,7 @@ export default function TeamManager({
   channels: TeamChannelRow[];
 }) {
   const router = useRouter();
-  const t = useT(appMessages);
+  const t = useMessages();
   const [draftName, setDraftName] = useState(workspaceName);
   const [editingName, setEditingName] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);

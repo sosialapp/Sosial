@@ -14,8 +14,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { Tooltip } from '@/components/ui/tooltip';
-import { useLocale, useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useLocale, useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import { ChartBar, ChartLine, HBarList, type HBarRow } from '@/components/ui/chart';
 import AnalyticsSync from '@/components/analytics/AnalyticsSync';
@@ -133,7 +132,7 @@ export default function AnalyticsDashboard({
   followerHistory: FollowerHistoryRow[];
   commentRows: CommentReportRow[];
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const locale = useLocale();
   const now = Date.now();
   const [preset, setPreset] = useState<RangePreset>('last30');

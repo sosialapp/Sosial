@@ -5,8 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import { HBarList, type HBarRow } from '@/components/ui/chart';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 
 /**
@@ -25,7 +24,7 @@ export default function ChannelBreakdownDialog({
   rows: HBarRow[];
   subtitle?: string;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 

@@ -6,8 +6,7 @@ import { generateSocial, rewritePosts, withHashtags, SOCIAL_PLATFORMS, THREAD_PL
 import { AI_FORMATS, detectFormat, type AiFormatId } from '@/lib/aiFormats';
 import { STUDIO_STYLES, STUDIO_TONES, WRITER_LANGUAGES, styleSampleFor } from '@/lib/aiStudio';
 import { providerMeta } from '@/lib/providers';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import SegmentedPills from '@/components/ui/segmented-pills';
 
@@ -73,7 +72,7 @@ export default function AiCard({
   onResult: (bodies: string[]) => void;
   appliedNote?: string;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const [topic, setTopic] = useState('');
   const [language, setLanguage] = useState('auto');
   const [langOpen, setLangOpen] = useState(false);

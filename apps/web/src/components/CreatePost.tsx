@@ -32,8 +32,7 @@ import { validateUpload, targetWarnings } from '@/lib/mediaLimits';
 import { minQueueTime, queueTooSoon } from '@/lib/queue';
 import { createClient } from '@/lib/supabase/client';
 import type { ConnectedChannel, WorkspaceInfo } from '@/lib/types';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 
 /** Native reply-chains exist on these four channels only, same as the app. */
@@ -65,7 +64,7 @@ function RailDesignTile({
   busyKey: string | null;
   onUse: (project: StudioProject, pageIndex: number, node: HTMLElement | null) => void;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const nodeRef = useRef<HTMLDivElement>(null);
   const page = project.pages[pageIndex] ?? project.pages[0];
   const busy = busyKey === `${project.id}:${pageIndex}`;
@@ -139,7 +138,7 @@ function RailPanel({
   segs: Segment[];
   ai: React.ReactNode;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const head = segs[0];
   const body = (head?.body ?? '').trim();
   const media = head?.media ?? [];
@@ -322,7 +321,7 @@ export default function CreatePost({
   libraryDesigns?: StudioProject[];
 }) {
   const router = useRouter();
-  const t = useT(appMessages);
+  const t = useMessages();
   const ready = useMemo(() => channels.filter((c) => c.status === 'connected'), [channels]);
 
   const initParts = initialParts && initialParts.length > 1 ? initialParts : null;

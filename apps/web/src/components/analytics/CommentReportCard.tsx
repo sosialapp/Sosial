@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { appMessages } from '@/lib/i18n/app';
-import { useT } from '@/lib/i18n/client';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import { providerMeta } from '@/lib/providers';
 import { createClient } from '@/lib/supabase/client';
@@ -84,7 +83,7 @@ export default function CommentReportCard({
   rangeLabel: string;
   channelLabel: (channelId: string, provider: string) => string;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
 
   const replied = rows.filter((r) => r.status === 'replied').length;
   const handled = rows.filter((r) => r.status === 'resolved' || r.status === 'ignored').length;

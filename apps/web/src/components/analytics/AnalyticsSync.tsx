@@ -13,8 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 
 const POLL_MS = 3_000;
@@ -40,7 +39,7 @@ function ago(ms: number, t: (k: string) => string): string {
 }
 
 export default function AnalyticsSync({ workspaceId, lastFetchedAt }: { workspaceId: string; lastFetchedAt: string | null }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const router = useRouter();
   const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState<number | null>(null);

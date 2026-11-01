@@ -12,8 +12,7 @@ import PinBoardPicker from './PinBoardPicker';
 import { OAUTH_PROVIDERS, oauthLabel, type OAuthProvider } from '@/lib/oauth';
 import { canConnectProvider, type PlanKey } from '@/lib/billing/plans';
 import type { ConnectedChannel } from '@/lib/types';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import SegmentedPills from '@/components/ui/segmented-pills';
 
@@ -196,7 +195,7 @@ export default function ConnectPanel({
   }
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const t = useT(appMessages);
+  const t = useMessages();
   const [picking, setPicking] = useState<string | null>(null);
   /** A connect navigation is already in flight, swallow extra taps. */
   const [leaving, setLeaving] = useState<ProviderId | null>(null);

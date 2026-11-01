@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import PurgeChannelDialog from './PurgeChannelDialog';
 
 /**
@@ -26,7 +25,7 @@ export default function DisconnectChannel({
   externalId: string;
   label: string;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);

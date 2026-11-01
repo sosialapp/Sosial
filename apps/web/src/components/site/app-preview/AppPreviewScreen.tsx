@@ -13,19 +13,31 @@ import Dock from '@/components/Dock';
 import QuickPost from '@/components/QuickPost';
 import ScheduleXBoard from '@/components/ScheduleXBoard';
 import TeamManager from '@/components/TeamManager';
+import { MessagesProvider, useLocale } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { messagesFor } from '@/lib/i18n/locales';
 import type { PreviewScreen } from './AppPreview';
 import { SAMPLE_CHANNELS, SAMPLE_TEAM, samplePosts } from './sample';
 
 export default function AppPreviewScreen({ screen, shell }: { screen: PreviewScreen; shell?: boolean }) {
-  return shell ? (
-    // The real Dock is position:fixed; the scaled wrapper's
-    // transform makes it the containing block, so it pins here.
-    <div className="relative min-h-[720px] pt-3 pr-6 pb-6 pl-[84px]">
-      <Dock />
-      <Screen screen={screen} />
-    </div>
-  ) : (
-    <Screen screen={screen} />
+  // The real app components read their strings from the app provider. Previews
+  // run on marketing pages, outside the app layout, so resolve the visitor's
+  // locale here; the dictionary stays inside this lazy chunk.
+  const locale = useLocale();
+  const messages = useMemo(() => messagesFor(appMessages, locale), [locale]);
+  return (
+    <MessagesProvider messages={messages}>
+      {shell ? (
+        // The real Dock is position:fixed; the scaled wrapper's
+        // transform makes it the containing block, so it pins here.
+        <div className="relative min-h-[720px] pt-3 pr-6 pb-6 pl-[84px]">
+          <Dock />
+          <Screen screen={screen} />
+        </div>
+      ) : (
+        <Screen screen={screen} />
+      )}
+    </MessagesProvider>
   );
 }
 

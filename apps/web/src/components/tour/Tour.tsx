@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { TOURS, storageKey, tourFor, type TourId, type TourStep } from './steps';
 
 /**
@@ -31,7 +30,7 @@ function rectOf(el: Element): Rect {
 
 export default function Tour() {
   const pathname = usePathname();
-  const t = useT(appMessages);
+  const t = useMessages();
   const [tour, setTour] = useState<TourId | null>(null);
   const [steps, setSteps] = useState<TourStep[]>([]);
   const [index, setIndex] = useState(0);

@@ -39,8 +39,7 @@ import {
   pushLibraryItem, tombstoneLibraryItem, pullLibraryRows,
   type LibraryKind, type LibraryRow,
 } from '@/lib/librarySync';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import SegmentedPills from '@/components/ui/segmented-pills';
 
@@ -297,7 +296,7 @@ export default function CreateHub({
   initialTab: Tab;
 }) {
   const router = useRouter();
-  const tr = useT(appMessages);
+  const tr = useMessages();
   const searchParams = useSearchParams();
   // Tab switches navigate (colocated per-tab URLs), no tab state to drift.
   const tab = initialTab;
@@ -1389,7 +1388,7 @@ function ProjectTile({
   onDuplicate?: () => void;
   onDelete?: () => void;
 }) {
-  const tr = useT(appMessages);
+  const tr = useMessages();
   const { ref, width } = useBoxWidth(300);
   const nodeRef = useRef<HTMLDivElement>(null);
   const page = project.pages[pageIndex] ?? project.pages[0];

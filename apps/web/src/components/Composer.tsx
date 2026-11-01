@@ -15,8 +15,7 @@ import DateTimePicker from '@/components/DateTimePicker';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
 import { providerMeta } from '@/lib/providers';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 
 function deviceZone(): string {
@@ -62,7 +61,7 @@ export default function Composer({
   initialFiles?: File[];
 }) {
   const router = useRouter();
-  const t = useT(appMessages);
+  const t = useMessages();
   const isMember = role === 'member';
   const ready = channels.filter((c) => c.status === 'connected');
   const [kind, setKind] = useState<Kind>('single');
