@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { safeNextPath } from '@/lib/auth';
+import { publicOrigin } from '@/lib/site';
 
 /**
  * Add a consenting user to the Resend contacts list (current Contacts API —
@@ -27,7 +28,9 @@ async function syncMarketingOptIn(email: string | undefined): Promise<void> {
 
 /** OAuth/PKCE + email-confirm landing, exchanges the ?code for a session cookie. */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  // Self-hosted, request.url carries the container's bind address.
+  const origin = publicOrigin(request);
   const code = searchParams.get('code');
   const next = safeNextPath(searchParams.get('next'));
   // mode=confirm marks inbox "Confirm email address" links so a stale link

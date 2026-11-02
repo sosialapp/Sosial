@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getWorkspaceContext } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { stripeConfigured, stripe } from '@/lib/billing/stripe';
+import { publicOrigin } from '@/lib/site';
 
 export const runtime = 'nodejs';
 
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
           { onConflict: 'workspace_id' },
         );
     }
-    const origin = req.headers.get('origin') ?? new URL(req.url).origin;
+    const origin = req.headers.get('origin') ?? publicOrigin(req);
     const session = await s.billingPortal.sessions.create({
       customer: customerId,
       return_url: `${origin}/billing`,

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { publicOrigin } from '@/lib/site';
 
 /** POST-only sign-out so it can be a plain form button. Clears the session
  *  cookie server-side (client-side signOut alone can leave the SSR cookie).
@@ -7,7 +8,6 @@ import { createClient } from '@/lib/supabase/server';
 export async function POST(request: Request) {
   const sb = await createClient();
   await sb.auth.signOut();
-  const base = (process.env.NEXT_PUBLIC_SITE_URL || '').trim();
-  const home = base ? new URL('/', base) : new URL('/', request.url);
+  const home = new URL('/', publicOrigin(request));
   return NextResponse.redirect(home, { status: 303 });
 }

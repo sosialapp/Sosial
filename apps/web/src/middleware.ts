@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from '@/lib/i18n/locales';
 import { LOCALE_HEADER, isLocalizedPath, splitLocalePath } from '@/lib/i18n/routing';
+import { publicOrigin } from '@/lib/site';
 
 /** App UI that requires a session. Everything else is public: marketing pages
  *  (including the custom CMS pages at the root), auth flows and API routes.
@@ -28,6 +29,13 @@ const GATED_PREFIXES = [
   '/reports',
   '/team',
 ];
+
+/** A redirect target on the address people actually use. Self-hosted, nextUrl
+ *  can carry the server's own bind address (https://0.0.0.0:3000), so a
+ *  cloned nextUrl sent browsers there. Keeps the query string. */
+function publicUrl(request: NextRequest, pathname: string): URL {
+  return new URL(`${pathname}${request.nextUrl.search}`, publicOrigin(request));
+}
 
 function isGated(path: string): boolean {
   return GATED_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
@@ -93,7 +101,7 @@ function routeLocale(request: NextRequest): NextResponse | null {
   const url = request.nextUrl.clone();
   url.pathname = path;
   if (locale === DEFAULT_LOCALE || !isLocalizedPath(path)) {
-    return NextResponse.redirect(url, 308);
+    return NextResponse.redirect(publicUrl(request, path), 308);
   }
   const headers = new Headers(request.headers);
   headers.set(LOCALE_HEADER, locale);
@@ -157,14 +165,10 @@ export async function middleware(request: NextRequest) {
   const user = session?.user ?? null;
 
   if (!user && path !== '/login') {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = '/login';
-    return NextResponse.redirect(redirect);
+    return NextResponse.redirect(publicUrl(request, '/login'));
   }
   if (user && path === '/login') {
-    const redirect = request.nextUrl.clone();
-    redirect.pathname = '/dashboard';
-    return NextResponse.redirect(redirect);
+    return NextResponse.redirect(publicUrl(request, '/dashboard'));
   }
   return response;
 }
