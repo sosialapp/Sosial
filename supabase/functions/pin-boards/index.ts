@@ -41,9 +41,7 @@ interface Board {
   name: string;
 }
 
-serve(async (req: Request): Promise<Response> => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-  if (req.method !== "POST") return bad("POST only", 405);
+async function handle(req: Request): Promise<Response> {
 
   // Env fallbacks: newer projects inject SB_* instead of SUPABASE_*.
   const supaUrl = Deno.env.get("SUPABASE_URL") ?? Deno.env.get("SB_URL") ?? "";
@@ -238,4 +236,19 @@ serve(async (req: Request): Promise<Response> => {
     { boards: res.boards, board_id: currentBoardId, board_name: currentBoardName, channel_id: row.id },
     { headers: CORS },
   );
+}
+
+serve(async (req: Request): Promise<Response> => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (req.method !== "POST") return bad("POST only", 405);
+  // Anything that throws (a network error reaching Pinterest, a Vault call)
+  // used to leave the runtime to answer with a bare 500 that has no CORS
+  // headers, which the browser can't read: the picker only showed "Failed to
+  // send a request to the Edge Function". Answer with the real reason instead.
+  try {
+    return await handle(req);
+  } catch (e) {
+    console.error("pin-boards failed:", e);
+    return bad(`Could not load your Pinterest boards: ${e instanceof Error ? e.message : String(e)}`, 500);
+  }
 });
