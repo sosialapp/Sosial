@@ -626,7 +626,7 @@ ${perfRows.map((r) => row([r.label, r.followers === null ? '-' : String(r.follow
 <table style="border-collapse:collapse;width:100%;"><thead><tr>${['Post', 'Sent', 'Channels', 'Likes', 'Comments', 'Shares', 'Saves', 'Clicks', 'Views', 'Interactions'].map((h, i) => `<th style="text-align:${i < 3 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
 ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '-', p.providers.map((pv) => providerMeta(pv).label).join(' + ')].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;">${c}</td>`).join('')}${[p.likes, p.comments, p.shares, p.saves, p.clicks, p.views ?? '-', p.interactions].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;text-align:right;">${c}</td>`).join('')}</tr>`).join('')}
 </tbody></table>
-<p style="color:#666;font-size:11px;margin-top:24px;">Interactions = likes and reactions + comments received + shares + saves + clicks, from your audience only (your own replies and likes are excluded). Engagement = interactions ÷ followers. Follower and engagement figures are the latest snapshots.</p>
+<p style="color:#666;font-size:11px;margin-top:24px;">Interactions = likes and reactions + comments received + shares (reposts and quotes) + saves, from your audience only (your own replies and likes are excluded). Clicks are counted and shown separately, not in interactions. Engagement = interactions ÷ followers. Follower and engagement figures are the latest snapshots.</p>
 </body></html>`;
     const w = window.open('', '_blank', 'width=900,height=700');
     if (!w) return;

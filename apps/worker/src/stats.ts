@@ -44,8 +44,10 @@ const WINDOW_DAYS = 45;
 /**
  * What the AUDIENCE did to one of our posts. Our own replies, self-likes and
  * self-reposts are stripped (the platform totals include them), and saves and
- * clicks keep their own columns instead of padding likes or shares.
- * Interactions = likes + comments + shares + saves + clicks
+ * clicks keep their own columns instead of padding likes or shares. Quotes ride
+ * inside `shares` where the provider reports them (X retweet_count +
+ * quote_count, Threads reposts + quotes, Mastodon reblogs + quotes).
+ * Interactions = likes + comments + shares + saves, clicks excluded
  * (apps/web/src/lib/analyticsMath.ts, mirrored at src/utils/analyticsMath.ts).
  */
 export interface Stats {
@@ -387,11 +389,14 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       });
       if (!j?.id) throw new Error('Could not read post.');
       // favourited / reblogged describe the authenticated account, i.e. us.
+      // quotes_count (Mastodon 4.3+) rides inside shares; older instances omit
+      // it, which reads as 0.
       return {
         ...ZERO,
         likes: Math.max(0, num(j.favourites_count) - (j.favourited ? 1 : 0)),
         comments: num(j.replies_count),
-        shares: Math.max(0, num(j.reblogs_count) - (j.reblogged ? 1 : 0)),
+        shares:
+          Math.max(0, num(j.reblogs_count) - (j.reblogged ? 1 : 0)) + num(j.quotes_count),
       };
     }
     case 'youtube': {
