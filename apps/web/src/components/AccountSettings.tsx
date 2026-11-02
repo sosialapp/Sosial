@@ -23,7 +23,6 @@ import {
   Flag,
   Image as ImageIcon,
   KeyRound,
-  Languages,
   Mail,
   Scale,
   Send,
@@ -43,11 +42,10 @@ import { fill } from '@/lib/i18n/locales';
 import { createClient } from '@/lib/supabase/client';
 import { LOCALE_COOKIE, LOCALE_COOKIE_ATTRS, LOCALE_META } from '@/lib/i18n/locales';
 import { useSignedUrl } from '@/lib/useSignedUrl';
-import { PLAN_ORDER, PLANS, monthlyEquivalent, priceLabel } from '@/lib/billing/plans';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import PasswordInput from '@/components/PasswordInput';
 
-type View = 'main' | 'notif' | 'email' | 'password' | 'plan' | 'report' | 'changelog' | 'legal' | 'delete' | 'ticket';
+type View = 'main' | 'notif' | 'email' | 'password' | 'report' | 'changelog' | 'legal' | 'delete' | 'ticket';
 type ReportKind = 'bug' | 'idea' | 'billing' | 'other';
 
 interface UserReport {
@@ -101,6 +99,16 @@ function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; la
   );
 }
 
+/** A labelled group of rows: small heading, then one card with hairlines. */
+function Section({ title, children }: { title?: string; children: React.ReactNode }) {
+  return (
+    <section className="mt-6">
+      {title ? <p className="eyebrow px-1">{title}</p> : null}
+      <Card className="mt-2 divide-y divide-line-soft overflow-hidden">{children}</Card>
+    </section>
+  );
+}
+
 function Row({
   icon,
   label,
@@ -118,7 +126,13 @@ function Row({
 }) {
   const inner = (
     <>
-      <span className={`shrink-0 ${danger ? 'text-[#9F2F2D]' : 'text-ink'}`}>{icon}</span>
+      <span
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl [&_svg]:h-[18px] [&_svg]:w-[18px] ${
+          danger ? 'bg-[#FDEBEC] text-[#9F2F2D] dark:bg-[#2c1b1b] dark:text-[#f2a8a8]' : 'bg-surface text-ink'
+        }`}
+      >
+        {icon}
+      </span>
       <span className="min-w-0 flex-1">
         <span className={`block text-sm font-bold ${danger ? 'text-[#9F2F2D]' : ''}`}>{label}</span>
         {sub ? <span className="block truncate text-xs text-muted">{sub}</span> : null}
@@ -127,7 +141,7 @@ function Row({
     </>
   );
   const cls =
-    'flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-bone dark:hover:bg-white/5';
+    'flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-bone dark:hover:bg-white/5 sm:px-5';
   if (href) {
     return (
       <Link href={href} className={cls}>
@@ -318,7 +332,7 @@ export default function AccountSettings({
   const initial = (email || workspaceName || 'S')[0].toUpperCase();
   const title =
     view === 'main' ? t('asTitleAccount') : view === 'notif' ? t('asTitleNotif') : view === 'email' ? t('asTitleEmail')
-    : view === 'password' ? t('asTitlePassword') : view === 'plan' ? t('asTitlePlan')
+    : view === 'password' ? t('asTitlePassword')
     : view === 'changelog' ? t('asTitleNew') : view === 'report' || view === 'ticket' ? t('asTitleSupport')
     : view === 'delete' ? t('asTitleDelete') : t('asTitleLegal');
 
@@ -558,14 +572,15 @@ export default function AccountSettings({
 
       {view === 'main' ? (
         <>
-          <Card className="mt-4 p-5">
+          {/* Who you are: one card, no repeats. Plan opens Billing. */}
+          <Card className="mt-4 p-5 sm:p-6">
             <div className="flex items-center gap-4">
               <span className="relative shrink-0">
                 {avatarUrl && !avatarFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt="Profile picture" onError={() => setAvatarFailed(true)} className="h-14 w-14 rounded-full border border-line object-cover" />
+                  <img src={avatarUrl} alt="Profile picture" onError={() => setAvatarFailed(true)} className="h-14 w-14 rounded-full border border-line object-cover sm:h-16 sm:w-16" />
                 ) : (
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-ink font-display text-xl font-extrabold text-paper">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-ink font-display text-xl font-extrabold text-paper sm:h-16 sm:w-16 sm:text-2xl">
                     {initial}
                   </span>
                 )}
@@ -575,71 +590,71 @@ export default function AccountSettings({
                   </span>
                 ) : null}
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-extrabold">{email || t('asNoEmail')}</span>
-                <span className="block truncate text-xs text-muted">
-                  {workspaceName} · {planLabel} {t('asPlanWord')}
-                </span>
-                <span className="mt-1.5 flex flex-wrap items-center gap-2">
-                  <label className="cursor-pointer rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink">
-                    {avatarUrl ? t('asChange') : t('asAddPhoto')}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = '';
-                        if (f) void changeAvatar(f);
-                      }}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => void useGooglePicture()}
-                    className="rounded-full border border-line px-2.5 py-1 text-[11px] font-bold text-muted transition hover:border-faint hover:text-ink"
-                  >
-                    {t('asUseGoogle')}
-                  </button>
-                  {avatarUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => void removeAvatar()}
-                      className="rounded-full px-2 py-1 text-[11px] font-bold text-muted transition hover:text-[#9F2F2D]"
-                    >
-                      {t('asRemove')}
-                    </button>
-                  ) : null}
-                </span>
-              </span>
-              <span className="shrink-0 rounded-full bg-paper-dim px-2.5 py-1 text-[11px] font-bold text-ink">
-                {role}
-              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-display text-base font-extrabold tracking-tight sm:text-lg">{email || t('asNoEmail')}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className="pill max-w-full truncate border border-line bg-paper font-bold text-soft">{workspaceName}</span>
+                  <span className="pill bg-paper-dim font-bold capitalize text-ink">{role}</span>
+                  <Link href="/billing" className="pill bg-accent-soft font-bold text-accent-ink transition hover:opacity-80">
+                    {planLabel} {t('asPlanWord')}
+                  </Link>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-soft pt-4">
+              <label className="cursor-pointer rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:border-faint hover:text-ink">
+                {avatarUrl ? t('asChange') : t('asAddPhoto')}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = '';
+                    if (f) void changeAvatar(f);
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void useGooglePicture()}
+                className="rounded-full border border-line px-3 py-1.5 text-xs font-bold text-soft transition hover:border-faint hover:text-ink"
+              >
+                {t('asUseGoogle')}
+              </button>
+              {avatarUrl ? (
+                <button
+                  type="button"
+                  onClick={() => void removeAvatar()}
+                  className="rounded-full px-2 py-1.5 text-xs font-bold text-muted transition hover:text-[#9F2F2D]"
+                >
+                  {t('asRemove')}
+                </button>
+              ) : null}
+              {/* Sign out sits with the other actions, so on a phone the name
+                  and pills keep the full width of the card. */}
+              <form action="/auth/signout" method="post" className="ml-auto">
+                <button type="submit" className="btn btn-ghost btn-sm">
+                  {t('asSignOut')}
+                </button>
+              </form>
             </div>
           </Card>
 
-          <Card className="mt-3 p-5">
-            <p className="text-xs font-bold text-soft">{t('asSignedIn')}</p>
-            <p className="mt-0.5 truncate text-sm text-muted">
-              {email} · {workspaceName} ({role})
-            </p>
-            <form action="/auth/signout" method="post" className="mt-3">
-              <Button variant="ghost" className="w-full" type="submit">
-                {t('asSignOut')}
-              </Button>
-            </form>
-          </Card>
+          <Section title={t('asSecAccount')}>
+            <Row icon={<Bell aria-hidden="true" />} label={t('asRowNotif')} sub={t('asRowNotifSub')} onClick={() => setView('notif')} />
+            <Row icon={<Mail aria-hidden="true" />} label={t('asRowEmailWs')} sub={`${email || t('asSetEmail')} · ${workspaceName}`} onClick={() => { setDraftName(workspaceName); setView('email'); }} />
+            <Row icon={<KeyRound aria-hidden="true" />} label={t('asRowPassword')} onClick={() => { setPw1(''); setPw2(''); setView('password'); }} />
+          </Section>
 
-          <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
-            <Row icon={<Bell className="h-5 w-5" aria-hidden="true" />} label={t('asRowNotif')} sub={t('asRowNotifSub')} onClick={() => setView('notif')} />
-            <Row icon={<Mail className="h-5 w-5" aria-hidden="true" />} label={t('asRowEmailWs')} sub={`${email || t('asSetEmail')} · ${workspaceName}`} onClick={() => { setDraftName(workspaceName); setView('email'); }} />
-            <Row icon={<KeyRound className="h-5 w-5" aria-hidden="true" />} label={t('asRowPassword')} onClick={() => { setPw1(''); setPw2(''); setView('password'); }} />
-          </Card>
-
-          <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
-            <Row icon={<CirclePlus className="h-5 w-5" aria-hidden="true" />} label={t('asRowConnect')} sub={t('asRowConnectSub')} href="/channels" />
+          <Section title={t('asSecWorkspace')}>
+            <Row icon={<CreditCard aria-hidden="true" />} label={t('asRowPlan')} sub={t('asRowPlanSub')} href="/billing" />
+            {role === 'owner' || role === 'admin' ? (
+              <Row icon={<Users aria-hidden="true" />} label={t('asRowTeam')} sub={t('asRowTeamSub')} href="/team" />
+            ) : null}
+            <Row icon={<CirclePlus aria-hidden="true" />} label={t('asRowConnect')} sub={t('asRowConnectSub')} href="/channels" />
             <Row
-              icon={<CloudUpload className="h-5 w-5" aria-hidden="true" />}
+              icon={<CloudUpload aria-hidden="true" />}
               label={t('asRowCloud')}
               sub={t('asRowCloudSub')}
               onClick={() => setCloudInfo((v) => !v)}
@@ -649,52 +664,29 @@ export default function AccountSettings({
                 {t('asCloudInfo')}
               </p>
             ) : null}
-            <Row icon={<CreditCard className="h-5 w-5" aria-hidden="true" />} label={t('asRowPlan')} sub={t('asRowPlanSub')} onClick={() => setView('plan')} />
-            {role === 'owner' || role === 'admin' ? (
-              <Row icon={<Users className="h-5 w-5" aria-hidden="true" />} label={t('asRowTeam')} sub={t('asRowTeamSub')} href="/team" />
-            ) : null}
-            <Row icon={<Star className="h-5 w-5" aria-hidden="true" />} label={t('asRowRate')} sub={t('asRowRateSub')} onClick={() => setView('report')} />
-            <Row icon={<Flag className="h-5 w-5" aria-hidden="true" />} label={t('asRowSupport')} sub={openTicket ? t('asSupportOpen') : t('asSupportNew')} onClick={() => { setErr(null); setNote(null); setView('ticket'); void loadTickets(); }} />
-            <Row icon={<Sparkles className="h-5 w-5" aria-hidden="true" />} label={t('asRowNew')} sub={t('asRowChangelog')} onClick={() => setView('changelog')} />
-            <Row
-              icon={<Compass className="h-5 w-5" aria-hidden="true" />}
-              label={t('tourReplay')}
-              sub={t('tourReplaySub')}
-              onClick={() => {
-                clearTourSeen();
-                window.dispatchEvent(new CustomEvent('sosial:tour-replay'));
-                setNote(t('tourReplayDone'));
-              }}
-            />
-          </Card>
+          </Section>
 
-          <Card className="mt-3 divide-y divide-line-soft overflow-hidden">
-            <Row icon={<ShieldCheck className="h-5 w-5" aria-hidden="true" />} label={t('asRowPrivacy')} href={`${docsUrl()}/privacy`} />
-            <Row icon={<FileText className="h-5 w-5" aria-hidden="true" />} label={t('asRowTerms')} href={`${docsUrl()}/terms`} />
-            <Row icon={<Scale className="h-5 w-5" aria-hidden="true" />} label={t('asRowLegal')} onClick={() => setView('legal')} />
-            <div className="flex items-center gap-3 px-5 py-4">
+          <Section title={t('asSecPrefs')}>
+            <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-bold">{t('asAppearance')}</span>
                 <span className="block text-xs text-muted">{t('asAppearanceSub')}</span>
               </span>
               <ThemeToggle />
             </div>
-          </Card>
-
-          <Card className="mt-3">
-            <div className="flex w-full items-center gap-3 px-5 py-4 text-left">
-              <Languages className="h-5 w-5 shrink-0 text-muted" aria-hidden="true" />
+            <div className="flex items-center gap-3 px-4 py-3 sm:px-5">
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-bold">
-                  Language{langSaved ? ' ✓' : ''}
+                  {t('asLangRow')}
+                  {langSaved ? ' ✓' : ''}
                 </span>
-                <span className="block text-xs text-muted">Website language</span>
+                <span className="block text-xs text-muted">{t('asLangSub')}</span>
               </span>
               <select
                 value={locale}
                 onChange={(e) => void changeLang(e.target.value)}
                 className="rounded-lg border border-line bg-paper px-2 py-1.5 text-sm font-semibold text-ink"
-                aria-label="Language"
+                aria-label={t('asLangRow')}
               >
                 {locales.map((l) => (
                   <option key={l} value={l}>
@@ -703,22 +695,40 @@ export default function AccountSettings({
                 ))}
               </select>
             </div>
-          </Card>
+          </Section>
 
-          <Card className="mt-3 overflow-hidden border-red-500/40">
-            <button
-              type="button"
+          <Section title={t('asSecHelp')}>
+            <Row icon={<Flag aria-hidden="true" />} label={t('asRowSupport')} sub={openTicket ? t('asSupportOpen') : t('asSupportNew')} onClick={() => { setErr(null); setNote(null); setView('ticket'); void loadTickets(); }} />
+            <Row icon={<Star aria-hidden="true" />} label={t('asRowRate')} sub={t('asRowRateSub')} onClick={() => setView('report')} />
+            <Row icon={<Sparkles aria-hidden="true" />} label={t('asRowNew')} sub={t('asRowChangelog')} onClick={() => setView('changelog')} />
+            <Row
+              icon={<Compass aria-hidden="true" />}
+              label={t('tourReplay')}
+              sub={t('tourReplaySub')}
+              onClick={() => {
+                clearTourSeen();
+                window.dispatchEvent(new CustomEvent('sosial:tour-replay'));
+                setNote(t('tourReplayDone'));
+              }}
+            />
+          </Section>
+
+          <Section title={t('asSecLegal')}>
+            <Row icon={<ShieldCheck aria-hidden="true" />} label={t('asRowPrivacy')} href={`${docsUrl()}/privacy`} />
+            <Row icon={<FileText aria-hidden="true" />} label={t('asRowTerms')} href={`${docsUrl()}/terms`} />
+            <Row icon={<Scale aria-hidden="true" />} label={t('asRowLegal')} onClick={() => setView('legal')} />
+          </Section>
+
+          <Section>
+            <Row
+              danger
+              icon={<Trash2 aria-hidden="true" />}
+              label={t('asDeleteCard')}
+              sub={t('asDeleteCardSub')}
               onClick={() => { setDelArmed(false); setDelWord(''); setErr(null); setNote(null); setView('delete'); }}
-              className="flex w-full items-center gap-3 px-5 py-4 text-left"
-            >
-              <Trash2 className="h-5 w-5 shrink-0 text-red-500" aria-hidden="true" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-bold text-red-500">{t('asDeleteCard')}</span>
-                <span className="block text-xs text-muted">{t('asDeleteCardSub')}</span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
-            </button>
-          </Card>
+            />
+          </Section>
+          <div className="h-10" />
         </>
       ) : null}
 
@@ -804,47 +814,6 @@ export default function AccountSettings({
             {busy ? t('asUpdating') : t('asUpdatePw')}
           </Button>
         </Card>
-      ) : null}
-
-      {view === 'plan' ? (
-        <div className="mt-4 space-y-3">
-          {/* Plan cards derive from the canonical price book, never hardcoded. */}
-          {PLAN_ORDER.map((key, i) => {
-            const def = PLANS[key];
-            const p = {
-              name: def.label,
-              price: key === 'free' ? t('asPriceFree') : priceLabel(key, 'monthly'),
-              sub:
-                key === 'free'
-                  ? undefined
-                  : `${priceLabel(key, 'annual')} ${t('blAnnual')}, ≈ $${monthlyEquivalent(key)}/month, ${t('blBilledYearly')}`,
-              also: i === 0 ? undefined : fill(t('asEverythingIn'), { plan: PLANS[PLAN_ORDER[i - 1]].label }),
-              features: def.points,
-            };
-            return p;
-          }).map((p) => (
-            <Card key={p.name} className="p-5">
-              <p className="font-display text-base font-extrabold tracking-tight">{p.name}</p>
-              <p className="mt-0.5 font-display text-xl font-extrabold">{p.price}</p>
-              {p.sub ? <p className="text-xs text-muted">{p.sub}</p> : null}
-              {p.also ? <p className="mt-2 text-xs text-muted">{p.also}</p> : null}
-              <ul className="mt-2 space-y-1.5">
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-xs leading-relaxed text-soft">
-                    <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#2f8f5b]" aria-hidden="true" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          ))}
-          <Link href="/billing" className="btn btn-bolt w-full">
-            {t('asManageBilling')}
-          </Link>
-          <Link href="/pricing" className="btn btn-ghost w-full">
-            {t('asSeePricing')}
-          </Link>
-        </div>
       ) : null}
 
       {view === 'ticket' ? (
