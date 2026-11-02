@@ -6,8 +6,7 @@ import { EmojiButton } from '@/components/Emoji';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import SafeImg from '@/components/SafeImg';
 import MediaSourcesDialog from '@/components/MediaSourcesDialog';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 
 export interface MediaItem {
   /** Present for freshly-picked files; absent for media loaded from a post. */
@@ -68,7 +67,7 @@ export default function PostBox({
 }) {
   const [lightbox, setLightbox] = useState<MediaItem | null>(null);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const t = useT(appMessages);
+  const t = useMessages();
   const mediaBtnRef = useRef<HTMLButtonElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);

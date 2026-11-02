@@ -23,6 +23,7 @@ import PostBox, { type MediaItem, type Segment } from '@/components/PostBox';
 import PostList, { TAB_MATCH, type Tab as StatusTab } from '@/components/PostList';
 import StudioEditor from '@/components/studio/StudioEditor';
 import StudioCanvas from '@/components/studio/StudioCanvas';
+import { STUDIO_FONT_CSS_URL } from '@/lib/studio/exportPng';
 import { exportCanvasPng } from '@/lib/studio/exportPng';
 import { watermarkBlob } from '@/lib/studio/watermarkClient';
 import {
@@ -38,8 +39,7 @@ import {
   pushLibraryItem, tombstoneLibraryItem, pullLibraryRows,
   type LibraryKind, type LibraryRow,
 } from '@/lib/librarySync';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import SegmentedPills from '@/components/ui/segmented-pills';
 
@@ -296,7 +296,7 @@ export default function CreateHub({
   initialTab: Tab;
 }) {
   const router = useRouter();
-  const tr = useT(appMessages);
+  const tr = useMessages();
   const searchParams = useSearchParams();
   // Tab switches navigate (colocated per-tab URLs), no tab state to drift.
   const tab = initialTab;
@@ -841,6 +841,10 @@ export default function CreateHub({
 
   return (
     <div className="w-full px-4 pt-6 sm:px-6">
+      {/* Studio designs name their fonts by family ("Inter", "Plus Jakarta
+          Sans"…) while the site self-hosts its own faces under generated
+          names, so the canvas and thumbnails load the named faces here. */}
+      <link rel="stylesheet" href={STUDIO_FONT_CSS_URL} precedence="default" />
       {statusView ? (
         <>
           <p className="eyebrow">{tr('hubPosts')}</p>
@@ -1384,7 +1388,7 @@ function ProjectTile({
   onDuplicate?: () => void;
   onDelete?: () => void;
 }) {
-  const tr = useT(appMessages);
+  const tr = useMessages();
   const { ref, width } = useBoxWidth(300);
   const nodeRef = useRef<HTMLDivElement>(null);
   const page = project.pages[pageIndex] ?? project.pages[0];

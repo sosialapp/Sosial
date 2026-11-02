@@ -38,8 +38,8 @@ services:
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sosial.app}
       NEXT_PUBLIC_DOCS_URL: ${NEXT_PUBLIC_DOCS_URL:-https://docs.sosial.app}
       NEXT_PUBLIC_DASHBOARD_URL: ${NEXT_PUBLIC_DASHBOARD_URL:-}
-      # Same service_role key as the worker — server-only (admin gates,
-      # Sheets import, Stripe webhook). Never sent to the browser.
+      # Same service_role key as the worker — server-only (admin gates and
+      # the Stripe webhook). Never sent to the browser.
       SUPABASE_SERVICE_ROLE_KEY: ${WORKER_SERVICE_ROLE_KEY}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}

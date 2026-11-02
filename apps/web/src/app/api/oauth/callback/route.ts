@@ -300,7 +300,7 @@ function fitPick(pick: PickState): string {
     page({ type: 'sosial-cloud', nonce, ok: false, error: msg });
 
   const [, provider, nonce] = (url.searchParams.get('state') ?? '').split(':');
-  if ((provider !== 'dropbox' && provider !== 'google' && provider !== 'canva' && provider !== 'notion' && provider !== 'sheets' && provider !== 'onedrive') || !nonce) {
+  if ((provider !== 'dropbox' && provider !== 'google' && provider !== 'canva' && provider !== 'notion' && provider !== 'onedrive') || !nonce) {
     return fail('That login expired, try connecting again.', '');
   }
   const providerErr = url.searchParams.get('error');
@@ -315,10 +315,9 @@ function fitPick(pick: PickState): string {
   // never travel in a URL, so hand the code back and let the dialog finish
   // the exchange itself via cloud-exchange. Notion connect posts the code to
   // /api/notion (which exchanges it server-side through notion-connect).
-  // Sheets connect posts the code to /api/sheets (sheets-auth edge fn).
   // OneDrive hands the code back the same way (client secret stays in the
   // edge fn; the dialog exchanges via cloud-exchange itself).
-  if (provider === 'canva' || provider === 'notion' || provider === 'sheets' || provider === 'onedrive') {
+  if (provider === 'canva' || provider === 'notion' || provider === 'onedrive') {
     return page({ type: 'sosial-cloud', nonce, ok: true, code });
   }
   const sb = await createClient();

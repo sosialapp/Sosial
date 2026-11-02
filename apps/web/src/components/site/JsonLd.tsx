@@ -52,7 +52,8 @@ export function SiteJsonLd() {
             url: BASE,
             name: 'Sosial',
             publisher: { '@id': `${BASE}/#organization` },
-            inLanguage: 'en',
+            // The home and pricing pages are translated (lib/i18n/routing).
+            inLanguage: ['en', 'es', 'fr', 'de', 'ja', 'ko', 'zh-Hans'],
             description: 'Schedule and publish to every social channel from one composer, calendar and queue.',
           },
           {

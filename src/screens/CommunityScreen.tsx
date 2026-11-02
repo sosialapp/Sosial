@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  FlatList,
   RefreshControl,
   ActivityIndicator,
   TextInput,
@@ -14,7 +15,6 @@ import {
   Keyboard,
   Platform,
   AppState,
-  type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
@@ -148,7 +148,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   /** Open post (group key) and the posts' captions/thumbnails. */
   const [openPost, setOpenPost] = useState<string | null>(null);
   const [postCtx, setPostCtx] = useState<Record<string, CommunityCommentPost>>({});
-  const postScroll = useRef<ScrollViewInstance>(null);
+  const postScroll = useRef<FlatList<CommunityComment>>(null);
   const [seenC, setSeenC] = useState<Record<string, string>>({});
   const [seenM, setSeenM] = useState<Record<string, string>>({});
   useEffect(() => {
@@ -174,7 +174,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   const [msgDraft, setMsgDraft] = useState('');
   const [kbOpen, setKbOpen] = useState(false);
   const insets = useSafeAreaInsets();
-  const threadScroll = useRef<ScrollViewInstance>(null);
+  const threadScroll = useRef<FlatList<CommunityMessage>>(null);
 
   // With the keyboard up the home indicator is covered, so the composer drops
   // its bottom inset and sits flush on the keys.
@@ -480,12 +480,16 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     }
   };
 
-  const shownComments = comments.filter((c) => channel === 'all' || c.channel_id === channel);
+  const shownComments = useMemo(
+    () => comments.filter((c) => channel === 'all' || c.channel_id === channel),
+    [comments, channel],
+  );
   const providerOf = (id: string) => channels.find((c) => c.id === id)?.provider ?? 'x';
   const channelLabel = channel === 'all' ? tr('iAll') : channels.find((c) => c.id === channel)?.label ?? 'Channel';
 
-  /** Comments bucketed by the post they were left on: one topic per post. */
-  const groups = (() => {
+  /** Comments bucketed by the post they were left on: one topic per post.
+   *  Memoized: the screen re-renders on every keystroke in the reply box. */
+  const groups = useMemo(() => {
     const by = new Map<string, { key: string; channelId: string; platform: string; postId: string | null; list: CommunityComment[] }>();
     for (const c of shownComments) {
       const key = `${c.channel_id}:${c.external_post_id ?? '-'}`;
@@ -528,7 +532,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         };
       })
       .sort((x, y) => y.last.localeCompare(x.last));
-  })();
+  }, [shownComments, seenC, postCtx]);
   const current = openPost ? groups.find((g) => g.key === openPost) : undefined;
 
   /** One post as a topic card: its caption, who is talking, what needs an answer. */
@@ -774,15 +778,18 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <ScrollView
+          <FlatList
             ref={postScroll}
             style={{ flex: 1 }}
+            data={current?.list ?? []}
+            keyExtractor={(c) => c.id}
             contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, flexGrow: 1, justifyContent: 'flex-end' }}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             onContentSizeChange={() => postScroll.current?.scrollToEnd({ animated: false })}
-          >
-            {(current?.list ?? []).map((c, i, all) => {
+            extraData={{ target: target?.id, stateBusy, current }}
+            renderItem={({ item: c, index: i }) => {
+              const all = current?.list ?? [];
               const prev = all[i - 1];
               const newDay = !prev || dayKey(prev.created_at) !== dayKey(c.created_at);
               const parent = c.parent_external_id ? byExternal.get(c.parent_external_id) : undefined;
@@ -880,8 +887,8 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                   )}
                 </View>
               );
-            })}
-          </ScrollView>
+            }}
+          />
 
           {err ? <Text style={[s.err, { marginHorizontal: 12, marginBottom: 6 }]}>{err}</Text> : null}
 
@@ -984,76 +991,79 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         </View>
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-          <ScrollView
+          <FlatList
             ref={threadScroll}
             style={{ flex: 1 }}
+            data={thread ?? []}
+            keyExtractor={(m) => m.id}
             contentContainerStyle={{ paddingHorizontal: 12, paddingTop: 12, paddingBottom: 8, flexGrow: 1, justifyContent: 'flex-end' }}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
             onContentSizeChange={() => threadScroll.current?.scrollToEnd({ animated: false })}
             onLayout={() => threadScroll.current?.scrollToEnd({ animated: false })}
-          >
-            {thread === null ? (
-              <ActivityIndicator color={C.accent} style={{ marginBottom: 24 }} />
-            ) : thread.length === 0 ? (
-              <Text style={[s.emptyS, { marginBottom: 24 }]}>No messages in this thread yet.</Text>
-            ) : (
-              thread.map((m, i) => {
-                const out = m.direction === 'out';
-                const prev = thread[i - 1];
-                const next = thread[i + 1];
-                const newDay = !prev || dayKey(prev.sent_at) !== dayKey(m.sent_at);
-                // Consecutive lines from one side sit tight and share one face.
-                const joinPrev = !newDay && prev?.direction === m.direction;
-                const joinNext = !!next && next.direction === m.direction && dayKey(next.sent_at) === dayKey(m.sent_at);
-                return (
-                  <View key={m.id}>
-                    {newDay ? (
-                      <View style={s.dayRow}>
-                        <View style={s.dayLine} />
-                        <Text style={s.dayT}>{dayLabel(m.sent_at)}</Text>
-                        <View style={s.dayLine} />
-                      </View>
+            extraData={openConv}
+            ListEmptyComponent={
+              thread === null ? (
+                <ActivityIndicator color={C.accent} style={{ marginBottom: 24 }} />
+              ) : (
+                <Text style={[s.emptyS, { marginBottom: 24 }]}>No messages in this thread yet.</Text>
+              )
+            }
+            renderItem={({ item: m, index: i }) => {
+              const out = m.direction === 'out';
+              const prev = thread?.[i - 1];
+              const next = thread?.[i + 1];
+              const newDay = !prev || dayKey(prev.sent_at) !== dayKey(m.sent_at);
+              // Consecutive lines from one side sit tight and share one face.
+              const joinPrev = !newDay && prev?.direction === m.direction;
+              const joinNext = !!next && next.direction === m.direction && dayKey(next.sent_at) === dayKey(m.sent_at);
+              return (
+                <View key={m.id}>
+                  {newDay ? (
+                    <View style={s.dayRow}>
+                      <View style={s.dayLine} />
+                      <Text style={s.dayT}>{dayLabel(m.sent_at)}</Text>
+                      <View style={s.dayLine} />
+                    </View>
+                  ) : null}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'flex-end',
+                      justifyContent: out ? 'flex-end' : 'flex-start',
+                      gap: 6,
+                      marginTop: joinPrev ? 2 : 10,
+                    }}
+                  >
+                    {!out ? (
+                      joinNext ? (
+                        <View style={{ width: 26 }} />
+                      ) : (
+                        <Face name={openConv?.participant_name ?? null} avatar={openConv?.participant_avatar ?? null} size={26} />
+                      )
                     ) : null}
                     <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'flex-end',
-                        justifyContent: out ? 'flex-end' : 'flex-start',
-                        gap: 6,
-                        marginTop: joinPrev ? 2 : 10,
-                      }}
+                      style={[
+                        s.bubble,
+                        out
+                          ? { backgroundColor: C.accent, borderBottomRightRadius: joinNext ? 20 : 6 }
+                          : { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, borderBottomLeftRadius: joinNext ? 20 : 6 },
+                        m.status === 'pending' && { opacity: 0.65 },
+                      ]}
                     >
-                      {!out ? (
-                        joinNext ? (
-                          <View style={{ width: 26 }} />
-                        ) : (
-                          <Face name={openConv?.participant_name ?? null} avatar={openConv?.participant_avatar ?? null} size={26} />
-                        )
+                      <Text style={[s.bubbleT, { color: out ? '#0b1220' : C.ink }]}>{m.body}</Text>
+                      {!joinNext || m.status === 'pending' ? (
+                        <Text style={[s.bubbleTime, { color: out ? 'rgba(11,18,32,0.55)' : C.faint, textAlign: out ? 'right' : 'left' }]}>
+                          {clock(m.sent_at)}
+                          {m.status === 'pending' ? ' · sending' : ''}
+                        </Text>
                       ) : null}
-                      <View
-                        style={[
-                          s.bubble,
-                          out
-                            ? { backgroundColor: C.accent, borderBottomRightRadius: joinNext ? 20 : 6 }
-                            : { backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft, borderBottomLeftRadius: joinNext ? 20 : 6 },
-                          m.status === 'pending' && { opacity: 0.65 },
-                        ]}
-                      >
-                        <Text style={[s.bubbleT, { color: out ? '#0b1220' : C.ink }]}>{m.body}</Text>
-                        {!joinNext || m.status === 'pending' ? (
-                          <Text style={[s.bubbleTime, { color: out ? 'rgba(11,18,32,0.55)' : C.faint, textAlign: out ? 'right' : 'left' }]}>
-                            {clock(m.sent_at)}
-                            {m.status === 'pending' ? ' · sending' : ''}
-                          </Text>
-                        ) : null}
-                      </View>
                     </View>
                   </View>
-                );
-              })
-            )}
-          </ScrollView>
+                </View>
+              );
+            }}
+          />
 
           {err ? <Text style={[s.err, { marginHorizontal: 12, marginBottom: 6 }]}>{err}</Text> : null}
 

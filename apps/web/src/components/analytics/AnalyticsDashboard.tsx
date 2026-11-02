@@ -3,26 +3,38 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
-  BarChart3, CalendarDays, Download, Eye, FileDown, FileText, Heart, Info, LineChart, MessageCircle, Percent, Repeat2, Send, Users,
+  CalendarDays, Download, Eye, FileDown, FileText, Heart, Info, MessageCircle, Percent, Repeat2, Send, Users,
 } from 'lucide-react';
 import type { DateRange } from 'react-day-picker';
-import { BrandIcon } from '@/components/BrandIcon';
-import ChannelAvatar from '@/components/ChannelAvatar';
+import ChannelAvatar, { ChannelAvatarStack } from '@/components/ChannelAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { Tooltip } from '@/components/ui/tooltip';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useLocale, useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
-import { ChartBar, ChartLine, HBarList, type HBarRow } from '@/components/ui/chart';
+import { ChartModeToggle, ChartTrend, HBarList, type ChartMode, type HBarRow } from '@/components/ui/chart';
 import AnalyticsSync from '@/components/analytics/AnalyticsSync';
-import BarChartPanel from '@/components/analytics/BarChartPanel';
 import ChannelBreakdownDialog from '@/components/analytics/ChannelBreakdownDialog';
 import CommentReportCard, { type CommentReportRow } from '@/components/analytics/CommentReportCard';
 import { channelAvatar } from '@/lib/channelAvatar';
+import {
+  addLocalDays,
+  addStats,
+  emptyTotals,
+  engagementRate,
+  fillBuckets,
+  followerSeries,
+  interactionsOf,
+  localDayOf,
+  rangeBuckets,
+  recentWeeks,
+  startOfLocalDay,
+  weekdayCounts as countWeekdays,
+  type EngagementTotals,
+} from '@/lib/analyticsMath';
 import { primaryTarget } from '@/lib/postTargets';
 import { fetchMediaForPosts } from '@/lib/posts';
 import { createClient } from '@/lib/supabase/client';
@@ -38,6 +50,8 @@ export interface StatSnapshotRow {
   likes: number;
   comments: number;
   shares: number;
+  saves?: number | null;
+  clicks?: number | null;
   views: number | null;
 }
 
@@ -59,8 +73,11 @@ type RangePreset = 'last7' | 'last30' | 'mtd' | 'custom';
 type TopSortKey = 'interactions' | 'sent_at';
 type PerfMetric = 'posts' | 'followers' | 'engagement' | 'interactions';
 
-const DAY = 24 * 3600_000;
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** Sun…Sat short names in the UI locale (2026-01-04 is a Sunday). */
+const weekdayNames = (locale: string) =>
+  Array.from({ length: 7 }, (_, i) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 0, 4 + i))),
+  );
 
 const PRESETS: { id: RangePreset; label: string; key?: string }[] = [
   { id: 'last7', label: '7 days', key: 'an7' },
@@ -69,19 +86,15 @@ const PRESETS: { id: RangePreset; label: string; key?: string }[] = [
   { id: 'custom', label: 'Custom', key: 'anCustom' },
 ];
 
-const fmtDate = (iso: string | null): string => {
+/** Dates in the app locale (server and browser agree, so hydration matches). */
+const fmtDate = (iso: string | null, locale: string): string => {
   if (!iso) return '-';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 };
 
 const full = (n: number | null): string => (n === null ? '-' : n.toLocaleString('en-US'));
-
-const startOfDay = (t: number): number => {
-  const d = new Date(t);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-};
 
 const csvCell = (v: string | number | null): string => {
   const s = v === null ? '' : String(v);
@@ -100,15 +113,13 @@ function download(name: string, mime: string, text: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
-interface TopPost {
+interface TopPost extends EngagementTotals {
   id: string;
   title: string;
   sentAt: string | null;
   providers: ProviderKey[];
-  likes: number;
-  comments: number;
-  shares: number;
-  views: number | null;
+  /** The accounts it went out on, for the avatar stack. */
+  accounts: { provider: string; avatar?: string }[];
   interactions: number;
 }
 
@@ -129,14 +140,16 @@ export default function AnalyticsDashboard({
   followerHistory: FollowerHistoryRow[];
   commentRows: CommentReportRow[];
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
+  const locale = useLocale();
   const now = Date.now();
   const [preset, setPreset] = useState<RangePreset>('last30');
   const [custom, setCustom] = useState<DateRange | undefined>();
   const [calOpen, setCalOpen] = useState(false);
   const [chanSel, setChanSel] = useState<string[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
-  const [perfMode, setPerfMode] = useState<'line' | 'bar'>('line');
+  const [perfMode, setPerfMode] = useState<ChartMode>('line');
+  const [rhythmMode, setRhythmMode] = useState<ChartMode>('bar');
   const [perfMetric, setPerfMetric] = useState<PerfMetric>('posts');
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [topSort, setTopSort] = useState<{ key: TopSortKey; dir: 'asc' | 'desc' }>({
@@ -187,7 +200,7 @@ export default function AnalyticsDashboard({
       text: post.body || post.title || '',
       status: post.status,
       timeLabel: when
-        ? new Date(when).toLocaleString(undefined, {
+        ? new Date(when).toLocaleString(locale, {
             month: 'short',
             day: 'numeric',
             hour: 'numeric',
@@ -219,16 +232,18 @@ export default function AnalyticsDashboard({
   };
 
   const range = useMemo((): { from: number; to: number; label: string } => {
-    const sod = startOfDay(now);
-    if (preset === 'last7') return { from: sod - 6 * DAY, to: sod + DAY - 1, label: t('anLast7') };
-    if (preset === 'last30') return { from: sod - 29 * DAY, to: sod + DAY - 1, label: t('anLast30') };
+    // Calendar days, not n × 24h: a DST switch inside the range must not add
+    // or drop a day (lib/analyticsMath, same as mobile).
+    const endOfToday = addLocalDays(now, 1) - 1;
+    if (preset === 'last7') return { from: addLocalDays(now, -6), to: endOfToday, label: t('anLast7') };
+    if (preset === 'last30') return { from: addLocalDays(now, -29), to: endOfToday, label: t('anLast30') };
     if (preset === 'mtd') {
       const d = new Date(now);
-      return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: sod + DAY - 1, label: t('anMtd') };
+      return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: endOfToday, label: t('anMtd') };
     }
-    const from = custom?.from ? startOfDay(custom.from.getTime()) : sod - 29 * DAY;
-    const to = custom?.to ? startOfDay(custom.to.getTime()) + DAY - 1 : sod + DAY - 1;
-    const fmt = (t: number) => new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const from = custom?.from ? startOfLocalDay(custom.from.getTime()) : addLocalDays(now, -29);
+    const to = custom?.to ? addLocalDays(custom.to.getTime(), 1) - 1 : endOfToday;
+    const fmt = (t: number) => new Date(t).toLocaleDateString(locale, { month: 'short', day: 'numeric' });
     return { from, to, label: `${fmt(from)} – ${fmt(to)}` };
   }, [preset, custom, now]);
 
@@ -290,11 +305,11 @@ export default function AnalyticsDashboard({
     () => postStats.filter((r) => chanOk(r.channel_id)),
     [postStats, chanSel],
   );
-  const likes = statsScoped.reduce((a, r) => a + (r.likes ?? 0), 0);
-  const comments = statsScoped.reduce((a, r) => a + (r.comments ?? 0), 0);
-  const shares = statsScoped.reduce((a, r) => a + (r.shares ?? 0), 0);
-  const views = statsScoped.reduce((a, r) => a + (r.views == null ? 0 : Number(r.views)), 0);
-  const hasViews = statsScoped.some((r) => r.views != null);
+  // Audience interactions only; see lib/analyticsMath for the definition.
+  const totals = useMemo(() => statsScoped.reduce((acc, r) => addStats(acc, r), emptyTotals()), [statsScoped]);
+  const { likes, comments } = totals;
+  const views = totals.views ?? 0;
+  const hasViews = totals.views !== null;
   const chanStatsScoped = useMemo(
     () => channelStats.filter((r) => chanOk(r.channel_id)),
     [channelStats, chanSel],
@@ -309,8 +324,9 @@ export default function AnalyticsDashboard({
   // sum never reads as the whole audience.
   const followersReporting = chanStatsScoped.filter((r) => r.followers !== null).length;
   const followersScope = chanSel.length > 0 ? chanSel.length : connectedIds.size;
-  const eng =
-    hasFollowers && followers > 0 ? `${(((likes + comments + shares) / followers) * 100).toFixed(1)}%` : null;
+  const interactions = interactionsOf(totals);
+  const engPct = hasFollowers ? engagementRate(interactions, followers) : null;
+  const eng = engPct === null ? null : `${engPct.toFixed(1)}%`;
 
   const funnel: { label: string; value: number; href: string; color: string }[] = [
     { label: t('stDrafts'), value: drafts, href: '/queue', color: 'var(--color-surface)' },
@@ -318,8 +334,6 @@ export default function AnalyticsDashboard({
     { label: t('stSent'), value: sent.length, href: '/queue', color: 'var(--color-ink)' },
     { label: t('stFailed'), value: failed, href: '/queue', color: '#E60023' },
   ];
-
-  const interactions = likes + comments + shares;
 
   // Stat cards are pickers: clicking one drives the Performance-over-time
   // chart, the ⓘ explains each number.
@@ -365,31 +379,27 @@ export default function AnalyticsDashboard({
     },
   ];
 
-  // ---- weekly + weekday rhythm (range scoped) ----
-  const weeks: { label: string; count: number }[] = [];
-  for (let i = 7; i >= 0; i--) {
-    const start = now - (i + 1) * 7 * DAY;
-    const end = now - i * 7 * DAY;
-    const count = sent.filter((p) => {
-      if (!p.sent_at) return false;
-      const t = new Date(p.sent_at).getTime();
-      return t >= start && t < end;
-    }).length;
-    weeks.push({
-      label: new Date(end).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }),
-      count,
-    });
-  }
-  const weekMax = Math.max(1, ...weeks.map((w) => w.count));
-  const weekdayCounts = new Array(7).fill(0);
-  for (const p of sent) {
-    if (!p.sent_at) continue;
-    const d = new Date(p.sent_at);
-    if (Number.isNaN(d.getTime())) continue;
-    weekdayCounts[d.getDay()] += 1;
-  }
-  const weekdayData = WEEKDAYS.map((label, i) => ({ label, count: weekdayCounts[i] }));
-  const weekdayMax = Math.max(1, ...weekdayCounts);
+  // ---- rhythm: the last 8 weeks (whatever the range), weekdays in range ----
+  // Weeks used to be cut from the range-scoped posts, so "last 7 days" left
+  // seven of the eight weeks at zero. Channel filter still applies.
+  const sentTimes = (list: PostWithTargets[]): number[] =>
+    list.flatMap((p) => (p.sent_at ? [new Date(p.sent_at).getTime()] : [])).filter(Number.isFinite);
+  const weeks = recentWeeks(
+    now,
+    sentTimes(
+      posts.filter(
+        (p) =>
+          (p.status === 'sent' || p.status === 'partial') &&
+          (chanSel.length === 0 || (p.post_targets ?? []).some((tg) => chanSel.includes(tg.channel_id))),
+      ),
+    ),
+  ).map((w) => ({
+    label: new Date(w.start).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' }),
+    count: w.value,
+  }));
+  const weekMax = Math.max(0, ...weeks.map((w) => w.count));
+  const weekdayCounts = countWeekdays(sentTimes(sent));
+  const weekdayData = weekdayNames(locale).map((label, i) => ({ label, count: weekdayCounts[i] }));
 
   const recent = [...sent]
     .filter((p) => p.sent_at)
@@ -398,37 +408,38 @@ export default function AnalyticsDashboard({
 
   // ---- top posts: interactions summed across the post's targets ----
   const statsByPost = useMemo(() => {
-    const map = new Map<string, { likes: number; comments: number; shares: number; views: number | null }>();
+    const map = new Map<string, EngagementTotals>();
     for (const r of statsScoped) {
       if (!r.post_id) continue;
-      const cur = map.get(r.post_id) ?? { likes: 0, comments: 0, shares: 0, views: null };
-      cur.likes += r.likes ?? 0;
-      cur.comments += r.comments ?? 0;
-      cur.shares += r.shares ?? 0;
-      if (r.views != null) cur.views = (cur.views ?? 0) + Number(r.views);
-      map.set(r.post_id, cur);
+      map.set(r.post_id, addStats(map.get(r.post_id) ?? emptyTotals(), r));
     }
     return map;
   }, [statsScoped]);
+  /** One avatar per account a post went out on (first occurrence wins). */
+  const accountsOf = (p: PostWithTargets): { provider: string; avatar?: string }[] => {
+    const seen = new Set<string>();
+    const out: { provider: string; avatar?: string }[] = [];
+    for (const tg of p.post_targets ?? []) {
+      if (seen.has(tg.channel_id)) continue;
+      seen.add(tg.channel_id);
+      out.push({ provider: tg.provider, avatar: avatarOf(tg.channel_id) });
+    }
+    return out;
+  };
 
   const topPosts: TopPost[] = useMemo(() => {
     const rows: TopPost[] = [];
     for (const p of sent) {
-      const agg = statsByPost.get(p.id);
-      const likes = agg?.likes ?? 0;
-      const cm = agg?.comments ?? 0;
-      const sh = agg?.shares ?? 0;
+      const agg = statsByPost.get(p.id) ?? emptyTotals();
       const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
       rows.push({
+        ...agg,
         id: p.id,
-        title: p.title || p.body?.slice(0, 60) || (requiresTitle(providers) ? 'Untitled post' : ''),
+        title: p.title || p.body?.slice(0, 60) || (requiresTitle(providers) ? t('untitled') : ''),
         sentAt: p.sent_at,
         providers,
-        likes,
-        comments: cm,
-        shares: sh,
-        views: agg?.views ?? null,
-        interactions: likes + cm + sh,
+        accounts: accountsOf(p),
+        interactions: interactionsOf(agg),
       });
     }
     const dir = topSort.dir === 'asc' ? 1 : -1;
@@ -441,15 +452,8 @@ export default function AnalyticsDashboard({
   }, [sent, statsByPost, topSort]);
 
   // ---- channel performance table (latest snapshots, channel-filtered) ----
-  const totalsBy = new Map<string, { likes: number; comments: number; shares: number; views: number | null }>();
-  for (const r of statsScoped) {
-    const cur = totalsBy.get(r.channel_id) ?? { likes: 0, comments: 0, shares: 0, views: null };
-    cur.likes += r.likes ?? 0;
-    cur.comments += r.comments ?? 0;
-    cur.shares += r.shares ?? 0;
-    if (r.views != null) cur.views = (cur.views ?? 0) + Number(r.views);
-    totalsBy.set(r.channel_id, cur);
-  }
+  const totalsBy = new Map<string, EngagementTotals>();
+  for (const r of statsScoped) totalsBy.set(r.channel_id, addStats(totalsBy.get(r.channel_id) ?? emptyTotals(), r));
   const perfRows = channels
     .filter((c) => c.status === 'connected' || c.status === 'expired')
     .filter((c) => chanSel.length === 0 || chanSel.includes(c.id))
@@ -459,123 +463,74 @@ export default function AnalyticsDashboard({
       const fol = snap?.followers ?? null;
       const sn = sent.filter((p) => (p.post_targets ?? []).some((t) => t.channel_id === c.id && t.status === 'sent')).length;
       return {
+        ...(tot ?? emptyTotals()),
         channelId: c.id,
         provider: c.provider,
-        label: providerMeta(c.provider).label,
+        label: c.display_name?.trim() || providerMeta(c.provider).label,
+        avatar: channelAvatar(c.metadata),
         followers: fol,
-        likes: tot?.likes ?? 0,
-        comments: tot?.comments ?? 0,
-        shares: tot?.shares ?? 0,
-        views: tot?.views ?? null,
         sent: sn,
         fetchedAt: snap?.fetched_at ?? null,
       };
     })
     .filter((r) => r.sent > 0 || r.followers !== null);
-  const chanEng = (r: { likes: number; comments: number; shares: number; followers: number | null }): string | null =>
-    r.followers && r.followers > 0 ? `${(((r.likes + r.comments + r.shares) / r.followers) * 100).toFixed(1)}%` : null;
+  const chanEng = (r: EngagementTotals & { followers: number | null }): string | null => {
+    const pct = engagementRate(interactionsOf(r), r.followers);
+    return pct === null ? null : `${pct.toFixed(1)}%`;
+  };
 
   // ---- performance over time: the selected stat card, bucketed ----
-  // Post stats are latest-only, so a post's numbers are attributed to the day
-  // it went out. Daily buckets, weekly once the range passes ~2 months.
-  // Followers come from p77's daily history: each channel's last known total is
-  // carried forward so the line steps instead of dipping to zero.
+  // Every calendar day of the range is a bucket (weekly past ~2 months), days
+  // with nothing published stay at 0. Post stats are latest-only, so a post's
+  // interactions count on the day it went out. Followers come from p77's daily
+  // history plus the latest snapshot: each channel's last known total carries
+  // forward, and days before the first capture are a gap, not a guess.
   const perfSeries = useMemo(() => {
-    const first = startOfDay(range.from);
-    const last = startOfDay(range.to);
-    const span = Math.max(1, Math.round((last - first) / DAY) + 1);
-    const step = span > 62 ? 7 : 1;
-    const buckets: { label: string; value: number; ts: number }[] = [];
-    for (let t = first; t <= last; t += step * DAY) {
-      buckets.push({
-        label: new Date(t).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' }),
-        value: 0,
-        ts: t,
-      });
-    }
+    const { buckets } = rangeBuckets(range.from, range.to);
+    const label = (t: number): string => new Date(t).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' });
     if (perfMetric === 'followers') {
-      const perChannel = new Map<string, { t: number; v: number }[]>();
-      for (const r of followerHistoryScoped) {
-        if (r.followers === null) continue;
-        const t = new Date(`${r.captured_on}T00:00:00`).getTime();
-        if (Number.isNaN(t)) continue;
-        const arr = perChannel.get(r.channel_id) ?? [];
-        arr.push({ t, v: r.followers });
-        perChannel.set(r.channel_id, arr);
-      }
-      if (perChannel.size === 0) {
-        // No history recorded yet (table was just created): flat current total.
-        return buckets.map((b) => ({ ...b, value: hasFollowers ? followers : 0 }));
-      }
-      for (const arr of perChannel.values()) arr.sort((a, b) => a.t - b.t);
-      const cursor = new Map<string, number>();
-      const latest = new Map<string, number>();
-      return buckets.map((b) => {
-        const through = b.ts + step * DAY - 1;
-        for (const [cid, arr] of perChannel) {
-          let i = cursor.get(cid) ?? 0;
-          while (i < arr.length && arr[i].t <= through) {
-            latest.set(cid, arr[i].v);
-            i += 1;
-          }
-          cursor.set(cid, i);
-          // Bucket predates the first capture: hold the earliest known total.
-          if (!latest.has(cid)) latest.set(cid, arr[0].v);
-        }
-        let total = 0;
-        for (const v of latest.values()) total += v;
-        return { ...b, value: total };
+      const captures = [
+        ...followerHistoryScoped.map((r) => ({ channel_id: r.channel_id, at: localDayOf(r.captured_on), followers: r.followers })),
+        ...chanStatsScoped.map((r) => ({ channel_id: r.channel_id, at: new Date(r.fetched_at).getTime(), followers: r.followers })),
+      ];
+      const values = followerSeries(buckets, captures);
+      return buckets.map((b, i) => ({ label: label(b.start), value: values[i] }));
+    }
+    const events = sent.flatMap((p) => {
+      const at = p.sent_at ? new Date(p.sent_at).getTime() : Number.NaN;
+      if (!Number.isFinite(at)) return [];
+      return [{ at, value: perfMetric === 'posts' ? 1 : interactionsOf(statsByPost.get(p.id)) }];
+    });
+    const filled = fillBuckets(buckets, events);
+    if (perfMetric === 'engagement') {
+      return filled.map((b) => {
+        const pct = hasFollowers ? engagementRate(b.value, followers) : null;
+        return { label: label(b.start), value: pct === null ? 0 : Number(pct.toFixed(2)) };
       });
     }
-    for (const p of sent) {
-      if (!p.sent_at) continue;
-      const t = new Date(p.sent_at).getTime();
-      if (Number.isNaN(t) || t < first || t > last) continue;
-      const i = Math.floor((startOfDay(t) - first) / DAY / step);
-      if (i < 0 || i >= buckets.length) continue;
-      if (perfMetric === 'posts') {
-        buckets[i].value += 1;
-      } else {
-        const agg = statsByPost.get(p.id);
-        buckets[i].value += (agg?.likes ?? 0) + (agg?.comments ?? 0) + (agg?.shares ?? 0);
-      }
-    }
-    // Count-based metrics are empty while nothing has published yet, which left
-    // the line/bars clinging to the right edge. Drop the dead lead-in so the
-    // trend uses the whole card: keep one bucket of context and at least a week
-    // of axis so a lone recent post still reads as a trend.
-    const trim = (rows: typeof buckets): typeof buckets => {
-      const firstIdx = rows.findIndex((b) => b.value > 0);
-      if (firstIdx <= 1) return rows;
-      const start = Math.max(0, Math.min(firstIdx - 1, rows.length - 7));
-      return start > 0 ? rows.slice(start) : rows;
-    };
-    if (perfMetric === 'engagement') {
-      const denom = hasFollowers && followers > 0 ? followers : 0;
-      return trim(buckets.map((b) => ({ ...b, value: denom ? Number(((b.value / denom) * 100).toFixed(2)) : 0 })));
-    }
-    return trim(buckets);
-  }, [sent, statsByPost, range, perfMetric, followers, hasFollowers, followerHistoryScoped]);
+    return filled.map((b) => ({ label: label(b.start), value: b.value }));
+  }, [sent, statsByPost, range, perfMetric, followers, hasFollowers, followerHistoryScoped, chanStatsScoped]);
   const perfXInterval = Math.max(0, Math.ceil(perfSeries.length / 8) - 1);
   const perfDesc: Record<PerfMetric, string> = {
-    posts: 'Posts published each day',
-    followers: 'Follower total, daily snapshots carried forward',
-    engagement: 'Interactions ÷ followers, from the latest snapshots',
-    interactions: 'Interactions from posts published each day',
+    posts: t('anXDescPosts'),
+    followers: t('anXDescFollowers'),
+    engagement: t('anXDescEng'),
+    interactions: t('anXDescInter'),
   };
+  const chartLabels = { type: t('anChartType'), line: t('anChartLine'), bar: t('anChartBar') };
   const perfFmt = (v: string | number): string =>
     perfMetric === 'engagement' ? `${Number(v).toFixed(1)}%` : full(Number(v));
 
   // ---- channel breakdown: interactions + audience per channel, biggest first ----
   const breakdown = perfRows
-    .map((r) => ({ r, total: r.likes + r.comments + r.shares }))
+    .map((r) => ({ r, total: interactionsOf(r) }))
     .sort((a, b) => b.total - a.total);
   const breakdownMax = Math.max(1, ...breakdown.map((b) => b.total));
   const breakdownRows: HBarRow[] = breakdown.map(({ r, total }) => ({
     key: r.channelId,
     label: (
       <span className="flex items-center gap-2">
-        <BrandIcon provider={r.provider} className="h-5 w-5 shrink-0" />
+        <ChannelAvatar provider={r.provider} avatar={r.avatar} size={24} />
         <span className="truncate">{r.label}</span>
       </span>
     ),
@@ -592,7 +547,7 @@ export default function AnalyticsDashboard({
     const lines = [
       `Sosial analytics,${range.label},exported ${stamp}`,
       '',
-      'Channel,Followers,Likes,Comments,Shares,Views,Engagement,Sent',
+      'Channel,Followers,Likes,Comments,Shares,Saves,Clicks,Views,Engagement,Sent',
       ...perfRows.map((r) =>
         [
           csvCell(r.label),
@@ -600,13 +555,15 @@ export default function AnalyticsDashboard({
           r.likes,
           r.comments,
           r.shares,
+          r.saves,
+          r.clicks,
           r.views ?? '',
           chanEng(r) ?? '',
           r.sent,
         ].join(','),
       ),
       '',
-      'Top posts,Sent,Channels,Likes,Comments,Shares,Views,Interactions',
+      'Top posts,Sent,Channels,Likes,Comments,Shares,Saves,Clicks,Views,Interactions',
       ...topPosts.map((p) =>
         [
           csvCell(p.title),
@@ -615,6 +572,8 @@ export default function AnalyticsDashboard({
           p.likes,
           p.comments,
           p.shares,
+          p.saves,
+          p.clicks,
           p.views ?? '',
           p.interactions,
         ].join(','),
@@ -632,20 +591,20 @@ export default function AnalyticsDashboard({
       '',
       '## Channels',
       '',
-      '| Channel | Followers | Likes | Comments | Shares | Views | Engagement | Sent |',
-      '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+      '| Channel | Followers | Likes | Comments | Shares | Saves | Clicks | Views | Engagement | Sent |',
+      '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
       ...perfRows.map(
         (r) =>
-          `| ${r.label} | ${r.followers ?? '-'} | ${r.likes} | ${r.comments} | ${r.shares} | ${r.views ?? '-'} | ${chanEng(r) ?? '-'} | ${r.sent} |`,
+          `| ${r.label} | ${r.followers ?? '-'} | ${r.likes} | ${r.comments} | ${r.shares} | ${r.saves} | ${r.clicks} | ${r.views ?? '-'} | ${chanEng(r) ?? '-'} | ${r.sent} |`,
       ),
       '',
       '## Top posts',
       '',
-      '| Post | Sent | Channels | Likes | Comments | Shares | Views | Interactions |',
-      '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |',
+      '| Post | Sent | Channels | Likes | Comments | Shares | Saves | Clicks | Views | Interactions |',
+      '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
       ...topPosts.map(
         (p) =>
-          `| ${p.title.replace(/\|/g, '\\|').slice(0, 80)} | ${p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '-'} | ${p.providers.map((pv) => providerMeta(pv).label).join(' + ')} | ${p.likes} | ${p.comments} | ${p.shares} | ${p.views ?? '-'} | ${p.interactions} |`,
+          `| ${p.title.replace(/\|/g, '\\|').slice(0, 80)} | ${p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '-'} | ${p.providers.map((pv) => providerMeta(pv).label).join(' + ')} | ${p.likes} | ${p.comments} | ${p.shares} | ${p.saves} | ${p.clicks} | ${p.views ?? '-'} | ${p.interactions} |`,
       ),
       '',
     ];
@@ -660,14 +619,14 @@ export default function AnalyticsDashboard({
 <p style="color:#666;font-size:12px;">Exported ${stamp}${chanSel.length ? ` · Channels: ${chanSelLabels().join(', ')}` : ''}</p>
 <p style="font-size:13px;"><b>Posts:</b> ${sent.length} · <b>Followers:</b> ${hasFollowers ? followers.toLocaleString('en-US') : '-'} · <b>Reactions:</b> ${likes.toLocaleString('en-US')} · <b>Comments:</b> ${comments.toLocaleString('en-US')} · <b>Eng. rate:</b> ${eng ?? '-'} · <b>Views:</b> ${hasViews ? views.toLocaleString('en-US') : '-'}</p>
 <h2 style="font-size:16px;margin-top:28px;">${t('anPdfChannelsH')}</h2>
-<table style="border-collapse:collapse;width:100%;"><thead><tr>${['Channel', 'Followers', 'Likes', 'Comments', 'Shares', 'Views', 'Engagement', 'Sent'].map((h, i) => `<th style="text-align:${i === 0 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
-${perfRows.map((r) => row([r.label, r.followers === null ? '-' : String(r.followers), String(r.likes), String(r.comments), String(r.shares), r.views === null ? '-' : String(r.views), chanEng(r) ?? '-', String(r.sent)])).join('')}
+<table style="border-collapse:collapse;width:100%;"><thead><tr>${['Channel', 'Followers', 'Likes', 'Comments', 'Shares', 'Saves', 'Clicks', 'Views', 'Engagement', 'Sent'].map((h, i) => `<th style="text-align:${i === 0 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
+${perfRows.map((r) => row([r.label, r.followers === null ? '-' : String(r.followers), String(r.likes), String(r.comments), String(r.shares), String(r.saves), String(r.clicks), r.views === null ? '-' : String(r.views), chanEng(r) ?? '-', String(r.sent)])).join('')}
 </tbody></table>
 <h2 style="font-size:16px;margin-top:28px;">${t('anPdfTopH')}</h2>
-<table style="border-collapse:collapse;width:100%;"><thead><tr>${['Post', 'Sent', 'Channels', 'Likes', 'Comments', 'Shares', 'Views', 'Interactions'].map((h, i) => `<th style="text-align:${i < 3 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
-${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '-', p.providers.map((pv) => providerMeta(pv).label).join(' + ')].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;">${c}</td>`).join('')}${[p.likes, p.comments, p.shares, p.views ?? '-', p.interactions].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;text-align:right;">${c}</td>`).join('')}</tr>`).join('')}
+<table style="border-collapse:collapse;width:100%;"><thead><tr>${['Post', 'Sent', 'Channels', 'Likes', 'Comments', 'Shares', 'Saves', 'Clicks', 'Views', 'Interactions'].map((h, i) => `<th style="text-align:${i < 3 ? 'left' : 'right'};padding:7px 10px;border-bottom:2px solid #1C1A14;font-size:12px;">${h}</th>`).join('')}</tr></thead><tbody>
+${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt).toISOString().slice(0, 10) : '-', p.providers.map((pv) => providerMeta(pv).label).join(' + ')].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;">${c}</td>`).join('')}${[p.likes, p.comments, p.shares, p.saves, p.clicks, p.views ?? '-', p.interactions].map((c) => `<td style="padding:7px 10px;border-bottom:1px solid #eee;font-size:12px;text-align:right;">${c}</td>`).join('')}</tr>`).join('')}
 </tbody></table>
-<p style="color:#666;font-size:11px;margin-top:24px;">Engagement = (likes + comments + shares) ÷ followers. Follower and engagement figures are the latest daily snapshots.</p>
+<p style="color:#666;font-size:11px;margin-top:24px;">Interactions = likes and reactions + comments received + shares + saves + clicks, from your audience only (your own replies and likes are excluded). Engagement = interactions ÷ followers. Follower and engagement figures are the latest snapshots.</p>
 </body></html>`;
     const w = window.open('', '_blank', 'width=900,height=700');
     if (!w) return;
@@ -809,7 +768,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               chanSel.length === 0 ? 'border-ink bg-ink text-bone' : 'border-line bg-card text-muted hover:text-ink'
             }`}
           >
-            All channels
+            {t('calAllChannels')}
           </button>
           {connectedChannels.map((c) => {
             const on = chanSel.includes(c.id);
@@ -865,7 +824,8 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                     <s.icon className="h-3.5 w-3.5" aria-hidden="true" />
                     {s.label}
                   </span>
-                  <Tooltip content={s.hint} align="end">
+                  {/* Opens downward: the card clips anything above its top edge. */}
+                  <Tooltip content={s.hint} align="end" side="bottom">
                     <button
                       type="button"
                       aria-label={s.hint}
@@ -890,54 +850,18 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             <p className="text-xs text-muted">
               {perfDesc[perfMetric]} · {range.label.toLowerCase()}
             </p>
-            <SegmentedPills
-              ariaLabel={t('anChartType')}
-              size="sm"
-              value={perfMode}
-              onChange={setPerfMode}
-              options={[
-                {
-                  value: 'line',
-                  label: (
-                    <>
-                      <LineChart className="h-3.5 w-3.5" aria-hidden="true" />
-                      Line
-                    </>
-                  ),
-                },
-                {
-                  value: 'bar',
-                  label: (
-                    <>
-                      <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
-                      Bar
-                    </>
-                  ),
-                },
-              ]}
-            />
+            <ChartModeToggle value={perfMode} onChange={setPerfMode} labels={chartLabels} />
           </div>
-          {perfMode === 'line' ? (
-            <ChartLine
-              data={perfSeries}
-              dataKey="value"
-              labelKey="label"
-              color="var(--color-accent)"
-              height={260}
-              xInterval={perfXInterval}
-              formatter={perfFmt}
-            />
-          ) : (
-            <ChartBar
-              data={perfSeries}
-              dataKey="value"
-              labelKey="label"
-              color="var(--color-bolt)"
-              height={260}
-              xInterval={perfXInterval}
-              formatter={perfFmt}
-            />
-          )}
+          <ChartTrend
+            mode={perfMode}
+            data={perfSeries}
+            dataKey="value"
+            labelKey="label"
+            color={perfMode === 'line' ? 'var(--color-accent)' : 'var(--color-bolt)'}
+            height={260}
+            xInterval={perfXInterval}
+            formatter={perfFmt}
+          />
         </div>
       </Card>
 
@@ -951,13 +875,13 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                 <CardDescription>{fill(t('anTopDesc'), { range: range.label })}</CardDescription>
               </div>
               <SegmentedPills
-                ariaLabel="Sort top posts"
+                ariaLabel={t('anXSortTop')}
                 size="sm"
                 value={topSort.key}
                 onChange={(k) => setTopSort({ key: k, dir: 'desc' })}
                 options={[
-                  { value: 'interactions', label: 'Most engaged' },
-                  { value: 'sent_at', label: 'Newest' },
+                  { value: 'interactions', label: t('anXMostEngaged') },
+                  { value: 'sent_at', label: t('anXNewest') },
                 ]}
               />
             </div>
@@ -974,7 +898,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                       onClick={() => {
                         const fullPost = sent.find((s) => s.id === p.id);
                         if (fullPost) {
-                          openPreview(fullPost, { likes: p.likes, comments: p.comments, shares: p.shares, views: p.views });
+                          openPreview(fullPost, p);
                         }
                       }}
                       className="group flex w-full items-center gap-3 py-3 text-left"
@@ -982,22 +906,11 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                       <span className="w-5 shrink-0 text-center font-display text-sm font-extrabold tabular-nums text-faint">
                         {i + 1}
                       </span>
-                      <span className="flex shrink-0 items-center">
-                        {p.providers.slice(0, 3).map((pv, j) => (
-                          <span
-                            key={pv}
-                            className="rounded-full ring-2 ring-card"
-                            style={{ marginLeft: j ? -8 : 0, zIndex: p.providers.length - j }}
-                            title={providerMeta(pv).label}
-                          >
-                            <BrandIcon provider={pv} className="h-7 w-7" />
-                          </span>
-                        ))}
-                      </span>
+                      <ChannelAvatarStack accounts={p.accounts} size={28} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold group-hover:underline">{p.title || t('untitled')}</span>
                         <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
-                          <span>{fmtDate(p.sentAt)}</span>
+                          <span>{fmtDate(p.sentAt, locale)}</span>
                           <span className="inline-flex items-center gap-1">
                             <Heart className="h-3 w-3" aria-hidden="true" />
                             {full(p.likes)}
@@ -1037,11 +950,11 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
               <CardTitle>{t('anChanBreakdown')}</CardTitle>
               {breakdown.length > 4 ? (
                 <button type="button" onClick={() => setBreakdownOpen(true)} className="text-xs font-bold text-ink hover:underline">
-                  See all
+                  {t('anXSeeAll')}
                 </button>
               ) : (
                 <Link href="/channels" className="text-xs font-bold text-ink hover:underline">
-                  Manage
+                  {t('anXManage')}
                 </Link>
               )}
             </div>
@@ -1049,7 +962,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           </CardHeader>
           <CardContent className="pt-1">
             {breakdown.length === 0 ? (
-              <p className="text-sm text-muted">Connect a channel and publish, its numbers land here within a day.</p>
+              <p className="text-sm text-muted">{t('anXEmpty')}</p>
             ) : (
               <>
                 <HBarList rows={breakdownRows.slice(0, 5)} />
@@ -1107,16 +1020,19 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
         {/* Rhythm: weekly volume and best weekday side by side. */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>{t('anPerWeek')}</CardTitle>
-              <CardDescription>best: {weekMax}/wk</CardDescription>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle>{t('anPerWeek')}</CardTitle>
+                <CardDescription>best: {weekMax}/wk</CardDescription>
+              </div>
+              <ChartModeToggle value={rhythmMode} onChange={setRhythmMode} labels={chartLabels} />
             </div>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-6 pt-1 md:grid-cols-2">
-            <BarChartPanel data={weeks} dataKey="count" labelKey="label" domainMax={weekMax} height={176} suffix="sent" />
+            <ChartTrend mode={rhythmMode} data={weeks} dataKey="count" labelKey="label" height={176} formatter={(v) => `${v} sent`} />
             <div>
               <p className="mb-2 text-xs font-bold text-muted">{t('anPerWeekday')}</p>
-              <BarChartPanel data={weekdayData} dataKey="count" labelKey="label" domainMax={weekdayMax} height={156} suffix="sent" />
+              <ChartTrend mode={rhythmMode} data={weekdayData} dataKey="count" labelKey="label" height={156} formatter={(v) => `${v} sent`} />
             </div>
           </CardContent>
         </Card>
@@ -1139,6 +1055,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {recent.slice(0, 8).map((p) => {
                 const providers = [...new Set((p.post_targets ?? []).map((tg) => tg.provider))];
+                const accounts = accountsOf(p);
                 const st = POST_STATUS_META[p.status];
                 const agg = statsByPost.get(p.id);
                 return (
@@ -1148,20 +1065,14 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                       onClick={() =>
                         openPreview(
                           p,
-                          agg ? { likes: agg.likes, comments: agg.comments, shares: agg.shares, views: agg.views } : null,
+                          agg ?? null,
                         )
                       }
                       className="flex h-full w-full flex-col rounded-2xl border border-line-soft bg-paper p-3 text-left transition hover:border-line"
                     >
                       <span className="flex items-center gap-2">
-                        <span className="flex items-center">
-                          {providers.slice(0, 3).map((pv, i) => (
-                            <span key={pv} className="rounded-full ring-2 ring-paper" style={{ marginLeft: i ? -6 : 0 }}>
-                              <BrandIcon provider={pv} className="h-5 w-5" />
-                            </span>
-                          ))}
-                        </span>
-                        <span className="flex-1 text-[11px] text-muted">{fmtDate(p.sent_at)}</span>
+                        <ChannelAvatarStack accounts={accounts} size={22} ring="paper" />
+                        <span className="flex-1 text-[11px] text-muted">{fmtDate(p.sent_at, locale)}</span>
                         <Badge className={st.className}>{st.label}</Badge>
                       </span>
                       <span className="mt-2 line-clamp-2 text-[13px] leading-snug text-soft">
@@ -1195,6 +1106,7 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
           rows={reportRows}
           rangeLabel={range.label}
           channelLabel={(channelId, provider) => authorOf(channelId, provider).name}
+          channelAvatar={avatarOf}
         />
       </div>
 

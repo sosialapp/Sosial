@@ -1527,7 +1527,7 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
                             });
                           }} style={[st.typeChip, sel && { backgroundColor: C.ink, borderColor: C.ink }]} activeOpacity={0.75}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <ChannelAvatar platform={c} avatar={accountAvatar(a)} size={18} badge={false} />
+                              <ChannelAvatar platform={c} avatar={accountAvatar(a)} size={18} ring={sel ? C.ink : C.card} />
                               <Text style={[st.typeChipT, sel && { color: C.onInk }, { flex: 1 }]}>{label}</Text>
                               {sel ? <Ionicons name="checkmark-circle" size={16} color={C.accent} /> : null}
                             </View>

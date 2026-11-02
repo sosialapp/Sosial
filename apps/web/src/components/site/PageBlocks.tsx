@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { CheckIcon } from '@/components/StatusIcons';
 import { FaqJsonLd } from '@/components/site/JsonLd';
+import { siteI18n } from '@/lib/i18n/server';
 
 /**
  * Shared building blocks for feature and audience pages. Server components.
@@ -10,12 +11,12 @@ import { FaqJsonLd } from '@/components/site/JsonLd';
  * picture. No glows, gradients or decorative tiles.
  */
 
-export function PageHero({
+export async function PageHero({
   eyebrow,
   title,
   lede,
   meta,
-  primary = { href: '/login', label: 'Start scheduling free' },
+  primary: primaryCta,
   secondary,
   visual,
 }: {
@@ -29,6 +30,8 @@ export function PageHero({
   /** Shown full width under the copy, usually a live app preview. */
   visual?: ReactNode;
 }) {
+  const { t } = await siteI18n();
+  const primary = primaryCta ?? { href: '/login', label: t('heroCta') };
   return (
     <section className="border-b border-line">
       <div className="mx-auto max-w-[1200px] px-4 pt-14 pb-12 sm:pt-20 md:pt-24 md:pb-16">
@@ -131,15 +134,16 @@ export function FeatureBlocks({ items }: { items: BlockItem[] }) {
   );
 }
 
-export function FaqList({ items, title = 'Questions, answered' }: { items: { q: string; a: string }[]; title?: string }) {
+export async function FaqList({ items, title }: { items: { q: string; a: string }[]; title?: string }) {
+  const { t } = await siteI18n();
   return (
-    <section aria-label="Frequently asked questions" className="border-t border-line">
+    <section aria-label={t('siteFaqAria')} className="border-t border-line">
       <FaqJsonLd items={items} />
       <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-8 px-4 py-16 md:py-24 lg:grid-cols-12 lg:gap-12">
         <div className="lg:col-span-4">
-          <p className="text-sm font-bold text-muted">FAQ</p>
+          <p className="text-sm font-bold text-muted">{t('siteFaq')}</p>
           <h2 className="mt-2 font-display text-[1.75rem] font-extrabold leading-tight tracking-tight text-balance md:text-3xl">
-            {title}
+            {title ?? t('siteFaqTitle')}
           </h2>
         </div>
         <div className="divide-y divide-line border-y border-line lg:col-span-8">
@@ -166,7 +170,7 @@ export function FaqList({ items, title = 'Questions, answered' }: { items: { q: 
 }
 
 /** Simple three-up row for pains, picks and proof points. */
-export function CardTrio({
+export async function CardTrio({
   eyebrow,
   title,
   cards,
@@ -175,6 +179,7 @@ export function CardTrio({
   title: string;
   cards: { title: string; body: string; href?: string; linkLabel?: string }[];
 }) {
+  const { t } = await siteI18n();
   return (
     <section className="border-y border-line">
       <div className="mx-auto max-w-[1200px] px-4 py-16 md:py-24">
@@ -190,7 +195,7 @@ export function CardTrio({
                 <p className="mt-2 flex-1 text-sm leading-relaxed text-muted">{c.body}</p>
                 {c.href ? (
                   <span className="mt-4 inline-block text-sm font-bold text-ink underline-offset-4 group-hover:underline">
-                    {c.linkLabel ?? 'Learn more'} →
+                    {c.linkLabel ?? t('siteLearnMore')} →
                   </span>
                 ) : null}
               </>

@@ -12,6 +12,10 @@ import ThemeScope from '@/components/ThemeScope';
 import ThemeToggle from '@/components/ThemeToggle';
 import NotificationBell from '@/components/NotificationBell';
 import CommunityLink from '@/components/CommunityLink';
+import { MessagesProvider } from '@/lib/i18n/client';
+import { appMessages } from '@/lib/i18n/app';
+import { messagesFor } from '@/lib/i18n/locales';
+import { getLocale } from '@/lib/i18n/server';
 import { providerMeta } from '@/lib/providers';
 import { fetchLiveChannels } from '@/lib/posts';
 import { createClient, getWorkspaceContext, hasSupabaseEnv } from '@/lib/supabase/server';
@@ -59,6 +63,7 @@ function ConnectHeader({ channels }: { channels: ConnectedChannel[] }) {
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   if (!hasSupabaseEnv()) redirect('/login');
+  const locale = await getLocale();
   const ctx = await getWorkspaceContext();
   if (!ctx) redirect('/login');
   const sb = await createClient();
@@ -87,50 +92,52 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     .sort((a, b) => (b.id === ctx.workspace.id ? 1 : 0) - (a.id === ctx.workspace.id ? 1 : 0));
 
   return (
-    <ThemeScope className="app-shell min-h-screen bg-bone text-ink">
-      <SwitchTransition currentId={ctx.workspace.id}>
-      {/* Floating pill masthead: detached look, aligned to the content
-          column. The sticky zone itself is opaque theme background (the
-          document body is hardwired white, which would bleed through a
-          transparent zone) and uses padding, not margin, so no gap can
-          show through. Left clearance keeps it clear of the fixed rail. */}
-      <div className="sticky top-0 z-30 bg-bone pt-3 pr-4 pb-2 pl-[76px] sm:pr-6 sm:pl-24">
-        <header className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2.5 rounded-full border border-line bg-card/95 pr-2 pl-4 shadow-[0_8px_30px_rgba(28,26,20,0.12)] backdrop-blur-sm">
-          <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
-          <span className="min-w-0 flex-1" aria-hidden="true" />
-          <WorkspaceSwitcher
-            current={{
-              id: ctx.workspace.id,
-              name: ctx.workspace.name,
-              role: ctx.workspace.role,
-              avatar_url: workspaces.find((w) => w.id === ctx.workspace.id)?.avatar_url ?? null,
-            }}
-            workspaces={
-              workspaces.some((w) => w.id === ctx.workspace.id)
-                ? workspaces
-                : [
-                    {
-                      id: ctx.workspace.id,
-                      name: ctx.workspace.name,
-                      role: ctx.workspace.role,
-                    },
-                    ...workspaces,
-                  ]
-            }
-          />
-          <ConnectHeader channels={channels} />
-          <ThemeToggle />
-          <CommunityLink workspaceId={ctx.workspace.id} />
-          <NotificationBell />
-        </header>
-      </div>
-      {/* Left clearance for the fixed rail on every breakpoint; no bottom dock anymore. */}
-      <main className="mx-auto min-w-0 w-full max-w-7xl flex-1 pr-4 pb-14 pl-[76px] sm:pl-24 sm:pr-6">
-        <ContentArea>{children}</ContentArea>
-      </main>
-      <Dock />
-      <Tour />
-      </SwitchTransition>
-    </ThemeScope>
+    <MessagesProvider messages={messagesFor(appMessages, locale)}>
+      <ThemeScope className="app-shell min-h-screen bg-bone text-ink">
+        <SwitchTransition currentId={ctx.workspace.id}>
+          {/* Floating pill masthead: detached look, aligned to the content
+              column. The sticky zone itself is opaque theme background (the
+              document body is hardwired white, which would bleed through a
+              transparent zone) and uses padding, not margin, so no gap can
+              show through. Left clearance keeps it clear of the fixed rail. */}
+          <div className="sticky top-0 z-30 bg-bone pt-3 pr-4 pb-2 pl-[76px] sm:pr-6 sm:pl-24">
+            <header className="mx-auto flex h-12 w-full max-w-7xl items-center gap-2.5 rounded-full border border-line bg-card/95 pr-2 pl-4 shadow-[0_8px_30px_rgba(28,26,20,0.12)] backdrop-blur-sm">
+              <Image src="/bolt.png" alt="Sosial" width={24} height={24} />
+              <span className="min-w-0 flex-1" aria-hidden="true" />
+              <WorkspaceSwitcher
+                current={{
+                  id: ctx.workspace.id,
+                  name: ctx.workspace.name,
+                  role: ctx.workspace.role,
+                  avatar_url: workspaces.find((w) => w.id === ctx.workspace.id)?.avatar_url ?? null,
+                }}
+                workspaces={
+                  workspaces.some((w) => w.id === ctx.workspace.id)
+                    ? workspaces
+                    : [
+                        {
+                          id: ctx.workspace.id,
+                          name: ctx.workspace.name,
+                          role: ctx.workspace.role,
+                        },
+                        ...workspaces,
+                      ]
+                }
+              />
+              <ConnectHeader channels={channels} />
+              <ThemeToggle />
+              <CommunityLink workspaceId={ctx.workspace.id} />
+              <NotificationBell />
+            </header>
+          </div>
+          {/* Left clearance for the fixed rail on every breakpoint; no bottom dock anymore. */}
+          <main className="mx-auto min-w-0 w-full max-w-7xl flex-1 pr-4 pb-14 pl-[76px] sm:pl-24 sm:pr-6">
+            <ContentArea>{children}</ContentArea>
+          </main>
+          <Dock />
+          <Tour />
+        </SwitchTransition>
+      </ThemeScope>
+    </MessagesProvider>
   );
 }

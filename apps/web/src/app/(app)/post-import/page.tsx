@@ -4,7 +4,7 @@ export const metadata = { title: 'Import' };
 
 export const dynamic = 'force-dynamic';
 
-/** Bulk import (Notion / Google Sheets) at its own URL, a Post hub tab. */
+/** Bulk import (Notion) at its own URL, a Post hub tab. */
 export default async function PostImportPage({
   searchParams,
 }: {

@@ -14,6 +14,9 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { BarChart3, LineChart as LineChartIcon } from 'lucide-react';
+import SegmentedPills from '@/components/ui/segmented-pills';
+import { niceScale } from '@/lib/analyticsMath';
 import { cn } from '@/lib/utils';
 
 /**
@@ -79,6 +82,43 @@ function ChartTooltipContent({
 
 type Datum = Record<string, string | number | null>;
 
+/** Compact tick text: 1200 → 1.2k, 2500000 → 2.5M. */
+const tick = (v: number): string => {
+  const a = Math.abs(v);
+  if (a >= 1_000_000) return `${Number((v / 1_000_000).toFixed(1))}M`;
+  if (a >= 1000) return `${Number((v / 1000).toFixed(1))}k`;
+  return String(Number(v.toFixed(2)));
+};
+
+/**
+ * Value axis shared by the bar and line charts: starts at zero, tops out on a
+ * round number (lib/analyticsMath niceScale, the same scale mobile draws) and
+ * is labelled, so a bar's height reads as a real value. Whole-number series
+ * never get fractional ticks.
+ */
+function useValueAxis(data: Datum[], dataKey: string, domainMax?: number) {
+  return React.useMemo(() => {
+    const values = data.map((d) => Number(d[dataKey])).filter((v) => Number.isFinite(v));
+    const integer = values.every((v) => Number.isInteger(v));
+    return niceScale(Math.max(domainMax ?? 0, ...values, 0), 4, integer);
+  }, [data, dataKey, domainMax]);
+}
+
+function ValueAxis({ scale }: { scale: { max: number; ticks: number[] } }) {
+  return (
+    <YAxis
+      width={36}
+      domain={[0, scale.max]}
+      ticks={scale.ticks}
+      allowDecimals={false}
+      tickLine={false}
+      axisLine={false}
+      tickFormatter={tick}
+      tick={{ fill: 'var(--color-faint)', fontSize: 10 }}
+    />
+  );
+}
+
 /** Vertical bars on a shared axis, the workhorse for per-day / per-week counts. */
 function ChartBar({
   data,
@@ -101,9 +141,10 @@ function ChartBar({
   xInterval?: number;
   className?: string;
 }) {
+  const scale = useValueAxis(data, dataKey, domainMax);
   return (
     <ChartContainer className={className} style={{ height }}>
-      <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 4 }} barCategoryGap="26%">
+      <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 0 }} barCategoryGap="26%">
         <CartesianGrid vertical={false} stroke="var(--color-line)" />
         <XAxis
           dataKey={labelKey}
@@ -112,9 +153,16 @@ function ChartBar({
           interval={xInterval}
           tick={{ fill: 'var(--color-faint)', fontSize: 10 }}
         />
-        <YAxis hide domain={domainMax ? [0, domainMax] : undefined} />
+        <ValueAxis scale={scale} />
         <ChartTooltip content={<ChartTooltipContent formatter={formatter} />} />
-        <Bar dataKey={dataKey} fill={color} radius={[6, 6, 0, 0]} maxBarSize={40} minPointSize={4} />
+        {/* A tiny non-zero value stays visible; a zero day draws no bar. */}
+        <Bar
+          dataKey={dataKey}
+          fill={color}
+          radius={[6, 6, 0, 0]}
+          maxBarSize={40}
+          minPointSize={(v: number | null | undefined) => (Number(v) > 0 ? 3 : 0)}
+        />
       </BarChart>
     </ChartContainer>
   );
@@ -156,10 +204,10 @@ function ChartArea({
           interval={0}
           tick={{ fill: 'var(--color-faint)', fontSize: 10 }}
         />
-        <YAxis hide />
+        <YAxis hide domain={[0, 'auto']} />
         <ChartTooltip content={<ChartTooltipContent formatter={formatter} />} />
         <Area
-          type="monotone"
+          type="linear"
           dataKey={dataKey}
           stroke={color}
           strokeWidth={2.5}
@@ -171,13 +219,16 @@ function ChartArea({
   );
 }
 
-/** Plain line for a trend (interactions per day, follower growth). */
+/** Plain line for a trend (interactions per day, follower growth). Straight
+ *  segments between real data points (no smoothing between days), and a
+ *  null value is a gap, never bridged. */
 function ChartLine({
   data,
   dataKey,
   labelKey,
   color = 'var(--color-accent)',
   height = 176,
+  domainMax,
   formatter,
   xInterval = 0,
   className,
@@ -187,13 +238,16 @@ function ChartLine({
   labelKey: string;
   color?: string;
   height?: number;
+  domainMax?: number;
   formatter?: (value: number | string) => string;
   xInterval?: number;
   className?: string;
 }) {
+  const scale = useValueAxis(data, dataKey, domainMax);
+  const dots = data.length <= 31;
   return (
     <ChartContainer className={className} style={{ height }}>
-      <LineChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 4 }}>
+      <LineChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
         <CartesianGrid vertical={false} stroke="var(--color-line)" />
         <XAxis
           dataKey={labelKey}
@@ -202,18 +256,69 @@ function ChartLine({
           interval={xInterval}
           tick={{ fill: 'var(--color-faint)', fontSize: 10 }}
         />
-        <YAxis hide />
-        <ChartTooltip content={<ChartTooltipContent formatter={formatter} />} />
+        <ValueAxis scale={scale} />
+        <ChartTooltip cursor={{ stroke: 'var(--color-line)' }} content={<ChartTooltipContent formatter={formatter} />} />
         <Line
-          type="monotone"
+          type="linear"
           dataKey={dataKey}
           stroke={color}
           strokeWidth={2.5}
-          dot={{ r: 3, fill: color, strokeWidth: 0 }}
+          connectNulls={false}
+          dot={dots ? { r: 3, fill: color, strokeWidth: 0 } : false}
           activeDot={{ r: 5 }}
         />
       </LineChart>
     </ChartContainer>
+  );
+}
+
+export type ChartMode = 'bar' | 'line';
+
+/** One series drawn as bars or a line on the same axis; the analytics
+ *  cards switch between the two with ChartModeToggle. */
+function ChartTrend({ mode, ...props }: React.ComponentProps<typeof ChartBar> & { mode: ChartMode }) {
+  return mode === 'line' ? <ChartLine {...props} /> : <ChartBar {...props} />;
+}
+
+/** Line ↔ bar switch, the same control and order as the mobile app. */
+function ChartModeToggle({
+  value,
+  onChange,
+  labels,
+}: {
+  value: ChartMode;
+  onChange: (mode: ChartMode) => void;
+  labels: { type: string; bar: string; line: string };
+}) {
+  return (
+    <SegmentedPills
+      ariaLabel={labels.type}
+      size="sm"
+      value={value}
+      onChange={onChange}
+      options={[
+        {
+          value: 'line' as const,
+          title: labels.line,
+          label: (
+            <>
+              <LineChartIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              {labels.line}
+            </>
+          ),
+        },
+        {
+          value: 'bar' as const,
+          title: labels.bar,
+          label: (
+            <>
+              <BarChart3 className="h-3.5 w-3.5" aria-hidden="true" />
+              {labels.bar}
+            </>
+          ),
+        },
+      ]}
+    />
   );
 }
 
@@ -253,4 +358,14 @@ function HBarList({ rows, className }: { rows: HBarRow[]; className?: string }) 
   );
 }
 
-export { ChartContainer, ChartTooltip, ChartTooltipContent, ChartBar, ChartArea, ChartLine, HBarList };
+export {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartBar,
+  ChartArea,
+  ChartLine,
+  ChartTrend,
+  ChartModeToggle,
+  HBarList,
+};

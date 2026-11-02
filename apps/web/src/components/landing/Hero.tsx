@@ -2,11 +2,12 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import AuthModal from '@/components/site/AuthModal';
+import dynamic from 'next/dynamic';
 import { GridPulse } from '@/components/ui/grid-pulse';
 import { BRAND_PATHS, type BrandProvider } from '@/components/BrandIcon';
-import { useT } from '@/lib/i18n/client';
-import { landingMessages } from '@/lib/i18n/landing';
+import { useMessages } from '@/lib/i18n/client';
+
+const AuthModal = dynamic(() => import('@/components/site/AuthModal'));
 
 /**
  * Fold (Tenner architecture, Sosial brand): eyebrow, headline with a rotated
@@ -35,7 +36,7 @@ const btn =
   'inline-flex items-center justify-center gap-2.5 rounded-full border-2 border-ink font-display text-base font-semibold px-6 py-3.5 leading-none transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_0_-2px_rgba(28,26,20,0.18)]';
 
 export default function Hero() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   const [auth, setAuth] = useState<null | 'in' | 'up'>(null);
 
   return (
@@ -75,7 +76,7 @@ export default function Hero() {
         <div className="animate-rise-2 relative">
           <Image
             src="/hero-devices.png"
-            alt="Sosial composer on a laptop beside the Sosial home screen on a phone"
+            alt={t('heroAlt')}
             width={1540}
             height={959}
             priority
@@ -84,7 +85,7 @@ export default function Hero() {
           />
         </div>
       </div>
-      <AuthModal open={auth !== null} mode={auth ?? 'up'} onClose={() => setAuth(null)} />
+      {auth !== null ? <AuthModal open mode={auth} onClose={() => setAuth(null)} /> : null}
     </section>
   );
 }

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, LayoutChangeEvent } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Path, Circle, Rect, Line, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line, Text as SvgText } from 'react-native-svg';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme } from '../theme';
-
-let uid = 0;
-const nextId = () => `chart${++uid}`;
+import { niceScale } from '../utils/analyticsMath';
+import { Seg } from './ui';
 
 const LABEL_H = 16;
 
@@ -14,236 +14,149 @@ function useWidth() {
   return { w, onLayout };
 }
 
-/** Area chart, gradient fill, gridlines, optional x labels, tap to scrub the
- *  nearest point (shows a value tooltip + vertical guide). SVG only. */
-export function AreaChart({
+export type ChartMode = 'bar' | 'line';
+
+const AXIS_W = 34;
+
+const tickText = (v: number): string => {
+  const a = Math.abs(v);
+  if (a >= 1_000_000) return `${Number((v / 1_000_000).toFixed(1))}M`;
+  if (a >= 1000) return `${Number((v / 1000).toFixed(1))}k`;
+  return String(Number(v.toFixed(2)));
+};
+
+/**
+ * One series as bars or a line on a labelled value axis that starts at zero
+ * and tops out on a round number (utils/analyticsMath niceScale, the same
+ * scale the web charts use). A zero day draws no bar; a null value is a gap
+ * in the line, never bridged. Tap a bucket to read its value.
+ */
+export function TrendChart({
   data,
-  color,
-  height = 72,
-  strokeWidth = 2.5,
-  showEndDot = true,
   labels,
-  gridLines = 0,
-  interactive = false,
+  mode,
+  color,
+  height = 150,
   formatValue,
 }: {
-  data: number[];
+  data: (number | null)[];
+  labels: string[];
+  mode: ChartMode;
   color: string;
   height?: number;
-  strokeWidth?: number;
-  showEndDot?: boolean;
-  labels?: string[];
-  gridLines?: number;
-  interactive?: boolean;
   formatValue?: (v: number) => string;
 }) {
   const { C } = useTheme();
   const { w, onLayout } = useWidth();
   const [active, setActive] = useState<number | null>(null);
   const n = data.length;
-  const hasLabels = !!labels && labels.length > 0;
-  const totalH = height + (hasLabels ? LABEL_H : 0);
-  if (n < 2) {
-    return <View onLayout={onLayout} style={{ width: '100%', height: totalH }} />;
-  }
-  const lo = Math.min(...data);
-  const hi = Math.max(...data);
-  const span = hi - lo || 1;
-  const pad = span * 0.14;
-  const min = lo - pad;
-  const max = hi + pad;
-  const pts = data.map((v, i) => ({
-    x: (i / (n - 1)) * w,
-    y: height - ((v - min) / (max - min)) * height,
-  }));
-  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
-  const area = `${line} L${pts[n - 1].x.toFixed(2)},${height} L${pts[0].x.toFixed(2)},${height} Z`;
-  const last = pts[n - 1];
-  const [id] = useState(nextId);
-  const shown = active != null ? pts[active] : null;
+  const values = data.filter((v): v is number => v !== null && Number.isFinite(v));
+  const scale = niceScale(Math.max(0, ...values), 4, values.every((v) => Number.isInteger(v)));
+  const plotW = Math.max(0, w - AXIS_W);
+  const slot = n > 0 ? plotW / n : 0;
+  const y = (v: number): number => height - (v / scale.max) * height;
+  const cx = (i: number): number => AXIS_W + slot * i + slot / 2;
+  const every = Math.max(1, Math.ceil(n / 6));
+  const fmt = formatValue ?? ((v: number) => String(v));
 
   const onTap = (e: { nativeEvent: { locationX: number } }) => {
-    if (!interactive || w <= 0) return;
-    const x = e.nativeEvent.locationX;
-    let idx = 0;
-    let best = Infinity;
-    for (let i = 0; i < n; i++) {
-      const d = Math.abs(pts[i].x - x);
-      if (d < best) { best = d; idx = i; }
-    }
+    if (n === 0 || slot <= 0) return;
+    const idx = Math.max(0, Math.min(n - 1, Math.floor((e.nativeEvent.locationX - AXIS_W) / slot)));
     setActive(idx === active ? null : idx);
   };
 
+  // Line segments only join neighbouring known values.
+  const segments: string[] = [];
+  if (mode === 'line') {
+    let d = '';
+    data.forEach((v, i) => {
+      if (v === null || !Number.isFinite(v)) {
+        if (d) segments.push(d);
+        d = '';
+        return;
+      }
+      d += `${d ? 'L' : 'M'}${cx(i).toFixed(2)},${y(v).toFixed(2)} `;
+    });
+    if (d) segments.push(d);
+  }
+  const barW = Math.max(2, Math.min(28, slot * 0.66));
+  const hot = active !== null ? data[active] : null;
+
   return (
     <View style={{ width: '100%' }}>
-      <Pressable onPress={onTap} onLayout={onLayout} style={{ width: '100%', height }}>
+      <Pressable onPress={onTap} onLayout={onLayout} style={{ width: '100%', height: height + LABEL_H + 4 }}>
         {w > 0 ? (
-          <Svg width={w} height={height}>
-            <Defs>
-              <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={color} stopOpacity="0.28" />
-                <Stop offset="1" stopColor={color} stopOpacity="0" />
-              </LinearGradient>
-            </Defs>
-            {Array.from({ length: gridLines }).map((_, i) => {
-              const y = (height / (gridLines + 1)) * (i + 1);
-              return <Line key={i} x1={0} y1={y} x2={w} y2={y} stroke={C.lineSoft} strokeWidth={1} />;
-            })}
-            <Path d={area} fill={`url(#${id})`} />
-            <Path d={line} stroke={color} strokeWidth={strokeWidth} fill="none" strokeLinejoin="round" strokeLinecap="round" />
-            {shown ? <Line x1={shown.x} y1={0} x2={shown.x} y2={height} stroke={color} strokeWidth={1} strokeDasharray="3 3" opacity={0.5} /> : null}
-            {shown ? <Circle cx={shown.x} cy={shown.y} r={4} fill={color} /> : null}
-            {!shown && showEndDot ? <Circle cx={last.x} cy={last.y} r={3.5} fill={color} /> : null}
-            {hasLabels
-              ? labels!.map((l, i) =>
-                  i % Math.ceil(n / 6) === 0 || i === n - 1 ? (
-                    <SvgText
-                      key={i}
-                      x={pts[i].x}
-                      y={height + LABEL_H - 3}
-                      fontSize={9}
-                      fill={C.faint}
-                      textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}
-                    >
-                      {l}
-                    </SvgText>
-                  ) : null,
-                )
+          <Svg width={w} height={height + LABEL_H + 4}>
+            {scale.ticks.map((t) => (
+              <React.Fragment key={t}>
+                <Line x1={AXIS_W} y1={y(t)} x2={w} y2={y(t)} stroke={C.lineSoft} strokeWidth={1} />
+                <SvgText x={AXIS_W - 6} y={y(t) + 3} fontSize={9} fill={C.faint} textAnchor="end">
+                  {tickText(t)}
+                </SvgText>
+              </React.Fragment>
+            ))}
+            {active !== null ? (
+              <Rect x={AXIS_W + slot * active} y={0} width={slot} height={height} fill={C.surface} opacity={0.7} />
+            ) : null}
+            {mode === 'bar'
+              ? data.map((v, i) => {
+                  if (v === null || !(v > 0)) return null;
+                  const h = Math.max(3, height - y(v));
+                  return <Rect key={i} x={cx(i) - barW / 2} y={height - h} width={barW} height={h} rx={Math.min(4, barW / 2)} fill={color} />;
+                })
               : null}
+            {mode === 'line'
+              ? segments.map((d, i) => (
+                  <Path key={i} d={d} stroke={color} strokeWidth={2.5} fill="none" strokeLinejoin="round" strokeLinecap="round" />
+                ))
+              : null}
+            {mode === 'line' && n <= 31
+              ? data.map((v, i) => (v === null ? null : <Circle key={i} cx={cx(i)} cy={y(v)} r={active === i ? 4.5 : 2.5} fill={color} />))
+              : null}
+            {labels.map((l, i) =>
+              i % every === 0 ? (
+                <SvgText key={i} x={cx(i)} y={height + LABEL_H} fontSize={9} fill={C.faint} textAnchor="middle">
+                  {l}
+                </SvgText>
+              ) : null,
+            )}
           </Svg>
         ) : null}
       </Pressable>
-      {shown && active != null ? (
-        <View pointerEvents="none" style={[styles.tip, { left: Math.max(0, Math.min(w - 64, shown.x - 32)) }]}>
-          <Text style={[styles.tipV, { color: C.ink }]}>{formatValue ? formatValue(data[active]) : String(data[active])}</Text>
-          {hasLabels ? <Text style={[styles.tipL, { color: C.muted }]}>{labels![active]}</Text> : null}
+      {active !== null ? (
+        <View pointerEvents="none" style={[styles.tip, { left: Math.max(0, Math.min(w - 72, cx(active) - 36)) }]}>
+          <Text style={[styles.tipV, { color: C.ink }]}>{hot === null ? '-' : fmt(hot)}</Text>
+          <Text style={[styles.tipL, { color: C.muted }]}>{labels[active]}</Text>
         </View>
       ) : null}
     </View>
   );
 }
 
-/** Vertical bar chart, gridlines, optional x labels, value labels, tap to
- *  highlight a bar. SVG only. */
-export function BarsChart({
-  data,
-  color,
-  height = 72,
-  barGap = 6,
-  radius = 3,
-  labels,
-  gridLines = 0,
-  highlightIndex,
-  showValues = false,
-  interactive = false,
-  formatValue,
-}: {
-  data: number[];
-  color: string;
-  height?: number;
-  barGap?: number;
-  radius?: number;
-  labels?: string[];
-  gridLines?: number;
-  highlightIndex?: number;
-  showValues?: boolean;
-  interactive?: boolean;
-  formatValue?: (v: number) => string;
+/** Line ↔ bar switch, the same control and order as the web analytics cards. */
+export function ChartModeToggle({ value, onChange, labels }: {
+  value: ChartMode;
+  onChange: (m: ChartMode) => void;
+  labels: { type: string; line: string; bar: string };
 }) {
   const { C } = useTheme();
-  const { w, onLayout } = useWidth();
-  const [active, setActive] = useState<number | null>(null);
-  const n = data.length;
-  const hi = Math.max(1, ...data);
-  const bw = n > 0 ? (w - barGap * (n - 1)) / n : 0;
-  const hasLabels = !!labels && labels.length > 0;
-  const totalH = height + (hasLabels ? LABEL_H : 0);
-  const hot = active ?? highlightIndex ?? null;
-
-  const onTap = (e: { nativeEvent: { locationX: number } }) => {
-    if (!interactive || w <= 0 || n === 0) return;
-    const slot = w / n;
-    const idx = Math.max(0, Math.min(n - 1, Math.floor(e.nativeEvent.locationX / slot)));
-    setActive(idx === active ? null : idx);
-  };
-
   return (
-    <View style={{ width: '100%' }}>
-      <Pressable onPress={onTap} onLayout={onLayout} style={{ width: '100%', height: totalH }}>
-        {w > 0 && n > 0 ? (
-          <Svg width={w} height={totalH}>
-            {Array.from({ length: gridLines }).map((_, i) => {
-              const y = (height / (gridLines + 1)) * (i + 1);
-              return <Line key={i} x1={0} y1={y} x2={w} y2={y} stroke={C.lineSoft} strokeWidth={1} />;
-            })}
-            {data.map((v, i) => {
-              const h = Math.max(2, (v / hi) * height);
-              const x = i * (bw + barGap);
-              const y = height - h;
-              const dim = hot != null && i !== hot;
-              return <Rect key={i} x={x} y={y} width={bw} height={h} rx={radius} fill={color} opacity={v > 0 ? (dim ? 0.32 : 1) : 0.25} />;
-            })}
-            {showValues
-              ? data.map((v, i) => {
-                  const h = Math.max(2, (v / hi) * height);
-                  const x = i * (bw + barGap) + bw / 2;
-                  return (
-                    <SvgText key={i} x={x} y={height - h - 4} fontSize={9} fill={C.faint} textAnchor="middle">
-                      {formatValue ? formatValue(v) : String(v)}
-                    </SvgText>
-                  );
-                })
-              : null}
-            {hasLabels
-              ? labels!.map((l, i) => (
-                  <SvgText key={i} x={i * (bw + barGap) + bw / 2} y={height + LABEL_H - 3} fontSize={9} fill={C.faint} textAnchor="middle">
-                    {l}
-                  </SvgText>
-                ))
-              : null}
-          </Svg>
-        ) : null}
-      </Pressable>
-    </View>
-  );
-}
-
-/** Horizontal bar list, the mobile analogue of the web `HBarList`. Each row
- *  is a label + value over a track/fill. */
-export function HBarList({
-  rows,
-  max,
-  height = 7,
-  gap = 14,
-  trackColor,
-  formatValue,
-}: {
-  rows: { label: string; value: number; color?: string; sub?: string }[];
-  max?: number;
-  height?: number;
-  gap?: number;
-  trackColor?: string;
-  formatValue?: (v: number) => string;
-}) {
-  const { C } = useTheme();
-  const hi = Math.max(1, max ?? Math.max(...rows.map((r) => r.value), 1));
-  return (
-    <View style={{ gap }}>
-      {rows.map((r, i) => (
-        <View key={i} style={{ gap: 5 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-            <Text style={[styles.hbLabel, { color: C.ink }]} numberOfLines={1}>
-              {r.label}
-              {r.sub ? <Text style={{ color: C.faint, fontFamily: 'PlusJakartaSans_400Regular' }}>  {r.sub}</Text> : null}
-            </Text>
-            <Text style={[styles.hbValue, { color: C.soft }]}>{formatValue ? formatValue(r.value) : r.value}</Text>
-          </View>
-          <View style={{ height, borderRadius: height / 2, backgroundColor: trackColor ?? C.surface, overflow: 'hidden' }}>
-            <View style={{ width: `${Math.max(2, (r.value / hi) * 100)}%`, height, borderRadius: height / 2, backgroundColor: r.color ?? C.accent }} />
-          </View>
+    <Seg
+      accessibilityLabel={labels.type}
+      grow={false}
+      value={value}
+      onChange={onChange}
+      options={[
+        { value: 'line', label: labels.line },
+        { value: 'bar', label: labels.bar },
+      ]}
+      renderOption={(o, on) => (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Ionicons name={o.value === 'line' ? 'trending-up' : 'bar-chart'} size={12} color={on ? C.ink : C.muted} />
+          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11.5, color: on ? C.ink : C.muted }}>{o.label}</Text>
         </View>
-      ))}
-    </View>
+      )}
+    />
   );
 }
 
@@ -267,6 +180,4 @@ const styles = StyleSheet.create({
   },
   tipV: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, fontVariant: ['tabular-nums'] },
   tipL: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 9.5 },
-  hbLabel: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, flexShrink: 1 },
-  hbValue: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, fontVariant: ['tabular-nums'] },
 });

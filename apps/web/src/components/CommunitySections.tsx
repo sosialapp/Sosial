@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Bot, Mail, MessageCircle } from 'lucide-react';
 import SegmentedPills from '@/components/ui/segmented-pills';
@@ -33,6 +34,16 @@ export default function CommunitySections({
 }) {
   const router = useRouter();
   const t = useT(automationMessages);
+  // Auto-replies is its own route, so the old page stays up until the new one
+  // streams in. Slide the pill the moment it's clicked instead of jumping
+  // once the page lands; the next page then mounts already on that tab.
+  const [pending, setPending] = useState<CommunitySection | null>(null);
+  useEffect(() => setPending(null), [value]);
+  const shown = pending ?? value;
+  const go = (v: CommunitySection) => {
+    setPending(v);
+    router.push(ROUTE[v]);
+  };
   const tabs: { key: CommunitySection; label: string; Icon: typeof MessageCircle }[] = [
     { key: 'comments', label: t('secComments'), Icon: MessageCircle },
     { key: 'messages', label: t('secMessages'), Icon: Mail },
@@ -44,18 +55,18 @@ export default function CommunitySections({
       ariaLabel={t('secAria')}
       role="tablist"
       size="lg"
-      value={value}
+      value={shown}
       onChange={(v) => {
-        if (v === value) return;
+        if (v === shown) return;
         if (v === 'auto') {
-          router.push(ROUTE.auto);
+          go('auto');
           return;
         }
         if (onPick) {
           onPick(v);
           return;
         }
-        router.push(ROUTE[v]);
+        go(v);
       }}
       className="min-w-0 flex-1 sm:flex-none"
       buttonClassName="flex-1 sm:flex-none !px-4"

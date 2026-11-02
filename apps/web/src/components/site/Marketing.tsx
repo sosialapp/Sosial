@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowRight, Check, type LucideIcon } from 'lucide-react';
 import Reveal from '@/components/anim/Reveal';
+import { siteI18n } from '@/lib/i18n/server';
 
 /**
  * Building blocks for the product and company pages (Publish, Create, AI
@@ -11,7 +12,8 @@ import Reveal from '@/components/anim/Reveal';
  * as the only ornament, hairline grids, the product itself as the picture,
  * and one light closing card. No pills, no coloured dots, no gradients
  * behind text. Groups fade up on scroll through Reveal, which never hides
- * content before hydration or for reduced-motion users.
+ * content before hydration or for reduced-motion users. Built-in labels
+ * ("Learn more", the default CTAs) follow the visitor's locale.
  */
 
 const H1 = 'font-display text-[2.6rem] font-[700] leading-[1.02] tracking-[-0.04em] text-balance sm:text-6xl lg:text-[4.25rem]';
@@ -62,13 +64,13 @@ function CtaRow({ primary, secondary }: { primary: Cta; secondary?: Cta }) {
   );
 }
 
-export function Hero({
+export async function Hero({
   icon,
   kicker,
   title,
   lede,
   meta,
-  primary = { href: '/login', label: 'Start scheduling free' },
+  primary,
   secondary,
   visual,
 }: {
@@ -83,6 +85,7 @@ export function Hero({
   /** The product, framed on a soft stage under the copy. */
   visual?: ReactNode;
 }) {
+  const { t } = await siteI18n();
   return (
     <section className="relative overflow-hidden">
       <div className="mx-auto max-w-[1200px] px-4 pt-16 sm:px-6 sm:pt-24 md:pt-28">
@@ -91,7 +94,7 @@ export function Hero({
           <h1 className={`mt-5 max-w-4xl ${H1}`}>{title}</h1>
           <p className={`mt-6 max-w-2xl ${LEDE}`}>{lede}</p>
           <div className="mt-9">
-            <CtaRow primary={primary} secondary={secondary} />
+            <CtaRow primary={primary ?? { href: '/login', label: t('heroCta') }} secondary={secondary} />
           </div>
           {meta ? <p className="mt-5 text-xs text-ink/45">{meta}</p> : null}
         </Reveal>
@@ -157,7 +160,8 @@ export interface IconItem {
 }
 
 /** Hairline grid of icon cards. */
-export function IconGrid({ items, cols = 3 }: { items: IconItem[]; cols?: 2 | 3 | 4 }) {
+export async function IconGrid({ items, cols = 3 }: { items: IconItem[]; cols?: 2 | 3 | 4 }) {
+  const { t } = await siteI18n();
   const grid = cols === 4 ? 'sm:grid-cols-2 lg:grid-cols-4' : cols === 2 ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3';
   return (
     <Reveal
@@ -172,7 +176,7 @@ export function IconGrid({ items, cols = 3 }: { items: IconItem[]; cols?: 2 | 3 
             <p className="mt-2 flex-1 text-[15px] leading-relaxed text-ink/60">{it.body}</p>
             {it.href ? (
               <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-ink">
-                {it.linkLabel ?? 'Learn more'}
+                {it.linkLabel ?? t('siteLearnMore')}
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden="true" />
               </span>
             ) : null}
@@ -283,17 +287,20 @@ export function Steps({ items }: { items: IconItem[] }) {
 }
 
 /** The closing card every page ends on; light, so it never merges with the black footer below. */
-export function CtaCard({
+export async function CtaCard({
   title,
   body,
-  primary = { href: '/login', label: 'Start scheduling free' },
-  secondary = { href: '/pricing', label: 'See pricing' },
+  primary: primaryCta,
+  secondary: secondaryCta,
 }: {
   title: string;
   body: string;
   primary?: Cta;
   secondary?: Cta;
 }) {
+  const { t, href } = await siteI18n();
+  const primary = primaryCta ?? { href: '/login', label: t('heroCta') };
+  const secondary = secondaryCta ?? { href: href('/pricing'), label: t('siteSeePricing') };
   return (
     <section className="px-3 pb-6 pt-4 sm:px-4">
       <Reveal className="mx-auto max-w-[1440px]">

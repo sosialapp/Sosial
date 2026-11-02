@@ -1777,7 +1777,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                       return (
                         <View key={a.id} style={s.acctRow}>
                           <TouchableOpacity onPress={() => selectAccount(p, a)} activeOpacity={0.7} style={s.acctSel}>
-                            <ChannelAvatar platform={p} avatar={accountAvatar(a)} size={30} badge={list.length > 1} />
+                            <ChannelAvatar platform={p} avatar={accountAvatar(a)} size={30} />
                             <View style={{ flex: 1 }}>
                               <Text style={s.acctT} numberOfLines={1}>{accountLabel(a)}</Text>
                               {deadReason ? (

@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import { BRAND_NAMES, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
-import { useT } from '@/lib/i18n/client';
-import { landingMessages } from '@/lib/i18n/landing';
+import { useMessages } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/locales';
 
 /**
  * Create / Publish / Team in one bento. Every card is a small working demo
  * on local state (nothing is sent anywhere): pick a tone and generate,
  * pick channels and schedule, flip through the week, approve or send back
- * a teammate's post. Demo copy is sample content, so it stays in English.
+ * a teammate's post. Demo copy, sample posts included, is translated so the
+ * page reads in one language.
  */
 
 type Area = 'create' | 'publish' | 'team';
@@ -54,18 +55,14 @@ const panel = 'w-full rounded-2xl bg-white shadow-[0_24px_60px_-28px_rgba(28,26,
 
 /* ------------------------------ AI writer ----------------------------- */
 
-const TONES = {
-  Punchy: 'v2 is live. Faster drafts, smarter queue, zero busywork. Go try it 👇',
-  Story: 'Six months ago our queue broke at 3am. Today we shipped the fix, and a lot more. Here is v2 🧵',
-  Friendly: 'Hey friends! v2 just landed and we think you’ll love how much quicker posting feels ✨',
-  Thread: '1/ We shipped v2 today. Three things we learned the hard way, and one we’d do again tomorrow.',
-} as const;
-type Tone = keyof typeof TONES;
+const TONES = ['Punchy', 'Story', 'Friendly', 'Thread'] as const;
+type Tone = (typeof TONES)[number];
 
 function WriterDemo() {
+  const t = useMessages();
   const [tone, setTone] = useState<Tone>('Punchy');
   const [phase, setPhase] = useState<'idle' | 'busy' | 'typing'>('idle');
-  const [out, setOut] = useState<string>(TONES.Punchy);
+  const [out, setOut] = useState<string>(() => t('dmOutPunchy'));
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -75,7 +72,7 @@ function WriterDemo() {
     timers.current = [];
     setTone(next);
     setPhase('busy');
-    const text = TONES[next];
+    const text = t(`dmOut${next}`);
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setOut(text);
       setPhase('idle');
@@ -94,20 +91,20 @@ function WriterDemo() {
 
   return (
     <div className={`${panel} max-w-[460px] p-4`}>
-      <div className="rounded-xl bg-[#F5F5F3] px-3.5 py-3 text-[13px] text-ink/70">Turn my launch notes into a post.</div>
-      <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Tone">
-        {(Object.keys(TONES) as Tone[]).map((t) => (
+      <div className="rounded-xl bg-[#F5F5F3] px-3.5 py-3 text-[13px] text-ink/70">{t('dmPrompt')}</div>
+      <div className="mt-3 flex flex-wrap gap-1.5" role="radiogroup" aria-label={t('dmTone')}>
+        {TONES.map((tn) => (
           <button
-            key={t}
+            key={tn}
             type="button"
             role="radio"
-            aria-checked={tone === t}
-            onClick={() => generate(t)}
+            aria-checked={tone === tn}
+            onClick={() => generate(tn)}
             className={`rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
-              tone === t ? 'bg-ink text-paper' : 'bg-[#F3F3F1] text-ink/65 hover:bg-[#E9E9E6]'
+              tone === tn ? 'bg-ink text-paper' : 'bg-[#F3F3F1] text-ink/65 hover:bg-[#E9E9E6]'
             }`}
           >
-            {t}
+            {t(`dmTone${tn}`)}
           </button>
         ))}
       </div>
@@ -115,10 +112,10 @@ function WriterDemo() {
         <div className="flex items-center gap-2">
           <BrandIcon provider="threads" className="h-4 w-4" />
           <span className="text-[12px] font-medium">sosial.app</span>
-          <span className="text-[11px] text-ink/40">· Preview</span>
+          <span className="text-[11px] text-ink/40">· {t('dmPreview')}</span>
         </div>
         {phase === 'busy' ? (
-          <div className="mt-3 space-y-2" aria-label="Writing">
+          <div className="mt-3 space-y-2" aria-label={t('dmWriting')}>
             <div className="h-2.5 w-11/12 animate-pulse rounded-full bg-[#EDEDEA]" />
             <div className="h-2.5 w-2/3 animate-pulse rounded-full bg-[#EDEDEA]" />
           </div>
@@ -139,7 +136,7 @@ function WriterDemo() {
         ) : (
           <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-ink/20 border-t-ink" />
         )}
-        {phase === 'idle' ? 'Generate again' : 'Writing…'}
+        {phase === 'idle' ? t('dmGenerate') : t('dmWriting')}
       </button>
     </div>
   );
@@ -150,6 +147,7 @@ function WriterDemo() {
 const PICKABLE: BrandProvider[] = ['instagram', 'tiktok', 'x', 'threads', 'youtube', 'bluesky', 'facebook'];
 
 function ScheduleDemo() {
+  const t = useMessages();
   const [picked, setPicked] = useState<BrandProvider[]>(['instagram', 'tiktok', 'threads']);
   const [state, setState] = useState<'edit' | 'busy' | 'done'>('edit');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -173,7 +171,7 @@ function ScheduleDemo() {
             <path d="m3.5 8.5 3 3 6-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
-        <p className="mt-3 font-display text-[15px] font-medium">Scheduled for Wed, 12:00</p>
+        <p className="mt-3 font-display text-[15px] font-medium">{fill(t('dmScheduled'), { when: t('dmWhen') })}</p>
         <div className="mt-2 flex justify-center gap-1">
           {picked.map((p) => (
             <BrandIcon key={p} provider={p} className="h-4 w-4" />
@@ -184,7 +182,7 @@ function ScheduleDemo() {
           onClick={() => setState('edit')}
           className="mt-4 rounded-[10px] bg-[#F3F3F1] px-4 py-2 text-[12px] font-medium text-ink/70 transition hover:bg-[#E9E9E6]"
         >
-          Schedule another
+          {t('dmAnother')}
         </button>
       </div>
     );
@@ -192,7 +190,7 @@ function ScheduleDemo() {
 
   return (
     <div className={`${panel} max-w-[340px] p-4`}>
-      <p className="text-[12px] font-medium text-ink/50">Post to</p>
+      <p className="text-[12px] font-medium text-ink/50">{t('dmPostTo')}</p>
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {PICKABLE.map((p) => {
           const on = picked.includes(p);
@@ -213,8 +211,8 @@ function ScheduleDemo() {
         })}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-[12px] font-medium">
-        <span className="rounded-lg bg-[#F3F3F1] px-3 py-2">Wed, 12:00</span>
-        <span className="rounded-lg bg-[#F3F3F1] px-3 py-2">New York</span>
+        <span className="rounded-lg bg-[#F3F3F1] px-3 py-2">{t('dmWhen')}</span>
+        <span className="rounded-lg bg-[#F3F3F1] px-3 py-2">{t('dmCity')}</span>
       </div>
       <button
         type="button"
@@ -225,7 +223,7 @@ function ScheduleDemo() {
         {state === 'busy' && (
           <span aria-hidden="true" className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
         )}
-        {picked.length === 0 ? 'Pick a channel' : `Schedule to ${picked.length} channel${picked.length > 1 ? 's' : ''}`}
+        {picked.length === 0 ? t('dmPick') : picked.length === 1 ? t('dmSchedOne') : fill(t('dmSchedN'), { n: picked.length })}
       </button>
     </div>
   );
@@ -233,26 +231,28 @@ function ScheduleDemo() {
 
 /* -------------------------------- week -------------------------------- */
 
+/** day and title are dictionary keys. */
 const WEEK: { day: string; posts: { at: string; p: BrandProvider; title: string }[] }[] = [
-  { day: 'Mon', posts: [{ at: '09:00', p: 'instagram', title: 'Spring drop teaser' }, { at: '17:30', p: 'x', title: 'Launch thread' }] },
-  { day: 'Tue', posts: [{ at: '11:00', p: 'tiktok', title: 'Behind the scenes' }] },
+  { day: 'dmMon', posts: [{ at: '09:00', p: 'instagram', title: 'dmW1' }, { at: '17:30', p: 'x', title: 'dmW2' }] },
+  { day: 'dmTue', posts: [{ at: '11:00', p: 'tiktok', title: 'dmW3' }] },
   {
-    day: 'Wed',
+    day: 'dmWed',
     posts: [
-      { at: '08:15', p: 'threads', title: 'Morning hook' },
-      { at: '12:00', p: 'youtube', title: 'Product walkthrough' },
-      { at: '19:00', p: 'instagram', title: 'Customer story' },
+      { at: '08:15', p: 'threads', title: 'dmW4' },
+      { at: '12:00', p: 'youtube', title: 'dmW5' },
+      { at: '19:00', p: 'instagram', title: 'dmW6' },
     ],
   },
-  { day: 'Thu', posts: [{ at: '10:30', p: 'bluesky', title: 'Changelog notes' }] },
-  { day: 'Fri', posts: [{ at: '09:45', p: 'facebook', title: 'Weekend offer' }, { at: '16:00', p: 'pinterest', title: 'Moodboard pin' }] },
+  { day: 'dmThu', posts: [{ at: '10:30', p: 'bluesky', title: 'dmW7' }] },
+  { day: 'dmFri', posts: [{ at: '09:45', p: 'facebook', title: 'dmW8' }, { at: '16:00', p: 'pinterest', title: 'dmW9' }] },
 ];
 
 function WeekDemo() {
+  const t = useMessages();
   const [day, setDay] = useState(2);
   return (
     <div className={`${panel} max-w-[380px] p-4`}>
-      <div className="grid grid-cols-5 gap-1.5" role="tablist" aria-label="Day">
+      <div className="grid grid-cols-5 gap-1.5" role="tablist" aria-label={t('dmDay')}>
         {WEEK.map((d, i) => (
           <button
             key={d.day}
@@ -264,7 +264,7 @@ function WeekDemo() {
               day === i ? 'bg-ink text-paper' : 'bg-[#F5F5F3] text-ink/60 hover:bg-[#ECECE9]'
             }`}
           >
-            {d.day}
+            {t(d.day)}
             <span className="flex gap-0.5">
               {d.posts.map((x) => (
                 <span key={x.at} className={`h-1 w-1 rounded-full ${day === i ? 'bg-bolt' : 'bg-ink/30'}`} />
@@ -277,7 +277,7 @@ function WeekDemo() {
         {WEEK[day].posts.map((x) => (
           <li key={x.at} className="flex items-center gap-3 rounded-xl border border-line px-3 py-2.5">
             <BrandIcon provider={x.p} className="h-4 w-4 shrink-0" />
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{x.title}</span>
+            <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{t(x.title)}</span>
             <span className="text-[12px] text-ink/45">{x.at}</span>
           </li>
         ))}
@@ -288,13 +288,15 @@ function WeekDemo() {
 
 /* ------------------------------ approvals ----------------------------- */
 
+/** text is a dictionary key. */
 const REQUESTS = [
-  { who: 'Leo', img: 'men/32', p: 'instagram' as BrandProvider, text: 'Spring drop is live. Tap the link for early access before Friday.' },
-  { who: 'Maya', img: 'women/44', p: 'tiktok' as BrandProvider, text: 'POV: you finally scheduled a whole week before Monday coffee.' },
-  { who: 'Sam', img: 'men/75', p: 'x' as BrandProvider, text: 'We are hiring a community lead. DMs open, links in bio.' },
+  { who: 'Leo', img: 'men/32', p: 'instagram' as BrandProvider, text: 'dmR1' },
+  { who: 'Maya', img: 'women/44', p: 'tiktok' as BrandProvider, text: 'dmR2' },
+  { who: 'Sam', img: 'men/75', p: 'x' as BrandProvider, text: 'dmR3' },
 ];
 
 function ApprovalDemo() {
+  const t = useMessages();
   const [i, setI] = useState(0);
   const [verdict, setVerdict] = useState<null | 'approved' | 'sent-back'>(null);
   const r = REQUESTS[i];
@@ -314,11 +316,11 @@ function ApprovalDemo() {
             className="h-8 w-8 rounded-full object-cover"
           />
           <p className="min-w-0 flex-1 text-[13px] leading-snug">
-            <span className="font-medium">{r.who}</span> <span className="text-ink/55">sent a post for review</span>
+            <span className="font-medium">{r.who}</span> <span className="text-ink/55">{t('dmSentForReview')}</span>
           </p>
           <BrandIcon provider={r.p} className="h-4 w-4" />
         </div>
-        <div className="mt-3 rounded-xl bg-[#F6F6F4] p-3 text-[13px] leading-relaxed text-ink/75">{r.text}</div>
+        <div className="mt-3 rounded-xl bg-[#F6F6F4] p-3 text-[13px] leading-relaxed text-ink/75">{t(r.text)}</div>
         {verdict === null ? (
           <div className="mt-3 grid grid-cols-2 gap-2 text-[13px] font-medium">
             <button
@@ -326,14 +328,14 @@ function ApprovalDemo() {
               onClick={() => setVerdict('approved')}
               className="rounded-[10px] bg-ink py-2.5 text-paper transition hover:bg-[#2a261d]"
             >
-              Approve
+              {t('dmApprove')}
             </button>
             <button
               type="button"
               onClick={() => setVerdict('sent-back')}
               className="rounded-[10px] bg-[#F3F3F1] py-2.5 text-ink/70 transition hover:bg-[#E9E9E6]"
             >
-              Send back
+              {t('dmSendBack')}
             </button>
           </div>
         ) : (
@@ -346,17 +348,17 @@ function ApprovalDemo() {
               >
                 {verdict === 'approved' ? '✓' : '↩'}
               </span>
-              {verdict === 'approved' ? 'Approved, joins the queue Fri 09:00' : `Sent back to ${r.who} with a note`}
+              {verdict === 'approved' ? t('dmApproved') : fill(t('dmSentBack'), { name: r.who })}
             </span>
             <button type="button" onClick={next} className="shrink-0 text-[12px] font-medium text-ink/50 underline hover:text-ink">
-              Next
+              {t('dmNext')}
             </button>
           </div>
         )}
       </div>
 
       <div className={`${panel} p-4 sm:w-[200px]`}>
-        <p className="text-[12px] font-medium text-ink/50">Review queue</p>
+        <p className="text-[12px] font-medium text-ink/50">{t('dmQueue')}</p>
         <ul className="mt-2 flex flex-col gap-1.5">
           {REQUESTS.map((x, n) => (
             <li
@@ -365,7 +367,7 @@ function ApprovalDemo() {
             >
               <BrandIcon provider={x.p} className="h-3.5 w-3.5" />
               {x.who}
-              {n < i || (n === i && verdict) ? <span className="ml-auto text-ink/40">done</span> : null}
+              {n < i || (n === i && verdict) ? <span className="ml-auto text-ink/40">{t('dmDone')}</span> : null}
             </li>
           ))}
         </ul>
@@ -377,7 +379,7 @@ function ApprovalDemo() {
 /* -------------------------------- grid -------------------------------- */
 
 export default function ProductBento() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   return (
     <section id="features" aria-label={t('navFeatures')} className="scroll-mt-16 bg-white">
       <div className="mx-auto max-w-6xl px-4 pb-2 pt-20 md:pt-28">

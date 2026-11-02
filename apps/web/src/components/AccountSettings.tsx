@@ -38,8 +38,7 @@ import { clearTourSeen } from '@/components/tour/steps';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { fileToAvatarDataUrl } from '@/lib/avatar';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import { createClient } from '@/lib/supabase/client';
 import { LOCALE_COOKIE, LOCALE_COOKIE_ATTRS, LOCALE_META } from '@/lib/i18n/locales';
@@ -203,7 +202,7 @@ export default function AccountSettings({
   locales: readonly string[];
 }) {
   const router = useRouter();
-  const t = useT(appMessages);
+  const t = useMessages();
   const [view, setView] = useState<View>('main');
   const [notif, setNotif] = useState(initialNotif);
   const [locale, setLocale] = useState(initialLocale);

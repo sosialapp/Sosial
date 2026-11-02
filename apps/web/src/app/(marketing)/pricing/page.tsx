@@ -14,24 +14,29 @@ export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const meta = await sitePageMeta('pricing');
-  const t = translator(appMessages, await getLocale());
+  const locale = await getLocale();
+  const t = translator(appMessages, locale);
+  // CMS overrides are written in English; other locales keep the translations.
+  const cms = locale === 'en' ? meta : null;
   return seo({
     path: '/pricing',
-    title: meta?.metaTitle ?? 'Pricing: free plan and paid plans',
-    description: meta?.metaDescription ?? t('prMetaDesc'),
+    locale,
+    title: cms?.metaTitle ?? t('prMetaTitle'),
+    description: cms?.metaDescription ?? t('prMetaDesc'),
     kicker: 'Pricing',
-    cardTitle: meta?.title ?? t('prTitle'),
+    cardTitle: cms?.title ?? t('prTitle'),
   });
 }
 
 export default async function PricingPage() {
   const meta = await sitePageMeta('pricing');
   const date = formatPageDate(meta?.publishedAt ?? null);
-  const t = translator(appMessages, await getLocale());
+  const locale = await getLocale();
+  const t = translator(appMessages, locale);
   return (
     <>
       <PricingPlans
-        title={meta?.title ?? t('prTitle')}
+        title={(locale === 'en' ? meta?.title : null) ?? t('prTitle')}
         lede={t('prLede')}
         updated={date ?? undefined}
       />

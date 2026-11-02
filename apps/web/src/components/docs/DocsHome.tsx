@@ -23,7 +23,7 @@ const FEATURES: { icon: typeof PenLine; title: string; body: string; slug?: stri
   { icon: MessagesSquare, title: 'Community inbox', body: 'Comments and messages from your channels in one place, answered without opening each app.', site: '/features' },
   { icon: BarChart3, title: 'Analytics', body: 'Followers, engagement and the best time to post, across every connected account.', site: '/features' },
   { icon: LayoutTemplate, title: 'Templates and design studio', body: 'Card templates and a design studio for post images, in your own style.', site: '/features/create' },
-  { icon: FileInput, title: 'Import', body: 'Bring a content plan in from Notion or Google Sheets and schedule it in one go.', site: '/features' },
+  { icon: FileInput, title: 'Import', body: 'Bring a content plan in from Notion and schedule it in one go.', site: '/features' },
 ];
 
 const API_CURL = `curl -X POST https://sosial.app/api/v1/posts \\

@@ -41,13 +41,24 @@ const MAX_TARGETS = 30;
 /** Stats window for targets that carry a sent_at. */
 const WINDOW_DAYS = 45;
 
+/**
+ * What the AUDIENCE did to one of our posts. Our own replies, self-likes and
+ * self-reposts are stripped (the platform totals include them), and saves and
+ * clicks keep their own columns instead of padding likes or shares.
+ * Interactions = likes + comments + shares + saves + clicks
+ * (apps/web/src/lib/analyticsMath.ts, mirrored at src/utils/analyticsMath.ts).
+ */
 export interface Stats {
   likes: number;
   comments: number;
   shares: number;
+  saves: number;
+  clicks: number;
   views: number | null;
   note?: string;
 }
+
+const ZERO = { likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, views: null } as const;
 
 const num = (v: any): number => {
   const n = Number(v);
@@ -279,25 +290,42 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       const tok = encodeURIComponent(await accessToken(c, t));
       const core = await jget(`${FB_GRAPH}/${encodeURIComponent(remoteId)}?fields=shares&access_token=${tok}`);
       if (core?.error) throw new Error(core.error.message ?? 'Could not read post.');
-      const out: Stats = { likes: 0, comments: 0, shares: num(core.shares?.count), views: null };
+      const out: Stats = { ...ZERO, shares: num(core.shares?.count) };
       let denied = false;
-      const edge = async (path: 'likes' | 'comments') => {
-        const j = await jget(`${FB_GRAPH}/${encodeURIComponent(remoteId)}/${path}?summary=total_count&limit=0&access_token=${tok}`);
+      const id = encodeURIComponent(remoteId);
+      // Every reaction type, not just Like. viewer_reaction is the Page's own
+      // reaction (we read with its token), which is not audience engagement.
+      const reactions = async () => {
+        const j = await jget(`${FB_GRAPH}/${id}/reactions?summary=total_count,viewer_reaction&limit=0&access_token=${tok}`);
         if (j?.error) {
           denied = true;
           return;
         }
-        out[path] = num(j?.summary?.total_count);
+        const mine = String(j?.summary?.viewer_reaction ?? 'NONE').toUpperCase() !== 'NONE' ? 1 : 0;
+        out.likes = Math.max(0, num(j?.summary?.total_count) - mine);
       };
-      await Promise.all([edge('likes'), edge('comments')]);
-      if (denied) out.note = 'Like/comment counts need the pages_read_user_content permission on this login.';
+      // filter=stream counts replies too, matching what the comment sync
+      // stores; our own replies come off in snapshotChannel.
+      const comments = async () => {
+        const j = await jget(`${FB_GRAPH}/${id}/comments?filter=stream&summary=total_count&limit=0&access_token=${tok}`);
+        if (j?.error) {
+          denied = true;
+          return;
+        }
+        out.comments = num(j?.summary?.total_count);
+      };
+      await Promise.all([reactions(), comments()]);
+      if (denied) out.note = 'Reaction/comment counts need the pages_read_user_content permission on this login.';
       return out;
     }
     case 'instagram': {
       const tok = encodeURIComponent(await accessToken(c, t));
       const j = await jget(`${IG_GRAPH}/${encodeURIComponent(remoteId)}?fields=like_count,comments_count&access_token=${tok}`);
       if (j?.error) throw new Error(j.error.message ?? 'Could not read post.');
-      return { likes: num(j.like_count), comments: num(j.comments_count), views: null, shares: 0 };
+      // Saves and shares sit behind instagram_business_manage_insights, which
+      // we deliberately do not request (src/utils/metaConfig.ts, and the
+      // privacy policy says so), so Instagram reports likes and comments only.
+      return { ...ZERO, likes: num(j.like_count), comments: num(j.comments_count) };
     }
     case 'threads': {
       // Engagement lives on the media insights edge (threads_manage_insights),
@@ -311,6 +339,7 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       if (j?.error) throw new Error(j.error.message ?? 'Could not read post.');
       const m = threadsMetrics(j);
       return {
+        ...ZERO,
         likes: num(m.likes),
         comments: num(m.replies),
         views: m.views === undefined ? null : num(m.views),
@@ -325,10 +354,12 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       const pm = j?.data?.public_metrics;
       if (!pm) throw new Error(j?.errors?.[0]?.detail ?? 'Could not read post.');
       return {
+        ...ZERO,
         likes: num(pm.like_count),
         comments: num(pm.reply_count),
         views: num(pm.impression_count) || null,
-        shares: num(pm.retweet_count),
+        shares: num(pm.retweet_count) + num(pm.quote_count),
+        saves: num(pm.bookmark_count),
       };
     }
     case 'bluesky': {
@@ -339,7 +370,13 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       );
       const p = j?.thread?.post;
       if (!p) throw new Error('Could not read post.');
-      return { likes: num(p.likeCount), comments: num(p.replyCount), views: null, shares: num(p.repostCount) };
+      // viewer.like / viewer.repost are set when WE liked or reposted our own post.
+      return {
+        ...ZERO,
+        likes: Math.max(0, num(p.likeCount) - (p.viewer?.like ? 1 : 0)),
+        comments: num(p.replyCount),
+        shares: Math.max(0, num(p.repostCount) - (p.viewer?.repost ? 1 : 0)) + num(p.quoteCount),
+      };
     }
     case 'mastodon': {
       const token = await accessToken(c, t);
@@ -349,11 +386,12 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
         Authorization: `Bearer ${token}`,
       });
       if (!j?.id) throw new Error('Could not read post.');
+      // favourited / reblogged describe the authenticated account, i.e. us.
       return {
-        likes: num(j.favourites_count),
+        ...ZERO,
+        likes: Math.max(0, num(j.favourites_count) - (j.favourited ? 1 : 0)),
         comments: num(j.replies_count),
-        views: null,
-        shares: num(j.reblogs_count),
+        shares: Math.max(0, num(j.reblogs_count) - (j.reblogged ? 1 : 0)),
       };
     }
     case 'youtube': {
@@ -363,11 +401,21 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       });
       const s = Array.isArray(j?.items) ? j.items[0]?.statistics : undefined;
       if (!s) throw new Error('Could not read video.');
-      return { likes: num(s.likeCount), comments: num(s.commentCount), views: num(s.viewCount) || null, shares: 0 };
+      // A like from the channel itself is not audience engagement.
+      const r = await jget(`${YT_API}/videos/getRating?id=${encodeURIComponent(remoteId)}`, {
+        Authorization: `Bearer ${token}`,
+      }).catch(() => null);
+      const mine = r?.items?.[0]?.rating === 'like' ? 1 : 0;
+      return {
+        ...ZERO,
+        likes: Math.max(0, num(s.likeCount) - mine),
+        comments: num(s.commentCount),
+        views: num(s.viewCount) || null,
+      };
     }
     case 'linkedin': {
       if (!remoteId.startsWith('urn:li:')) {
-        return { likes: 0, comments: 0, shares: 0, views: null, note: 'No LinkedIn post id was saved, republish to track this post.' };
+        return { ...ZERO, note: 'No LinkedIn post id was saved, republish to track this post.' };
       }
       const token = await accessToken(c, t);
       const j = await jget(`${LI_API}/rest/socialActions/${encodeURIComponent(remoteId)}`, {
@@ -377,15 +425,14 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       });
       if (typeof j?.status === 'number' && j.status >= 400) {
         if (j.status === 401 || j.status === 403) {
-          return { likes: 0, comments: 0, shares: 0, views: null, note: 'LinkedIn read permission not granted, reconnect LinkedIn, then retry.' };
+          return { ...ZERO, note: 'LinkedIn read permission not granted, reconnect LinkedIn, then retry.' };
         }
         throw new Error(j?.message ?? 'Could not read post.');
       }
       return {
-        likes: num(j?.likesSummary?.totalLikes),
+        ...ZERO,
+        likes: Math.max(0, num(j?.likesSummary?.totalLikes) - (j?.likesSummary?.likedByCurrentUser ? 1 : 0)),
         comments: num(j?.commentsSummary?.totalComments),
-        views: null,
-        shares: 0,
       };
     }
     case 'pinterest': {
@@ -413,11 +460,11 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
       };
       const impressions = sumMetric(['IMPRESSION']);
       return {
-        likes: sumMetric(['SAVE']),
-        comments: 0,
+        ...ZERO,
+        saves: sumMetric(['SAVE']),
+        clicks: sumMetric(['PIN_CLICK', 'OUTBOUND_CLICK']),
         views: impressions || null,
-        shares: sumMetric(['PIN_CLICK', 'OUTBOUND_CLICK']),
-        note: 'Saves count as likes, Pinterest exposes no comment API.',
+        note: 'Pinterest reports saves and clicks; it exposes no like or comment API.',
       };
     }
     case 'gmb': {
@@ -479,10 +526,9 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
         /* photo metric optional */
       }
       return {
-        likes: 0,
-        comments: 0,
+        ...ZERO,
         views: views || null,
-        shares: callToActions,
+        clicks: callToActions,
         note:
           note ||
           'Location-level metrics (clicks + photo views, last 30d) repeat across this profile\u2019s posts, GBP exposes no per-post stats.',
@@ -500,6 +546,48 @@ interface TargetRow {
   post_id: string;
   remote_id: string | null;
   provider: string;
+  posts?: { chain_id: string | null; chain_position: number | null } | null;
+}
+
+/** Platforms whose reply count covers direct replies only; the rest
+ *  (Instagram, Facebook stream, YouTube, LinkedIn) count the whole tree. */
+const DIRECT_REPLY_COUNTS = new Set(['x', 'bluesky', 'mastodon', 'threads']);
+
+const inList = (ids: string[]): string =>
+  encodeURIComponent(`(${ids.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(',')})`);
+
+/**
+ * How many of a post's counted comments are OURS: replies we sent from the
+ * inbox or auto-replies (stored by the comment sync with is_own), plus the
+ * next part of a thread we published, which the platform counts as a reply
+ * to the part before it. Those are our actions, not audience engagement.
+ */
+async function ownReplies(c: ChannelRow, target: TargetRow, remoteId: string): Promise<number> {
+  const full = String(target.remote_id ?? '').trim();
+  const postIds = [...new Set([full, remoteId].filter(Boolean))];
+  const own = new Set<string>();
+  const direct = DIRECT_REPLY_COUNTS.has(c.provider);
+  const rows = await rest<{ external_id: string; parent_external_id: string | null }[]>(
+    `/rest/v1/comments?channel_id=eq.${encodeURIComponent(c.id)}&is_own=is.true&status=neq.deleted` +
+      `&external_post_id=in.${inList(postIds)}&select=external_id,parent_external_id`,
+  ).catch(() => []);
+  for (const r of rows ?? []) {
+    // A direct-reply count never included our replies nested under a commenter.
+    if (direct && r.parent_external_id && r.parent_external_id !== remoteId) continue;
+    own.add(String(r.external_id));
+  }
+  const chain = target.posts;
+  if (direct && chain?.chain_id) {
+    const next = await rest<{ remote_id: string | null }[]>(
+      `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(c.id)}&status=eq.sent&remote_id=not.is.null` +
+        `&select=remote_id,posts!inner(chain_id,chain_position)` +
+        `&posts.chain_id=eq.${encodeURIComponent(chain.chain_id)}` +
+        `&posts.chain_position=eq.${(chain.chain_position ?? 0) + 1}&limit=1`,
+    ).catch(() => []);
+    const id = String(next?.[0]?.remote_id ?? '').split(',')[0].trim();
+    if (id) own.add(id);
+  }
+  return own.size;
 }
 
 /**
@@ -518,6 +606,33 @@ export async function snapshotChannelFollowers(channelId: string): Promise<{ ok:
   } catch (e: any) {
     warn(`followers ${c.provider}/${c.external_id}: ${String(e?.message ?? e).slice(0, 160)}`);
     return { ok: false, skipped: null };
+  }
+}
+
+/** Set once post_stats turns out to predate p119 (no saves/clicks columns). */
+let legacyStatsColumns = false;
+
+/**
+ * Upsert one post_stats row. If the worker ships before migration p119 adds
+ * saves and clicks, PostgREST rejects the unknown columns; write the row
+ * without them instead of failing every snapshot until the migration runs.
+ */
+async function writeStats(row: Record<string, unknown>): Promise<void> {
+  const send = (body: Record<string, unknown>) =>
+    rest('/rest/v1/post_stats', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(body),
+    });
+  const { saves, clicks, ...legacy } = row;
+  if (legacyStatsColumns) return void (await send(legacy));
+  try {
+    await send(row);
+  } catch (e: any) {
+    if (!/PGRST204|saves|clicks/.test(String(e?.message ?? ''))) throw e;
+    legacyStatsColumns = true;
+    warn('post_stats has no saves/clicks columns yet (migration p119), writing without them');
+    await send(legacy);
   }
 }
 
@@ -543,7 +658,7 @@ export async function snapshotChannel(channelId: string): Promise<{ updated: num
   const since = new Date(Date.now() - WINDOW_DAYS * 86400000).toISOString();
   const targets = await rest<TargetRow[]>(
     `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(c.id)}` +
-      `&status=eq.sent&remote_id=not.is.null&select=id,post_id,remote_id,provider` +
+      `&status=eq.sent&remote_id=not.is.null&select=id,post_id,remote_id,provider,posts(chain_id,chain_position)` +
       `&order=sent_at.desc&limit=${MAX_TARGETS}`,
   );
   if (!targets?.length) return { updated: 0, failed: 0, skipped: 'no sent posts yet' };
@@ -555,24 +670,21 @@ export async function snapshotChannel(channelId: string): Promise<{ updated: num
     if (!remoteId) continue;
     try {
       const s = await statsFor(c, t, remoteId);
-      await rest('/rest/v1/post_stats', {
-        method: 'POST',
-        headers: {
-          Prefer: 'resolution=merge-duplicates,return=minimal',
-        },
-        body: JSON.stringify({
-          post_target_id: target.id,
-          workspace_id: c.workspace_id,
-          post_id: target.post_id,
-          channel_id: c.id,
-          provider: c.provider,
-          likes: s.likes,
-          comments: s.comments,
-          shares: s.shares,
-          views: s.views,
-          note: s.note ?? null,
-          fetched_at: new Date().toISOString(),
-        }),
+      s.comments = Math.max(0, s.comments - (await ownReplies(c, target, remoteId)));
+      await writeStats({
+        post_target_id: target.id,
+        workspace_id: c.workspace_id,
+        post_id: target.post_id,
+        channel_id: c.id,
+        provider: c.provider,
+        likes: s.likes,
+        comments: s.comments,
+        shares: s.shares,
+        saves: s.saves,
+        clicks: s.clicks,
+        views: s.views,
+        note: s.note ?? null,
+        fetched_at: new Date().toISOString(),
       });
       updated += 1;
     } catch (e: any) {

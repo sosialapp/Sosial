@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 
 /**
@@ -51,7 +50,7 @@ export default function PurgeChannelDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const [mounted, setMounted] = useState(false);
   const [counts, setCounts] = useState<Counts | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);

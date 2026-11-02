@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { isLoaded, loadAsync } from 'expo-font';
 import { useFonts, Inter_400Regular, Inter_700Bold, Inter_900Black } from '@expo-google-fonts/inter';
 import { PlusJakartaSans_400Regular, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold } from '@expo-google-fonts/plus-jakarta-sans';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
@@ -34,28 +36,55 @@ export const FONTS: Record<FontId, FontMeta> = {
   system: { label: 'System' },
 };
 
-export function useFontsLoaded(): boolean {
-  const [loaded] = useFonts({
-    Inter_400Regular,
-    Inter_700Bold,
-    Inter_900Black,
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
-    SpaceGrotesk_400Regular,
-    SpaceGrotesk_700Bold,
-    PlayfairDisplay_400Regular,
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_900Black,
-    CrimsonPro_400Regular,
-    CrimsonPro_700Bold,
-    Anton_400Regular,
-    Poppins_400Regular,
-    Poppins_700Bold,
-    JetBrainsMono_400Regular,
-    JetBrainsMono_700Bold,
-  });
-  return loaded;
+/** The app chrome (Plus Jakarta Sans) and the default canvas face (Inter). */
+const UI_FONTS = {
+  Inter_400Regular,
+  Inter_700Bold,
+  Inter_900Black,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+};
+
+/** Families only canvas designs use (editor, export, previews). */
+const CANVAS_FONTS = {
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_700Bold,
+  PlayfairDisplay_400Regular,
+  PlayfairDisplay_700Bold,
+  PlayfairDisplay_900Black,
+  CrimsonPro_400Regular,
+  CrimsonPro_700Bold,
+  Anton_400Regular,
+  Poppins_400Regular,
+  Poppins_700Bold,
+  JetBrainsMono_400Regular,
+  JetBrainsMono_700Bold,
+};
+
+/**
+ * Two gates: `ui` (6 files) is all first paint needs; `all` adds the canvas
+ * families, which start downloading once the UI set is in so they don't
+ * compete with it. Gating launch on all 18 files made cold starts (and every
+ * Expo Go reload, which fetches each file from Metro) slow. A failed canvas
+ * font still opens `all`: the design falls back to the system face instead
+ * of the editor waiting forever.
+ */
+export function useFontsLoaded(): { ui: boolean; all: boolean } {
+  const [ui] = useFonts(UI_FONTS);
+  const [all, setAll] = useState(() => Object.keys(CANVAS_FONTS).every((f) => isLoaded(f)));
+  useEffect(() => {
+    if (!ui || all) return;
+    let live = true;
+    const done = () => {
+      if (live) setAll(true);
+    };
+    loadAsync(CANVAS_FONTS).then(done, done);
+    return () => {
+      live = false;
+    };
+  }, [ui, all]);
+  return { ui, all: ui && all };
 }
 
 /** Resolve fontFamily string for a given font + weight (undefined = system default) */

@@ -8,7 +8,8 @@
  *   the canvas never taints.
  */
 
-const FONT_CSS_URL =
+/** Every family the studio offers; also loaded on screen by the create hub. */
+export const STUDIO_FONT_CSS_URL =
   'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=Plus+Jakarta+Sans:wght@400;500;700;800&family=Space+Grotesk:wght@400;700&family=Playfair+Display:wght@400;700;900&family=Crimson+Pro:wght@400;700&family=Poppins:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Anton&display=swap';
 
 let fontCssCache: string | null = null;
@@ -46,7 +47,7 @@ function collectPageCss(): string {
 async function embeddedFontCss(): Promise<string> {
   if (fontCssCache !== null) return fontCssCache;
   try {
-    const css = await (await fetch(FONT_CSS_URL)).text();
+    const css = await (await fetch(STUDIO_FONT_CSS_URL)).text();
     const urls = [...new Set([...css.matchAll(/url\((https:[^)]+)\)/g)].map((m) => m[1]))];
     let out = css;
     await Promise.all(

@@ -7,8 +7,7 @@ import {
   annualSavingsPct, type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
 import type { UsageSnapshot } from '@/lib/billing/usage';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { CARD_COLORS, channelsLine, creditsLine, perMonth } from '@/components/PricingPlans';
@@ -48,7 +47,7 @@ export default function BillingPanel({
   watermarkRequired: boolean;
 }) {
   const router = useRouter();
-  const t = useT(appMessages);
+  const t = useMessages();
   const [interval, setInterval] = useState<BillingInterval>(entitlement.billingInterval ?? 'monthly');
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);

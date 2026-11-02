@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { invokeStock } from '@/lib/cloudSources';
 import { TT_PRIVACY_LABELS } from '@/lib/providers';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * TikTok's Content Sharing Guidelines require the publish surface to show, at
@@ -82,7 +81,7 @@ export default function TikTokOptions({
   /** Why TikTok would refuse this post right now (null = nothing blocks). */
   onBlock?: (reason: string | null) => void;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const [creators, setCreators] = useState<TikTokCreator[]>([]);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState<string | null>(null);

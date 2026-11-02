@@ -6,6 +6,7 @@ import { translator } from '@/lib/i18n/locales';
 import { landingMessages } from '@/lib/i18n/landing';
 import { getLocale } from '@/lib/i18n/server';
 import Logo from './Logo';
+import { localizedPath } from '@/lib/i18n/routing';
 
 /** Footer for every public page. Only links to routes that exist. */
 const SOCIALS: BrandProvider[] = [
@@ -29,14 +30,14 @@ export default async function SiteFooter() {
       <div className="mx-auto max-w-[1440px] overflow-hidden rounded-[28px] bg-black text-paper">
         <div className="mx-auto grid max-w-[1440px] grid-cols-2 gap-10 px-6 py-14 sm:px-10 md:grid-cols-3 md:py-20 lg:grid-cols-[1.4fr_1fr_1.1fr_1fr]">
           <div className="col-span-2 md:col-span-1">
-            <Logo />
+            <Logo href={localizedPath('/', locale)} />
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-paper/60">
               {t('footTag')}
             </p>
             <Link href="/login" className="btn btn-bolt mt-5">
               {t('footCta')}
             </Link>
-            <div className="mt-5 flex flex-wrap items-center gap-3" aria-label="Sosial on social media">
+            <div className="mt-5 flex flex-wrap items-center gap-3" aria-label={t('a11ySocial')}>
               {SOCIALS.map((p) => (
                 <Link
                   key={p}
@@ -62,22 +63,22 @@ export default async function SiteFooter() {
             <p className="eyebrow text-paper/50">{t('footProduct')}</p>
             <ul className="mt-4 space-y-2.5 text-sm font-semibold text-paper/80">
               <li>
-                <Link href="/publish" className="hover:text-paper">
+                <Link href={localizedPath('/publish', locale)} className="hover:text-paper">
                   {t('footPublish')}
                 </Link>
               </li>
               <li>
-                <Link href="/features/create" className="hover:text-paper">
+                <Link href={localizedPath('/features/create', locale)} className="hover:text-paper">
                   {t('footCreate')}
                 </Link>
               </li>
               <li>
-                <Link href="/ai-assistant" className="hover:text-paper">
+                <Link href={localizedPath('/ai-assistant', locale)} className="hover:text-paper">
                   {t('footAi')}
                 </Link>
               </li>
               <li>
-                <Link href="/pricing" className="hover:text-paper">
+                <Link href={localizedPath('/pricing', locale)} className="hover:text-paper">
                   {t('footPricing')}
                 </Link>
               </li>
@@ -103,17 +104,17 @@ export default async function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/compare" className="hover:text-paper">
+                <Link href={localizedPath('/compare', locale)} className="hover:text-paper">
                   {t('footCompare')}
                 </Link>
               </li>
               <li>
-                <Link href="/made-for-everyone" className="hover:text-paper">
+                <Link href={localizedPath('/made-for-everyone', locale)} className="hover:text-paper">
                   {t('footMade')}
                 </Link>
               </li>
               <li>
-                <Link href="/transparency" className="hover:text-paper">
+                <Link href={localizedPath('/transparency', locale)} className="hover:text-paper">
                   {t('footTransparency')}
                 </Link>
               </li>

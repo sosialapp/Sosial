@@ -6,24 +6,28 @@ import { BRAND_PATHS, BrandIcon, type BrandProvider } from '@/components/BrandIc
 import ChannelDock from '@/components/site/ChannelDock';
 import { GridPulse } from '@/components/ui/grid-pulse';
 import { CHANNEL_GUIDES } from '@/content/channels';
+import { integrationsCopy } from '@/content/pages/integrations';
 import { channelHref } from '@/content/types';
+import { fill } from '@/lib/i18n/locales';
+import { getLocale } from '@/lib/i18n/server';
 
-export const metadata: Metadata = seo({
-  path: '/integrations',
-  title: 'Integrations for Instagram, TikTok, X and more',
-  description: 'Connect Instagram, TikTok, X, Facebook, Threads, LinkedIn, YouTube, Pinterest, Bluesky, Mastodon, blogs and more. Schedule them all from one calendar.',
-  kicker: 'Integrations',
-  cardTitle: 'Every channel you use, in one calendar.',
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const c = integrationsCopy[locale];
+  return seo({
+    path: '/integrations',
+    locale,
+    title: c.metaTitle,
+    description: c.metaDesc,
+    kicker: c.eyebrow,
+    cardTitle: c.cardTitle,
+  });
+}
 
-const PROMISES = [
-  ['Official APIs', 'Posts go out through each network’s real publishing API.'],
-  ['Limits handled', 'Character counts, media sizes and formats checked per channel.'],
-  ['One queue', 'Every channel shares the same calendar, retries and alerts.'],
-] as const;
-
-export default function IntegrationsIndex() {
-  const logos = CHANNEL_GUIDES.map((c) => BRAND_PATHS[c.key as BrandProvider]).filter(Boolean);
+export default async function IntegrationsIndex() {
+  const locale = await getLocale();
+  const c = integrationsCopy[locale];
+  const logos = CHANNEL_GUIDES.map((g) => BRAND_PATHS[g.key as BrandProvider]).filter(Boolean);
 
   return (
     <>
@@ -40,71 +44,72 @@ export default function IntegrationsIndex() {
         />
         <div className="relative z-[2] mx-auto max-w-6xl px-4 py-14 sm:py-20 md:py-24">
           <p className="text-sm font-bold text-muted" data-grid-avoid>
-            Integrations
+            {c.eyebrow}
           </p>
           <h1
             className="mt-4 max-w-3xl font-display text-[2.5rem] font-extrabold leading-[1.02] tracking-tight text-balance sm:text-5xl md:text-6xl"
             data-grid-avoid
           >
-            Sosial × every channel you use.
+            {c.title}
           </h1>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-muted sm:text-lg" data-grid-avoid>
-            Real API publishing, per-channel limits handled for you, and honest notes on what each
-            network actually rewards.
+            {c.lede}
           </p>
           <div className="mt-8" data-grid-avoid>
-            <ChannelDock label="Every channel" />
+            <ChannelDock label={c.dockLabel} />
           </div>
         </div>
       </section>
 
       <div className="mx-auto max-w-6xl px-4 py-14 md:py-20">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          {PROMISES.map(([title, body]) => (
-            <div key={title} className="border-t border-line pt-4">
-              <p className="font-display text-sm font-extrabold tracking-tight">{title}</p>
-              <p className="mt-1 text-sm leading-relaxed text-muted">{body}</p>
+          {c.promises.map((p) => (
+            <div key={p.title} className="border-t border-line pt-4">
+              <p className="font-display text-sm font-extrabold tracking-tight">{p.title}</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">{p.body}</p>
             </div>
           ))}
         </div>
 
         <div className="mt-10 flex items-end justify-between gap-4">
           <h2 className="font-display text-2xl font-extrabold tracking-tight md:text-3xl">
-            {CHANNEL_GUIDES.length} networks, one calendar
+            {fill(c.networks, { n: CHANNEL_GUIDES.length })}
           </h2>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CHANNEL_GUIDES.map((c) => {
+          {CHANNEL_GUIDES.map((g) => {
+            // The channel guides themselves stay English; the cards follow the locale.
+            const card = c.channels[g.key] ?? { tagline: g.tagline, bestFor: g.bestFor };
             return (
               <Link
-                key={c.key}
-                href={channelHref(c.key)}
+                key={g.key}
+                href={channelHref(g.key)}
                 className="group flex h-full flex-col rounded-2xl border border-line bg-card p-5 transition hover:border-ink/30 md:p-6"
               >
                 <span className="flex items-center gap-3">
                   <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-line">
-                    <BrandIcon provider={c.key} className="h-6 w-6" />
+                    <BrandIcon provider={g.key} className="h-6 w-6" />
                   </span>
                   <span className="min-w-0">
                     <span className="block font-display text-lg font-extrabold leading-tight tracking-tight">
-                      {c.name}
+                      {g.name}
                     </span>
                     <span className="block text-xs font-bold text-faint">
-                      {c.limit.toLocaleString('en-US')} characters
+                      {fill(c.characters, { n: g.limit.toLocaleString(locale === 'en' ? 'en-US' : locale) })}
                     </span>
                   </span>
                 </span>
-                <span className="mt-4 flex-1 text-sm leading-relaxed text-muted">{c.tagline}</span>
+                <span className="mt-4 flex-1 text-sm leading-relaxed text-muted">{card.tagline}</span>
                 <span className="mt-4 flex flex-wrap gap-1.5">
-                  {c.bestFor.slice(0, 3).map((b) => (
+                  {card.bestFor.slice(0, 3).map((b) => (
                     <span key={b} className="rounded-full bg-surface px-2.5 py-1 text-[11px] font-bold text-soft">
                       {b}
                     </span>
                   ))}
                 </span>
                 <span className="mt-5 flex items-center gap-1.5 border-t border-line pt-4 text-sm font-bold text-ink">
-                  {c.name} guide
+                  {fill(c.guide, { name: g.name })}
                   <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden="true" />
                 </span>
               </Link>

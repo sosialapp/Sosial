@@ -1,17 +1,23 @@
 'use client';
 
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { BrandIcon } from '@/components/BrandIcon';
 import { CHANNEL_GUIDES } from '@/content/channels';
 import { dashboardUrl, docsUrl } from '@/lib/site';
-import { createClient, hasSupabaseEnv } from '@/lib/supabase/client';
-import { useT, useLocale } from '@/lib/i18n/client';
-import { landingMessages } from '@/lib/i18n/landing';
+import { useMessages, useLocale } from '@/lib/i18n/client';
 import LanguageSwitcher from '@/components/site/LanguageSwitcher';
-import AuthModal from './AuthModal';
 import Logo from './Logo';
+import { localizedPath } from '@/lib/i18n/routing';
+
+// The sign-in form and the Supabase client only download when a visitor opens
+// the modal (or already has a session), not with every marketing page.
+const AuthModal = dynamic(() => import('./AuthModal'));
+
+/** The @supabase/ssr session cookie (sb-<ref>-auth-token, possibly chunked). */
+const SESSION_COOKIE = /(?:^|;s*)sb-[^=]+-auth-token/;
 
 interface MenuLink {
   href: string;
@@ -82,13 +88,13 @@ function MobileSection({ label, links, onGo }: { label: string; links: MenuLink[
 }
 
 export default function SiteNav() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   const locale = useLocale();
   const FEATURES: MenuLink[] = [
-    { href: '/publish', title: t('pubTitle'), desc: t('pubDesc') },
-    { href: '/features/create', title: t('createTitle'), desc: t('createDesc') },
-    { href: '/ai-assistant', title: t('aiTitle'), desc: t('aiDesc') },
-    { href: '/features', title: t('allFeatures'), desc: t('allFeaturesDesc') },
+    { href: localizedPath('/publish', locale), title: t('pubTitle'), desc: t('pubDesc') },
+    { href: localizedPath('/features/create', locale), title: t('createTitle'), desc: t('createDesc') },
+    { href: localizedPath('/ai-assistant', locale), title: t('aiTitle'), desc: t('aiDesc') },
+    { href: localizedPath('/features', locale), title: t('allFeatures'), desc: t('allFeaturesDesc') },
   ];
   const RESOURCES: MenuLink[] = [
     { href: '/blog', title: t('blogTitle'), desc: t('blogDesc') },
@@ -130,22 +136,30 @@ export default function SiteNav() {
   // Signed-in visitors get "Go to Sosial"; everyone else gets the auth
   // buttons. Live subscription so signing in/out (modal, another tab)
   // flips the nav without a reload.
+  // Without a session cookie the visitor is signed out: no auth client, no
+  // getUser round-trip. Signing in from the modal navigates to the app.
   useEffect(() => {
-    if (!hasSupabaseEnv()) {
+    const env = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!env || !SESSION_COOKIE.test(document.cookie)) {
       setSignedIn(false);
       return;
     }
-    const sb = createClient();
     let live = true;
-    sb.auth.getUser().then(({ data }) => {
-      if (live) setSignedIn(!!data.user);
-    });
-    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
-      setSignedIn(!!session?.user);
+    let unsubscribe: (() => void) | undefined;
+    void import('@/lib/supabase/client').then(({ createClient }) => {
+      if (!live) return;
+      const sb = createClient();
+      sb.auth.getUser().then(({ data }) => {
+        if (live) setSignedIn(!!data.user);
+      });
+      const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+        if (live) setSignedIn(!!session?.user);
+      });
+      unsubscribe = () => sub.subscription.unsubscribe();
     });
     return () => {
       live = false;
-      sub.subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
@@ -155,8 +169,8 @@ export default function SiteNav() {
         scrolled ? 'border-line' : 'border-transparent'
       }`}
     >
-      <nav className="relative mx-auto flex h-16 max-w-[1440px] items-center px-4" aria-label="Main">
-        <Logo />
+      <nav className="relative mx-auto flex h-16 max-w-[1440px] items-center px-4" aria-label={t('a11yMain')}>
+        <Logo href={localizedPath('/', locale)} />
 
         <div className="ml-8 hidden items-center gap-5 lg:flex xl:absolute xl:left-1/2 xl:ml-0 xl:-translate-x-1/2">
           <DesktopDropdown label={t('navFeatures')}>
@@ -193,7 +207,7 @@ export default function SiteNav() {
             </div>
           </DesktopDropdown>
 
-          <Link href="/pricing" className="py-2 text-sm font-semibold text-soft transition hover:text-ink">
+          <Link href={localizedPath('/pricing', locale)} className="py-2 text-sm font-semibold text-soft transition hover:text-ink">
             {t('navPricing')}
           </Link>
         </div>
@@ -253,14 +267,14 @@ export default function SiteNav() {
                 ...CHANNEL_GUIDES.map((c) => ({
                   href: `/integrations/${c.key}`,
                   title: c.name,
-                  desc: c.tagline,
+                  desc: t(`tag_${c.key}`),
                 })),
               ]}
               onGo={close}
             />
             <MobileSection label={t('navResources')} links={RESOURCES} onGo={close} />
             <Link
-              href="/pricing"
+              href={localizedPath('/pricing', locale)}
               onClick={close}
               className="rounded-xl px-3 py-3 text-sm font-semibold text-soft hover:bg-card"
             >
@@ -300,7 +314,7 @@ export default function SiteNav() {
         </div>
       )}
 
-      <AuthModal open={auth !== null} mode={auth ?? 'in'} onClose={() => setAuth(null)} />
+      {auth !== null ? <AuthModal open mode={auth} onClose={() => setAuth(null)} /> : null}
     </header>
   );
 }

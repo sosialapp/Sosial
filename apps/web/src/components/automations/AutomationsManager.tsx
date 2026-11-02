@@ -39,6 +39,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import ChannelAvatar from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 import {
   channelLabel,
   matchesKeywords,
@@ -361,7 +363,6 @@ export default function AutomationsManager({
   if (!paid) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
-        <Header />
         <div className="card overflow-hidden">
           <div className="grid gap-0 md:grid-cols-[minmax(0,1fr)_320px]">
             <div className="p-7 sm:p-9">
@@ -402,8 +403,7 @@ export default function AutomationsManager({
   return (
     <div className="space-y-5">
       {/* ------------------------------------------------- header --- */}
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <Header />
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-end">
         <div className="card flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
           <span className="flex items-center gap-2 text-sm font-bold">
             <span className="relative flex h-2.5 w-2.5">
@@ -503,7 +503,7 @@ export default function AutomationsManager({
                             <span aria-hidden="true">·</span>
                             {ch ? (
                               <span className="flex min-w-0 items-center gap-1">
-                                <BrandIcon provider={ch.provider as BrandProvider} className="h-3.5 w-3.5 shrink-0" />
+                                <ChannelAvatar provider={ch.provider} avatar={channelAvatar(ch.metadata)} size={16} />
                                 <span className="truncate">{channelLabel(ch)}</span>
                               </span>
                             ) : (
@@ -658,7 +658,7 @@ export default function AutomationsManager({
                         disabled={!canEdit}
                         onClick={() => patch('channel_id', ch.id)}
                       >
-                        <BrandIcon provider={ch.provider as BrandProvider} className="h-4 w-4" />
+                        <ChannelAvatar provider={ch.provider} avatar={channelAvatar(ch.metadata)} size={20} />
                         {channelLabel(ch)}
                       </ChannelChip>
                     ))}
@@ -899,7 +899,7 @@ export default function AutomationsManager({
                 <li key={event.id} className="flex gap-3 px-5 py-3.5">
                   <span className="mt-0.5 shrink-0">
                     {ch ? (
-                      <BrandIcon provider={ch.provider as BrandProvider} className="h-7 w-7" />
+                      <ChannelAvatar provider={ch.provider} avatar={channelAvatar(ch.metadata)} size={28} />
                     ) : (
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface">
                         {event.target_kind === 'comment' ? <MessageCircle className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
@@ -962,18 +962,6 @@ const TEMPLATES: { name: string; keywords: string; reply: string; scope: AutoRep
 
 /** MATCH_MODES value → dictionary key (the hint is the same key + `Hint`). */
 const MATCH_LABEL: Record<MatchMode, string> = { word: 'matchWord', contains: 'matchContains', exact: 'matchExact' };
-
-function Header() {
-  const t = useT(automationMessages);
-  return (
-    <div>
-      <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{t('title')}</h1>
-      <p className="mt-1 max-w-xl text-sm text-muted">
-        {t('sub')}
-      </p>
-    </div>
-  );
-}
 
 function Stat({
   icon,

@@ -9,7 +9,7 @@ import {
 import { FEATURE_MATRIX, FEATURE_PLAN_ORDER, type FeatureValue } from '@/lib/billing/features';
 import { CheckIcon } from '@/components/StatusIcons';
 import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { pricingMessages } from '@/lib/i18n/pricing';
 import { fill } from '@/lib/i18n/locales';
 
 /**
@@ -20,7 +20,7 @@ import { fill } from '@/lib/i18n/locales';
  */
 
 function Cell({ value, featured }: { value: FeatureValue; featured?: boolean }) {
-  const t = useT(appMessages);
+  const t = useT(pricingMessages);
   if (value.kind === 'ok') {
     return (
       <span className="inline-flex items-center justify-center" aria-label="Included">
@@ -67,7 +67,7 @@ function Cell({ value, featured }: { value: FeatureValue; featured?: boolean }) 
 
 export default function PlanComparison() {
   const [open, setOpen] = useState(false);
-  const t = useT(appMessages);
+  const t = useT(pricingMessages);
 
   // Deep-linking from the cards ("See full plan comparison" → #compare)
   // opens the table on arrival.

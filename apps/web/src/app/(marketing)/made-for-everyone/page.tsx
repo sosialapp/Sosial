@@ -10,159 +10,82 @@ import { CheckList, CtaCard, Hero, IconGrid, Section, SectionHead, Stats } from 
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
+import { madeForEveryoneCopy } from '@/content/pages/madeForEveryone';
+import { fill } from '@/lib/i18n/locales';
+import { getLocale, siteI18n } from '@/lib/i18n/server';
+
 /** CMS edits go live within minutes. */
 export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const meta = await sitePageMeta('made-for-everyone');
+  const locale = await getLocale();
+  const c = madeForEveryoneCopy[locale];
+  // CMS overrides are written in English; other locales keep the translations.
+  const cms = locale === 'en' ? await sitePageMeta('made-for-everyone') : null;
   return seo({
     path: '/made-for-everyone',
-    title: meta?.metaTitle ?? 'Affordable social media scheduler in 100+ languages',
-    description: meta?.metaDescription ?? 'A free plan that stays free, 100+ languages, real accessibility, and apps on iOS, Android and the web. Social media scheduling built for everyone.',
-    kicker: 'Made for everyone',
-    cardTitle: meta?.title ?? 'Publishing should not be a privilege.',
+    locale,
+    title: cms?.metaTitle ?? c.metaTitle,
+    description: cms?.metaDescription ?? c.metaDesc,
+    kicker: c.kicker,
+    cardTitle: cms?.title ?? c.title,
   });
 }
 
+const WHO = [
+  { icon: User, href: '/features/create' },
+  { icon: UsersRound, href: '/ai-assistant' },
+  { icon: Briefcase, href: '/publish' },
+];
+const ACCESS_ICONS = [Languages, MonitorSmartphone, Accessibility, Wallet];
+
 export default async function MadeForEveryonePage() {
+  const { locale, t, href } = await siteI18n();
+  const c = madeForEveryoneCopy[locale];
   const meta = await sitePageMeta('made-for-everyone');
-  const date = formatPageDate(meta?.publishedAt ?? null);
+  const date = formatPageDate(meta?.publishedAt ?? null, locale);
   return (
     <>
-      <BreadcrumbJsonLd items={[{ name: 'Home', path: '/' }, { name: 'Made for everyone', path: '/made-for-everyone' }]} />
+      <BreadcrumbJsonLd items={[{ name: t('siteHome'), path: href('/') }, { name: c.kicker, path: href('/made-for-everyone') }]} />
       <Hero
         icon={Globe2}
-        kicker="Made for everyone"
-        title={meta?.title ?? 'Publishing should not be a privilege.'}
-        lede="The tools behind daily posting got expensive, English-first and desktop-only. Sosial is the opposite: a free plan that stays free, a hundred languages, and the same app in your pocket as on your desk."
-        meta={date ? `Updated ${date}` : undefined}
-        secondary={{ href: '/pricing', label: 'See pricing' }}
+        kicker={c.kicker}
+        title={(locale === 'en' ? meta?.title : null) ?? c.title}
+        lede={c.lede}
+        meta={date ? fill(t('siteUpdated'), { date }) : undefined}
+        secondary={{ href: href('/pricing'), label: t('siteSeePricing') }}
       />
 
       <PageCms slug="made-for-everyone" className="mx-auto max-w-3xl px-4 py-16 md:py-20" />
 
       <Section flush>
-        <Stats
-          items={[
-            { value: '100+', label: 'Languages the AI writer drafts in natively.' },
-            { value: '3', label: 'Ways in: iOS, Android and the web, on one workspace.' },
-            { value: 'Free', label: 'Plan with no card, no trial clock and no end date.' },
-            { value: '0', label: 'Devices that need to stay on for posts to go out.' },
-          ]}
-        />
+        <Stats items={c.stats} />
       </Section>
 
       <Section>
-        <SectionHead
-          icon={Users}
-          kicker="Who it is for"
-          title="One workspace, very different jobs."
-          lede="Solo, small team or agency: the same composer, calendar and queue, with roles where you need them."
-        />
-        <IconGrid
-          items={[
-            {
-              icon: User,
-              title: 'Creators and founders',
-              body: 'One person, many channels, no team. Write in the morning, let the queue ship through the day, keep the evening for actual work.',
-              href: '/features/create',
-              linkLabel: 'See the composer',
-            },
-            {
-              icon: UsersRound,
-              title: 'Small teams',
-              body: 'A marketer, a writer and a founder who wants to approve things. Members draft, admins publish, owners hold accounts and billing.',
-              href: '/ai-assistant',
-              linkLabel: 'Meet the AI writer',
-            },
-            {
-              icon: Briefcase,
-              title: 'Agencies and freelancers',
-              body: 'Many clients, clear edges. Keep each workspace separate, schedule across every network, and report with real analytics.',
-              href: '/publish',
-              linkLabel: 'See publishing',
-            },
-          ]}
-        />
+        <SectionHead icon={Users} kicker={c.who.kicker} title={c.who.title} lede={c.who.lede} />
+        <IconGrid items={c.who.items.map((it, i) => ({ icon: WHO[i].icon, href: href(WHO[i].href), ...it }))} />
       </Section>
 
       <Section tone="surface">
-        <SectionHead
-          icon={HeartHandshake}
-          kicker="Built in, not bolted on"
-          title="Access is part of the product."
-          lede="Language, devices and accessibility are defaults, not a premium tier."
-        />
-        <IconGrid
-          cols={2}
-          items={[
-            {
-              icon: Languages,
-              title: 'Your language, first',
-              body: 'The AI writer picks from 100+ languages before it drafts, so the output is native rather than translated. English, Melayu, Tamil and beyond, with previews in your script.',
-            },
-            {
-              icon: MonitorSmartphone,
-              title: 'Phone, tablet, desk, equal',
-              body: 'iOS, Android and the web run the same workspace and queue. Approve a post on the train; the worker still ships it on time with the laptop shut.',
-            },
-            {
-              icon: Accessibility,
-              title: 'Built to be used',
-              body: 'Contrast checked in light and dark, keyboard paths through every flow, and alt text prompts where networks expect them.',
-            },
-            {
-              icon: Wallet,
-              title: 'Free means free',
-              body: 'Three channels and a month of scheduled posts cost nothing. When you outgrow it, the paid prices are on a page you can read before signing up.',
-            },
-          ]}
-        />
+        <SectionHead icon={HeartHandshake} kicker={c.access.kicker} title={c.access.title} lede={c.access.lede} />
+        <IconGrid cols={2} items={c.access.items.map((it, i) => ({ icon: ACCESS_ICONS[i], ...it }))} />
       </Section>
 
       <Section>
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-          <SectionHead icon={Check} kicker="Every plan" title="The basics are never behind a paywall." />
+          <SectionHead icon={Check} kicker={c.basics.kicker} title={c.basics.title} />
           <Reveal>
             <div className="rounded-[24px] border border-line bg-surface p-7 sm:p-9">
-              <CheckList
-                items={[
-                  'Calendar and queue',
-                  'Per-channel previews and limits',
-                  'iOS, Android and web',
-                  'Your data, exportable on request',
-                ]}
-              />
+              <CheckList items={c.basics.items} />
             </div>
           </Reveal>
         </div>
       </Section>
 
-      <FaqList
-        items={[
-          {
-            q: 'Is the free plan a trial?',
-            a: 'No. It has limits (3 channels, 10 scheduled posts per channel, 20 AI credits a month) and no end date. Credits reset on the 1st whether you upgrade or not.',
-          },
-          {
-            q: 'Does it work outside English?',
-            a: 'Yes. The product interface is built for global use, and the AI writer handles 100+ languages natively rather than translating from English.',
-          },
-          {
-            q: 'Do I need a computer?',
-            a: 'No. iOS and Android apps carry the full compose, schedule and approve flows. The queue itself runs in the cloud, so no device needs to stay open.',
-          },
-          {
-            q: 'Is it usable with a keyboard or screen reader?',
-            a: 'Flows are keyboard-operable, contrast is checked in both themes, and alt text is part of the compose flow because several networks treat it as required.',
-          },
-        ]}
-      />
+      <FaqList items={c.faq} />
 
-      <CtaCard
-        title="Start free. Stay free as long as it fits."
-        body="No card, no trial clock. Connect three channels and schedule your first month today."
-      />
+      <CtaCard title={c.ctaTitle} body={c.ctaBody} />
     </>
   );
 }

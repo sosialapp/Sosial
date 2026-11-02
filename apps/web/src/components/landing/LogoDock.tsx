@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { SourceMark, AiMark } from '@/components/SourceMarks';
-import { useT } from '@/lib/i18n/client';
-import { landingMessages } from '@/lib/i18n/landing';
+import { useMessages } from '@/lib/i18n/client';
 
 /**
  * Logo dock (GreenSock macOS-dock pen, calmed down): channel + integration
@@ -38,7 +36,7 @@ const CHANNELS: BrandProvider[] = [
 /** Listed but not connectable yet, mirrors ConnectPanel's COMING_SOON. */
 const SOON_CHANNELS: BrandProvider[] = ['gmb', 'linkedin'];
 
-const INTEGRATIONS = ['canva', 'unsplash', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
+const INTEGRATIONS = ['canva', 'unsplash', 'dropbox', 'onedrive', 'notion', 'zapier'] as const;
 
 /** Media sources still pending Google's verification (GOOGLE_MEDIA_DISABLED). */
 const SOON_TOOLS = ['drive', 'gphotos'] as const;
@@ -58,6 +56,8 @@ const AGENTS = [
 
 const RANGE = 180;
 const BOOST = 0.35;
+/** power3.out, the ease the pen used. */
+const EASE = 'cubic-bezier(0.215, 0.61, 0.355, 1)';
 
 /** Tiny tag pinned under a logo that isn't connectable yet. */
 function SoonBadge({ label }: { label: string }) {
@@ -72,7 +72,10 @@ function magnify(track: HTMLDivElement | null): () => void {
   if (!track) return () => {};
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return () => {};
   const icons = Array.from(track.children) as HTMLElement[];
-  gsap.set(icons, { transformOrigin: '50% 100%' });
+  icons.forEach((el) => {
+    el.style.transformOrigin = '50% 100%';
+    el.style.transition = `transform 0.5s ${EASE}`;
+  });
   const onMove = (e: MouseEvent) => {
     const mx = e.clientX;
     icons.forEach((el) => {
@@ -80,17 +83,13 @@ function magnify(track: HTMLDivElement | null): () => void {
       const d = Math.abs(mx - (r.left + r.width / 2));
       const t = Math.max(0, 1 - d / RANGE);
       const eased = t * t;
-      gsap.to(el, {
-        scale: 1 + BOOST * eased,
-        y: -10 * eased,
-        duration: 0.5,
-        ease: 'power3.out',
-        overwrite: 'auto',
-      });
+      el.style.transform = `translateY(${-10 * eased}px) scale(${1 + BOOST * eased})`;
     });
   };
   const onLeave = () => {
-    gsap.to(icons, { scale: 1, y: 0, duration: 0.5, ease: 'power3.out', overwrite: 'auto' });
+    icons.forEach((el) => {
+      el.style.transform = 'translateY(0) scale(1)';
+    });
   };
   track.addEventListener('mousemove', onMove);
   track.addEventListener('mouseleave', onLeave);
@@ -101,7 +100,7 @@ function magnify(track: HTMLDivElement | null): () => void {
 }
 
 export default function LogoDock() {
-  const t = useT(landingMessages);
+  const t = useMessages();
   const channelsRef = useRef<HTMLDivElement>(null);
   const toolsRef = useRef<HTMLDivElement>(null);
 
@@ -111,7 +110,7 @@ export default function LogoDock() {
   }, []);
 
   return (
-    <section aria-label="Channels, integrations and AI agents" className="bg-paper">
+    <section aria-label={t('a11yDock')} className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pt-10 sm:pt-12 md:pt-16">
         <div className="flex justify-center">
           <div className="flex w-full flex-col items-stretch gap-5 rounded-[28px] border border-line bg-white/70 px-4 py-5 backdrop-blur-sm sm:px-8 md:flex-row md:items-center">

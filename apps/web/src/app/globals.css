@@ -44,8 +44,9 @@ html {
   --color-leaf: #2f8f5b;
   --color-gold: #e6a417;
 
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-display: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  /* next/font variables set on <html> by the root layout (self-hosted faces). */
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-jakarta), system-ui, -apple-system, sans-serif;
 
   /* Two weights ship: 300 (default text, including hairline display) and
      500 (medium, accents). Every weight utility collapses onto those two

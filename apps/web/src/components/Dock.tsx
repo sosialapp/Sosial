@@ -15,8 +15,7 @@ import {
   Plus,
 } from 'lucide-react';
 import PostIcon from '@/components/PostIcon';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 
 type DockItem = {
   href?: string;
@@ -35,7 +34,7 @@ type DockItem = {
  * cursor tracking). The + menu opens to the right of the rail.
  */
 export default function Dock() {
-  const t = useT(appMessages);
+  const t = useMessages();
   const pathname = usePathname();
   const dockRef = useRef<HTMLDivElement>(null);
   const [plusOpen, setPlusOpen] = useState(false);
@@ -263,7 +262,7 @@ export default function Dock() {
 
 /** Sign-out tile pinned under Profile, asks first, then POSTs to /auth/signout. */
 function SignOutItem({ onOpen }: { onOpen: () => void }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 

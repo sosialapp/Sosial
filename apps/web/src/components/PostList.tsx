@@ -37,8 +37,7 @@ import { mediaThumbUrl, imageThumb, THUMB_WIDTHS } from '@/lib/media';
 import { formatDateTime } from '@/lib/format';
 import ChannelAvatar from '@/components/ChannelAvatar';
 import SocialPost from '@/components/SocialPost';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import SegmentedPills from '@/components/ui/segmented-pills';
 
@@ -283,7 +282,7 @@ function PreviewDialog({
   author: { name: string; handle: string | null };
 }) {
   const [stats, setStats] = useState<Record<string, StatRow>>({});
-  const t = useT(appMessages);
+  const t = useMessages();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -501,7 +500,7 @@ export default function PostList({
   /** Hide the header + pill row (the /post pills already cover filtering). */
   hideChrome?: boolean;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const router = useRouter();
   const canApprove = role === 'owner' || role === 'admin';
   const [tab, setTab] = useState<Tab>(initialTab ?? 'all');
@@ -892,7 +891,7 @@ export default function PostList({
                         <span className="flex items-center" title={targets.map((tg) => providerMeta(tg.provider).label).join(', ')}>
                           {targets.slice(1, 4).map((tg, i) => (
                             <span key={tg.channel_id ?? tg.provider} className="rounded-full ring-2 ring-card" style={{ marginLeft: i ? -6 : 0 }}>
-                              <ChannelAvatar provider={tg.provider} avatar={avatars[tg.channel_id]} size={20} badge={false} />
+                              <ChannelAvatar provider={tg.provider} avatar={avatars[tg.channel_id]} size={20} />
                             </span>
                           ))}
                           {targets.length > 4 ? (

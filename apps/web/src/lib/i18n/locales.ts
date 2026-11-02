@@ -52,3 +52,11 @@ export function translator(
 export function fill(template: string, params: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? `{${k}}`));
 }
+
+/** `dictionary` flattened for one locale, English underneath (MessagesProvider). */
+export function messagesFor(
+  dictionary: Record<Locale, Record<string, string>>,
+  locale: Locale,
+): Record<string, string> {
+  return { ...dictionary[DEFAULT_LOCALE], ...dictionary[locale] };
+}

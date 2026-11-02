@@ -1,12 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { Download } from 'lucide-react';
-import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import ChannelAvatar from '@/components/ChannelAvatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { appMessages } from '@/lib/i18n/app';
-import { useT } from '@/lib/i18n/client';
+import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
 import { providerMeta } from '@/lib/providers';
+import { createClient } from '@/lib/supabase/client';
 
 /**
  * Comment report, read-only. Counts what the comment sync already stored:
@@ -15,15 +16,31 @@ import { providerMeta } from '@/lib/providers';
  * no write path, so it needs no extra permissions.
  */
 
+/** Counting fields only; the CSV export fetches author and text itself. */
 export interface CommentReportRow {
   id: string;
   channel_id: string;
   platform: string;
-  author_name: string | null;
-  body: string;
   created_at: string;
   status: string;
   is_own: boolean;
+}
+
+/** Author and text for the exported rows, read under RLS in id batches. */
+async function fetchCommentText(ids: string[]): Promise<Map<string, { author: string | null; body: string }>> {
+  const sb = createClient();
+  const out = new Map<string, { author: string | null; body: string }>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await sb
+      .from('comments')
+      .select('id, author_name, body')
+      .in('id', ids.slice(i, i + 200));
+    if (error) throw error;
+    for (const r of (data ?? []) as { id: string; author_name: string | null; body: string }[]) {
+      out.set(r.id, { author: r.author_name, body: r.body });
+    }
+  }
+  return out;
 }
 
 interface ChannelGroup {
@@ -31,7 +48,6 @@ interface ChannelGroup {
   provider: string;
   total: number;
   replied: number;
-  handled: number;
   waiting: number;
 }
 
@@ -61,12 +77,14 @@ export default function CommentReportCard({
   rows,
   rangeLabel,
   channelLabel,
+  channelAvatar,
 }: {
   rows: CommentReportRow[];
   rangeLabel: string;
   channelLabel: (channelId: string, provider: string) => string;
+  channelAvatar: (channelId: string) => string | undefined;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
 
   const replied = rows.filter((r) => r.status === 'replied').length;
   const handled = rows.filter((r) => r.status === 'resolved' || r.status === 'ignored').length;
@@ -80,27 +98,35 @@ export default function CommentReportCard({
       provider: r.platform,
       total: 0,
       replied: 0,
-      handled: 0,
       waiting: 0,
     };
     g.total += 1;
     if (r.status === 'replied') g.replied += 1;
-    if (r.status === 'resolved' || r.status === 'ignored') g.handled += 1;
     if (r.status === 'new') g.waiting += 1;
     groups.set(r.channel_id, g);
   }
   const groupRows = [...groups.values()].sort((a, b) => b.total - a.total);
 
-  const exportCsv = (): void => {
+  const [exporting, setExporting] = useState(false);
+  const exportCsv = async (): Promise<void> => {
+    setExporting(true);
+    let text: Awaited<ReturnType<typeof fetchCommentText>>;
+    try {
+      text = await fetchCommentText(rows.map((r) => r.id));
+    } catch {
+      return;
+    } finally {
+      setExporting(false);
+    }
     const head = ['Date', 'Platform', 'Account', 'Author', 'Status', 'Comment'];
     const lines = rows.map((r) =>
       [
         new Date(r.created_at).toISOString(),
         r.platform,
         channelLabel(r.channel_id, r.platform),
-        r.author_name,
+        text.get(r.id)?.author ?? null,
         r.status,
-        r.body,
+        text.get(r.id)?.body ?? '',
       ]
         .map(csvCell)
         .join(','),
@@ -128,8 +154,9 @@ export default function CommentReportCard({
           </div>
           <button
             type="button"
-            onClick={exportCsv}
-            disabled={rows.length === 0}
+            onClick={() => void exportCsv()}
+            disabled={rows.length === 0 || exporting}
+            aria-busy={exporting}
             className="inline-flex h-9 items-center gap-1.5 rounded-full border border-line bg-card px-4 text-xs font-bold text-soft transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" aria-hidden="true" />
@@ -150,60 +177,41 @@ export default function CommentReportCard({
         {rows.length === 0 ? (
           <p className="mt-4 rounded-2xl bg-paper-dim px-4 py-6 text-center text-sm text-muted">{t('crEmpty')}</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[600px] text-sm">
-              <thead>
-                <tr className="border-b border-line-soft text-left text-[11px] font-bold uppercase tracking-wide text-faint">
-                  <th scope="col" className="pb-2 pr-3 font-bold">
-                    {t('crAccount')}
-                  </th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
-                    {t('crTotal')}
-                  </th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
-                    {t('crReplied')}
-                  </th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
-                    {t('crHandled')}
-                  </th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
-                    {t('crWaiting')}
-                  </th>
-                  <th scope="col" className="pb-2 text-right font-bold">
-                    {t('crRate')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {groupRows.map((g) => (
-                  <tr key={g.id} className="border-b border-line-soft/60 last:border-0">
-                    <td className="py-2.5 pr-3">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <BrandIcon provider={g.provider as BrandProvider} className="h-5 w-5 shrink-0" />
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium text-ink">
-                            {channelLabel(g.id, g.provider)}
-                          </span>
-                          <span className="block text-[11px] text-faint">
-                            {providerMeta(g.provider).label}
-                          </span>
-                        </span>
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.total}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.replied}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.handled}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.waiting}</td>
-                    <td className="py-2.5 text-right tabular-nums text-ink">{pct(g.replied, g.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          // Per account: who, then the three numbers that matter. The full
+          // breakdown (replied, handled, moderated) is in the tiles above and
+          // the CSV. Same rows as the mobile CommentReport.
+          <ul className="mt-4 divide-y divide-line-soft">
+            {groupRows.map((g) => (
+              // Narrow cards wrap the numbers under the name instead of crushing it.
+              <li key={g.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
+                <span className="flex min-w-[9rem] flex-1 items-center gap-3">
+                  <ChannelAvatar provider={g.provider} avatar={channelAvatar(g.id)} size={32} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold text-ink">{channelLabel(g.id, g.provider)}</span>
+                    <span className="block truncate text-[11px] text-faint">{providerMeta(g.provider).label}</span>
+                  </span>
+                </span>
+                <span className="ml-auto flex gap-2 sm:gap-3">
+                  <Num label={t('crTotal')} value={String(g.total)} />
+                  <Num label={t('crWaiting')} value={String(g.waiting)} />
+                  <Num label={t('crRate')} value={pct(g.replied, g.total)} />
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
 
         <p className="mt-3 text-[11px] leading-relaxed text-faint">{t('crNote')}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function Num({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="w-[52px] shrink-0 text-right sm:w-16">
+      <span className="block font-display text-base font-extrabold leading-none tabular-nums text-ink">{value}</span>
+      <span className="mt-1 block truncate text-[10px] font-bold uppercase tracking-wide text-faint">{label}</span>
+    </span>
   );
 }

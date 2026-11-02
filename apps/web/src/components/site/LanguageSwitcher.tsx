@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ChevronDown, Globe } from 'lucide-react';
 import { LOCALE_COOKIE, LOCALE_COOKIE_ATTRS, LOCALE_META, LOCALES, type Locale } from '@/lib/i18n/locales';
+import { isLocalizedPath, localizedPath, splitLocalePath } from '@/lib/i18n/routing';
 
 /**
  * Language switcher. Two shapes: the borderless globe + chevron pill in the desktop
@@ -23,6 +24,7 @@ export default function LanguageSwitcher({
   label?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const inline = variant === 'menu';
@@ -48,7 +50,13 @@ export default function LanguageSwitcher({
   const pick = (next: Locale) => {
     document.cookie = `${LOCALE_COOKIE}=${next}; ${LOCALE_COOKIE_ATTRS}`;
     setOpen(false);
-    router.refresh();
+    // Translated pages have a URL per locale (/es/pricing): move to the new
+    // one, since the URL's locale wins over the cookie. A full load, so the
+    // root layout (<html lang>, the locale providers) renders again too.
+    const { path } = splitLocalePath(pathname);
+    const target = localizedPath(path, next);
+    if (isLocalizedPath(path) && target !== pathname) window.location.assign(target);
+    else router.refresh();
   };
 
   return (

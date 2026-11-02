@@ -12,12 +12,24 @@ const nextConfig = {
   output: 'standalone',
   outputFileTracingRoot: root,
   images: {
+    // AVIF first (roughly half the bytes of WebP for the hero render).
+    formats: ['image/avif', 'image/webp'],
     // Portrait placeholders for the landing connect card.
     remotePatterns: [{ protocol: 'https', hostname: 'randomuser.me' }],
   },
   // Native module — keep it out of the server bundle so the platform picks the
   // right prebuilt binary (used by the server-side watermark compositor).
   serverExternalPackages: ['sharp'],
+  async headers() {
+    return [
+      {
+        // /public images (brand marks, bolt). Not content-hashed, so a day
+        // fresh plus a week of background revalidation rather than immutable.
+        source: '/:all*(svg|png|jpg|jpeg|webp|ico)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
+      },
+    ];
+  },
   async rewrites() {
     return [
       // Legacy GitHub Pages URLs — old links, app stores and SEO keep working.

@@ -173,9 +173,12 @@ export function SocialGlyph({ platform, size = 14, color = '#fff' }: { platform:
   return <Ionicons name={map[platform] ?? 'ellipse'} size={s} color={color} />;
 }
 
-/** Channel avatar: profile picture of a connected account as a circular tile
- *  with the social logo stacked in a larger circular disc in the corner;
- *  falls back to the brand disc when no avatar. */
+/** THE way a connected account is shown, everywhere on mobile (and the same
+ *  rule as ChannelAvatar in apps/web): the account's profile picture as a
+ *  circle with the platform logo as a small badge in the corner; the brand
+ *  disc alone when there is no picture. Every place that shows or picks an
+ *  account uses this (or AccountAvatars / AccountStack below). badge={false}
+ *  is only for mock-ups of a platform's own UI. */
 export function ChannelAvatar({ platform, avatar, size = 38, badge = true, ring }: {
   platform: string;
   avatar?: string;
@@ -215,6 +218,53 @@ export function ChannelAvatar({ platform, avatar, size = 38, badge = true, ring 
   );
 }
 
+/** The accounts a post went out on (any mix of platforms), as overlapping
+ *  ChannelAvatars with their logo badges, +n past `max`. Mirrors
+ *  ChannelAvatarStack on web. */
+export function AccountAvatars({ accounts, size = 26, max = 3, ring }: {
+  accounts: { platform: string; avatar?: string }[];
+  size?: number;
+  max?: number;
+  /** Background the stack sits on, so each ring blends into it. */
+  ring?: string;
+}) {
+  const { C } = useTheme();
+  if (accounts.length === 0) return null;
+  const ringColor = ring ?? C.card;
+  const shown = accounts.slice(0, max);
+  const extra = accounts.length - shown.length;
+  const overlap = -Math.round(size * 0.3);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {shown.map((a, i) => (
+        <View
+          key={`${a.platform}-${i}`}
+          style={{ marginLeft: i === 0 ? 0 : overlap, zIndex: shown.length - i, borderWidth: 2, borderColor: ringColor, borderRadius: size / 2 + 2, backgroundColor: ringColor }}
+        >
+          <ChannelAvatar platform={a.platform} avatar={a.avatar} size={size} ring={ringColor} />
+        </View>
+      ))}
+      {extra > 0 ? (
+        <View
+          style={{
+            marginLeft: overlap,
+            width: size + 4,
+            height: size + 4,
+            borderRadius: size / 2 + 2,
+            borderWidth: 2,
+            borderColor: ringColor,
+            backgroundColor: C.surface,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: Math.max(9, Math.round(size * 0.38)), color: C.soft }}>+{extra}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /** Overlapping profile pictures for a channel's selected accounts (+n overflow).
  *  Pass avatar urls in order; falls back to brand tiles where missing. */
 export function AccountStack({ platform, avatars, size = 22, max = 3, ring }: { platform: string; avatars: (string | undefined)[]; size?: number; max?: number; ring?: string }) {
@@ -237,7 +287,7 @@ export function AccountStack({ platform, avatars, size = 22, max = 3, ring }: { 
             backgroundColor: ringColor,
           }}
         >
-          <ChannelAvatar platform={platform} avatar={av} size={size} badge={false} />
+          <ChannelAvatar platform={platform} avatar={av} size={size} ring={ringColor} />
         </View>
       ))}
       {extra > 0 ? (

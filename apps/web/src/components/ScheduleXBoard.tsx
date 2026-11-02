@@ -1,5 +1,8 @@
 'use client';
 
+// The calendar's own chrome, only on pages that mount the board (the app
+// calendar, dashboard card, and the marketing previews).
+import '@schedule-x/theme-default/dist/index.css';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import type { CSSProperties, HTMLAttributes } from 'react';
 import { createPortal } from 'react-dom';
@@ -41,8 +44,7 @@ import {
 } from '@/lib/format';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
-import { useT } from '@/lib/i18n/client';
-import { appMessages } from '@/lib/i18n/app';
+import { useMessages } from '@/lib/i18n/client';
 import { fill, type Locale } from '@/lib/i18n/locales';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -273,7 +275,7 @@ function OpenOnTap({
 
 function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   const c = calendarEvent ?? {};
-  const t = useT(appMessages);
+  const t = useMessages();
   const time = sxClockLabel(c.start, c.sxTime);
   const pid = String(c.id ?? '');
   const dot = STATUS_DOT[c.sxStatus ?? ''] ?? 'bg-[#9A958B]';
@@ -378,7 +380,7 @@ function TimeEditor({
   onDelete: () => void;
   busy: boolean;
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const init = partsOf(post.scheduled_at);
   const [hh, setHh] = useState(init.h);
   const [mm, setMm] = useState(init.m);
@@ -653,7 +655,7 @@ export default function ScheduleXBoard({
   /** 'page' = full calendar; 'mini' = bare week grid for embedding (dashboard). */
   variant?: 'page' | 'mini';
 }) {
-  const t = useT(appMessages);
+  const t = useMessages();
   const router = useRouter();
   const [view, setView] = useState<BoardView>(initialView);
   const [anchor, setAnchor] = useState(() => {

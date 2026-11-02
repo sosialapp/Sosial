@@ -23,8 +23,8 @@ export default function DocsFooter({ columns }: { columns: DocsFooterColumn[] })
       <div className="mx-auto grid w-full max-w-[1200px] gap-10 px-4 py-14 sm:grid-cols-2 sm:px-6 md:grid-cols-3 2xl:grid-cols-[1.4fr_repeat(5,1fr)] lg:px-10">
         <div>
           <Link href="/" className="flex items-center gap-2" aria-label="Sosial Docs home">
-            <Image src="/bolt.png" alt="" width={24} height={24} className="h-6 w-6 object-contain" />
-            <span className="font-display text-lg font-medium tracking-tight">Sosial</span>
+            <Image src="/bolt.png" alt="" width={30} height={30} className="h-8 w-8 object-contain" />
+            <span className="font-display text-xl font-extrabold tracking-tighter">Sosial</span>
           </Link>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-ink/65">
             Plan, write and publish to every social channel from one composer and calendar.
@@ -35,8 +35,8 @@ export default function DocsFooter({ columns }: { columns: DocsFooterColumn[] })
         </div>
         {columns.map((s) => (
           <nav key={s.title} aria-label={s.title}>
-            <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink/55">{s.title}</p>
-            <ul className="mt-3 grid gap-2 text-sm">
+            <p className="eyebrow">{s.title}</p>
+            <ul className="mt-4 space-y-2.5 text-sm font-semibold">
               {s.pages.slice(0, 8).map((p) => (
                 <li key={p.slug}>
                   <Link href={`/${p.slug}`} className="text-ink/75 hover:text-ink">
@@ -48,8 +48,8 @@ export default function DocsFooter({ columns }: { columns: DocsFooterColumn[] })
           </nav>
         ))}
         <nav aria-label="Sosial">
-          <p className="text-xs font-medium uppercase tracking-[0.08em] text-ink/55">Sosial</p>
-          <ul className="mt-3 grid gap-2 text-sm">
+          <p className="eyebrow">Sosial</p>
+          <ul className="mt-4 space-y-2.5 text-sm font-semibold">
             {site.map((l) => (
               <li key={l.label}>
                 <a href={l.href} className="text-ink/75 hover:text-ink">

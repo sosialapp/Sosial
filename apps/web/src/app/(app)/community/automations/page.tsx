@@ -46,7 +46,7 @@ export default async function AutomationsPage() {
       .order('created_at', { ascending: true }),
     sb
       .from('connected_channels')
-      .select('id,provider,handle,display_name,status')
+      .select('id,provider,handle,display_name,status,metadata')
       .eq('workspace_id', ctx.workspace.id)
       .in('provider', REPLY_PROVIDERS)
       .order('provider'),
@@ -66,7 +66,11 @@ export default async function AutomationsPage() {
 
   return (
     <div className="w-full pt-3 sm:px-2 sm:pt-4">
-      <CommunitySections value="auto" />
+      <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Community</h1>
+      <p className="mt-0.5 hidden text-sm text-muted sm:block">Comments on your posts and your direct messages, in one place.</p>
+      <div className="mt-3">
+        <CommunitySections value="auto" />
+      </div>
       <div className="mt-4">
         <AutomationsManager
           plan={ent.plan}

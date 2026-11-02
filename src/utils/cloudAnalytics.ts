@@ -32,6 +32,8 @@ export interface CloudChannel {
   display_name: string | null;
   handle: string | null;
   status: string;
+  /** Profile picture from the avatar sync (metadata.avatar), for ChannelAvatar. */
+  avatar?: string;
 }
 
 export interface CloudStatRow {
@@ -41,6 +43,8 @@ export interface CloudStatRow {
   likes: number;
   comments: number;
   shares: number;
+  saves: number;
+  clicks: number;
   views: number | null;
 }
 
@@ -51,11 +55,19 @@ export interface CloudFollowerRow {
   fetched_at: string;
 }
 
+/** One follower total per channel per day (p77), for the followers trend. */
+export interface CloudFollowerHistoryRow {
+  channel_id: string;
+  followers: number | null;
+  captured_on: string;
+}
+
 export interface CloudAnalytics {
   posts: CloudPost[];
   channels: CloudChannel[];
   postStats: CloudStatRow[];
   channelStats: CloudFollowerRow[];
+  followerHistory: CloudFollowerHistoryRow[];
 }
 
 export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
@@ -64,7 +76,9 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
   if (!session) return null;
   const wsId = session.workspace.id;
 
-  const [postsQ, chansQ, statsQ, folQ] = await Promise.all([
+  // Same window as the web loader (apps/web analytics/page.tsx).
+  const historyFloor = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
+  const [postsQ, chansQ, statsQ, folQ, histQ] = await Promise.all([
     sb
       .from('posts')
       .select('id, title, body, status, sent_at, scheduled_at, created_at, post_targets(id, provider, channel_id, status)')
@@ -75,16 +89,28 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
       .limit(2000),
     sb
       .from('connected_channels')
-      .select('id, provider, display_name, handle, status')
+      .select('id, provider, display_name, handle, status, metadata')
       .eq('workspace_id', wsId),
+    // saves/clicks arrive with p119; until that migration runs the wider
+    // select fails, so fall back to the original columns (web parity).
     sb
       .from('post_stats')
-      .select('post_id, channel_id, provider, likes, comments, shares, views')
-      .eq('workspace_id', wsId),
+      .select('post_id, channel_id, provider, likes, comments, shares, saves, clicks, views')
+      .eq('workspace_id', wsId)
+      .then(async (r) =>
+        r.error
+          ? sb.from('post_stats').select('post_id, channel_id, provider, likes, comments, shares, views').eq('workspace_id', wsId)
+          : r,
+      ),
     sb
       .from('channel_stats')
       .select('channel_id, provider, followers, fetched_at')
       .eq('workspace_id', wsId),
+    sb
+      .from('channel_stats_history')
+      .select('channel_id, followers, captured_on')
+      .eq('workspace_id', wsId)
+      .gte('captured_on', historyFloor),
   ]);
 
   return {
@@ -109,6 +135,7 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
       display_name: c.display_name ?? null,
       handle: c.handle ?? null,
       status: String(c.status ?? ''),
+      avatar: typeof c.metadata?.avatar === 'string' && c.metadata.avatar ? String(c.metadata.avatar) : undefined,
     })),
     postStats: ((statsQ.data ?? []) as any[]).map((r) => ({
       post_id: String(r.post_id),
@@ -117,6 +144,8 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
       likes: Number(r.likes ?? 0),
       comments: Number(r.comments ?? 0),
       shares: Number(r.shares ?? 0),
+      saves: Number(r.saves ?? 0),
+      clicks: Number(r.clicks ?? 0),
       views: r.views == null ? null : Number(r.views),
     })),
     channelStats: ((folQ.data ?? []) as any[]).map((r) => ({
@@ -124,6 +153,11 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
       provider: String(r.provider),
       followers: r.followers == null ? null : Number(r.followers),
       fetched_at: String(r.fetched_at ?? ''),
+    })),
+    followerHistory: ((histQ.data ?? []) as any[]).map((r) => ({
+      channel_id: String(r.channel_id),
+      followers: r.followers == null ? null : Number(r.followers),
+      captured_on: String(r.captured_on ?? ''),
     })),
   };
 }
