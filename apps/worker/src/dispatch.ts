@@ -41,6 +41,7 @@ import { refreshChannelToken } from './refresh';
 import { ensureMetaWebhook } from './metaSubscribe';
 import { sendPushBroadcast } from './push';
 import { snapshotChannel, snapshotChannelFollowers } from './stats';
+import { snapshotOwnPosts } from './ownPosts';
 import { handleDeletePostTarget } from './remoteDelete';
 import {
   handleSyncInbox,
@@ -268,6 +269,11 @@ async function handleSnapshotAnalytics(job: Job): Promise<void> {
     return;
   }
   debug(`snapshot_analytics channel ${channelId} (job ${job.id})`);
+  // The account's own recent posts (made in Sosial or directly on the
+  // platform) first: it never throws, so a failing per-post read below can't
+  // keep it from running.
+  const own = await snapshotOwnPosts(channelId);
+  debug(`snapshot_analytics own posts ${channelId}: ${own.skipped ?? `${own.saved} saved`}`);
   const { updated, failed, skipped } = await snapshotChannel(channelId);
   if (skipped) debug(`snapshot_analytics channel ${channelId}: skipped (${skipped})`);
   else debug(`snapshot_analytics channel ${channelId}: ${updated} updated, ${failed} failed`);

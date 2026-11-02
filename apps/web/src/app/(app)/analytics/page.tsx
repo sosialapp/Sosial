@@ -26,7 +26,7 @@ export default async function AnalyticsPage() {
   // export on demand, not shipped with every page view. Own replies never
   // count, so they stay in the database.
   const commentFloor = new Date(Date.now() - 365 * 86400000).toISOString();
-  const [posts, channels, postStats, channelStats, followerHistory, comments] = await Promise.all([
+  const [posts, channels, postStats, channelStats, followerHistory, comments, nativePosts] = await Promise.all([
     fetchPostsLite(sb, ctx.workspace.id),
     fetchChannels(sb, ctx.workspace.id),
     // saves/clicks arrive with p119; until that migration runs the wider
@@ -63,6 +63,16 @@ export default async function AnalyticsPage() {
       .order('created_at', { ascending: false })
       .limit(5000)
       .then((r) => (r.error ? [] : (r.data ?? []))),
+    // Posts made directly on the platform (p120): only the ones Sosial didn't
+    // publish, Sosial's own are already in post_stats. Empty before p120.
+    sb
+      .from('channel_posts')
+      .select('id, channel_id, provider, url, body, posted_at, likes, comments, shares, saves, clicks, views')
+      .eq('workspace_id', ctx.workspace.id)
+      .is('post_target_id', null)
+      .order('posted_at', { ascending: false })
+      .limit(3000)
+      .then((r) => (r.error ? [] : (r.data ?? []))),
   ]);
   return (
     <AnalyticsDashboard
@@ -73,6 +83,7 @@ export default async function AnalyticsPage() {
       channelStats={channelStats as never}
       followerHistory={followerHistory as never}
       commentRows={comments as never}
+      nativePosts={nativePosts as never}
     />
   );
 }
