@@ -1506,6 +1506,9 @@ body {
 .sx-react-calendar-wrapper .sx__time-grid-event {
   padding: 0;
   overflow: visible;
+  /* The library outlines overlapping events in white; with them side by side
+   * that outline only drew harsh boxes, worst in dark mode. */
+  border: 0 !important;
 }
 .sx-react-calendar-wrapper .sx__month-grid-event {
   padding: 0 !important;

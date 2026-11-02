@@ -220,7 +220,7 @@ function todayInView(view: 'day' | 'week' | 'month', anchorKey: string): boolean
 
 /** Event media at its natural ratio: image, or muted preview for video. */
 function eventMedia(t: { id: string; kind: string; src: string }, cls: string) {
-  const shared = `${cls} rounded-lg border border-black/5 bg-black/5 object-contain`;
+  const shared = `${cls} rounded-md bg-black/5 object-cover`;
   return t.kind === 'video' ? (
     <video key={t.id} src={t.src} muted playsInline preload="metadata" className={shared} />
   ) : (
@@ -279,31 +279,34 @@ function SXTimeCard({ calendarEvent }: { calendarEvent: SXEvent }) {
   const time = sxClockLabel(c.start, c.sxTime);
   const pid = String(c.id ?? '');
   const dot = STATUS_DOT[c.sxStatus ?? ''] ?? 'bg-[#9A958B]';
+  const thumbs = Array.isArray(c.sxThumbs) ? c.sxThumbs.slice(0, 3) : [];
+  // A container: as side-by-side cards narrow they drop the clock, then the
+  // status dot and title (hover shows it), so nothing wraps a letter a line.
   return (
     <OpenOnTap
       id={pid}
-      className="sx-event-card flex h-full flex-col overflow-hidden rounded-lg border px-2 py-1.5"
+      title={c.title}
+      className="sx-event-card @container flex h-full flex-col gap-1 overflow-hidden rounded-lg border p-1.5"
       style={{ '--sx-evt-accent': c.sxAccent ?? 'var(--color-ink)' } as CSSProperties}
     >
-      <div className="flex items-center gap-1.5">
-        {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={16} /> : null}
-        <span className="sx-event-sub truncate text-[10px] font-medium tabular-nums">
+      <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+        {c.sxProvider ? <ChannelAvatar provider={c.sxProvider} avatar={c.sxAvatar} size={18} /> : null}
+        <span className="sx-event-sub hidden min-w-0 truncate text-[10px] font-semibold tabular-nums @[72px]:block">
           {time}
           {c.sxThread ? ` · ${fill(t('sxThreadN'), { n: c.sxThread })}` : ''}
         </span>
-        <span className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} aria-hidden="true" />
+        <span className={`ml-auto h-1.5 w-1.5 shrink-0 rounded-full @max-[32px]:hidden ${dot}`} aria-hidden="true" />
       </div>
       {c.title ? (
-        <div className="sx-event-text mt-1 line-clamp-2 text-[11.5px] font-medium leading-[1.3]">{c.title}</div>
+        <div className="sx-event-text line-clamp-2 shrink-0 break-words text-[11.5px] font-semibold leading-[1.3] @max-[72px]:line-clamp-3 @max-[72px]:text-[10.5px] @max-[32px]:hidden">
+          {c.title}
+        </div>
       ) : null}
-      {Array.isArray(c.sxThumbs) && c.sxThumbs.length > 0 ? (
-        c.sxThumbs.length === 1 ? (
-          <div className="mt-1.5">{eventMedia(c.sxThumbs[0], 'h-auto max-h-[86px] w-full')}</div>
-        ) : (
-          <div className={`mt-1.5 grid gap-1 ${c.sxThumbs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-            {c.sxThumbs.slice(0, 3).map((t) => eventMedia(t, 'h-auto max-h-[56px] w-full'))}
-          </div>
-        )
+      {thumbs.length > 0 ? (
+        // Media fills what is left of the block, cropped, never letterboxed.
+        <div className={`grid min-h-0 flex-1 gap-1 ${thumbs.length === 1 ? 'grid-cols-1' : thumbs.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          {thumbs.map((m) => eventMedia(m, 'h-full min-h-0 w-full'))}
+        </div>
       ) : null}
     </OpenOnTap>
   );
@@ -338,6 +341,72 @@ const SX_CUSTOM_COMPONENTS = {
   timeGridEvent: SXTimeCard,
   monthGridEvent: SXMonthChip,
 };
+
+/**
+ * Side-by-side columns for posts whose blocks overlap on the same day, the
+ * way Google Calendar lays them out: overlapping posts form a group, each takes
+ * the first free column, and every card in the group is 1/columns wide.
+ * Schedule-X cascades overlaps (each card half over the last), and its
+ * no-overlap mode sizes and places cards from two different counts, so in a
+ * chain of overlaps they still covered each other.
+ */
+function overlapColumns(events: SXEvent[]): Map<string, { col: number; cols: number }> {
+  const out = new Map<string, { col: number; cols: number }>();
+  const timed = events
+    .filter((e) => e.start instanceof Temporal.ZonedDateTime && e.end instanceof Temporal.ZonedDateTime)
+    .map((e) => {
+      const start = e.start as Temporal.ZonedDateTime;
+      return {
+        id: String(e.id),
+        day: start.toPlainDate().toString(),
+        s: start.epochMilliseconds,
+        e: (e.end as Temporal.ZonedDateTime).epochMilliseconds,
+      };
+    })
+    .sort((a, b) => a.day.localeCompare(b.day) || a.s - b.s || a.e - b.e);
+  let group: { id: string; col: number }[] = [];
+  let colEnds: number[] = [];
+  let groupEnd = -Infinity;
+  let groupDay = '';
+  const flush = () => {
+    for (const g of group) out.set(g.id, { col: g.col, cols: colEnds.length });
+    group = [];
+    colEnds = [];
+    groupEnd = -Infinity;
+  };
+  for (const ev of timed) {
+    if (ev.day !== groupDay || ev.s >= groupEnd) {
+      flush();
+      groupDay = ev.day;
+    }
+    let col = colEnds.findIndex((end) => end <= ev.s);
+    if (col === -1) {
+      col = colEnds.length;
+      colEnds.push(ev.e);
+    } else {
+      colEnds[col] = ev.e;
+    }
+    group.push({ id: ev.id, col });
+    groupEnd = Math.max(groupEnd, ev.e);
+  }
+  flush();
+  return out;
+}
+
+/** Per-post position rules for overlapping posts (lone posts keep the full
+ *  width Schedule-X gives them). Keyed on the data-event-id it renders, so
+ *  they hold through its re-renders. */
+function overlapCss(events: SXEvent[]): string {
+  const rules: string[] = [];
+  for (const [id, { col, cols }] of overlapColumns(events)) {
+    if (cols < 2 || !/^[\w-]+$/.test(id)) continue;
+    const w = 100 / cols;
+    rules.push(
+      `.sx-react-calendar-wrapper .sx__time-grid-event[data-event-id="${id}"]{inset-inline-start:${(col * w).toFixed(4)}% !important;width:${w.toFixed(4)}% !important}`,
+    );
+  }
+  return rules.join('\n');
+}
 
 const SX_VIEWS = {
   day: viewDay,
@@ -608,6 +677,7 @@ function SXMount({
   // axis), so expose the hour as CSS vars and paint one band on every
   // column + the axis. Repaints every minute; month view has no axis.
   const hostRef = useRef<HTMLDivElement>(null);
+  const columnsCss = useMemo(() => overlapCss(events), [events]);
   useEffect(() => {
     if (!calendar) return;
     const paint = () => {
@@ -631,6 +701,7 @@ function SXMount({
   }
   return (
     <div ref={hostRef} style={{ display: 'contents' }}>
+      {columnsCss ? <style>{columnsCss}</style> : null}
       <ScheduleXCalendar calendarApp={calendar} customComponents={SX_CUSTOM_COMPONENTS} />
     </div>
   );
@@ -806,7 +877,10 @@ export default function ScheduleXBoard({
       // whose end lands on the next date in the all-day row — and that row sits
       // inside the sticky week header, so a late post appeared pinned over the
       // day names. Clamp to the last minute of the start day.
-      const blockEnd = start.add({ minutes: thumbs.length === 0 ? 75 : thumbs.length === 1 ? 150 : 135 });
+      // Week columns are narrow: an hour-long, text-only block, so only posts in
+      // the same hour share a column. The day view is wide enough for media.
+      const withMedia = view === 'day' && thumbs.length > 0;
+      const blockEnd = start.add({ minutes: view === 'day' ? (withMedia ? 120 : 60) : 60 });
       const dayEnd = start.startOfDay().add({ days: 1 }).subtract({ seconds: 1 });
       const end = Temporal.ZonedDateTime.compare(blockEnd, dayEnd) > 0 ? dayEnd : blockEnd;
       out.push({
@@ -820,13 +894,13 @@ export default function ScheduleXBoard({
         sxTime: formatTime(p.scheduled_at),
         sxThread: partCount(p) > 1 ? partCount(p) : null,
         sxStatus: p.status,
-        sxThumbs: thumbs,
+        sxThumbs: withMedia ? thumbs : [],
         sxAccent: accent,
       });
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visiblePosts, media, chainParts, avatarByChannel, channelById, timeZone]);
+  }, [visiblePosts, media, chainParts, avatarByChannel, channelById, timeZone, view]);
 
   // Fresh server data for the drop pipeline (calendar callbacks are created once).
   const postsRef = useRef(posts);
