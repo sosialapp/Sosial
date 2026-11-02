@@ -1,4 +1,4 @@
-import { PIN_CLIENT_ID, PIN_CLIENT_SECRET, PIN_AUTH_ENDPOINT, PIN_TOKEN_ENDPOINT, PIN_API, PIN_SCOPES } from './pinConfig';
+import { PIN_CLIENT_ID, PIN_CLIENT_SECRET, PIN_AUTH_ENDPOINT, PIN_TOKEN_ENDPOINT, PIN_ACCOUNT_API, PIN_SCOPES } from './pinConfig';
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
 import { loadProviderFields, saveProviderFields } from './metaStore';
 
@@ -115,7 +115,7 @@ export async function getValidPin(accountId?: string, force = false): Promise<{ 
 }
 
 export async function fetchPinProfile(token: string): Promise<{ username?: string; avatar?: string }> {
-  const r = await fetch(`${PIN_API}/user_account`, {
+  const r = await fetch(`${PIN_ACCOUNT_API}/user_account`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   const j: any = await r.json().catch(() => ({}));

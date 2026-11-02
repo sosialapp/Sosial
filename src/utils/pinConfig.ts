@@ -33,7 +33,15 @@ export const PIN_CLIENT_SECRET = process.env.EXPO_PUBLIC_PIN_CLIENT_SECRET ?? ''
 
 export const PIN_AUTH_ENDPOINT = 'https://www.pinterest.com/oauth/';
 export const PIN_TOKEN_ENDPOINT = 'https://api.pinterest.com/v5/oauth/token';
-export const PIN_API = 'https://api.pinterest.com/v5';
+/** Account reads (user_account) and sign-in always use production. */
+export const PIN_ACCOUNT_API = 'https://api.pinterest.com/v5';
+/** Pins, boards, media and pin analytics. Trial apps may not create Pins in
+ *  production, so EXPO_PUBLIC_PIN_SANDBOX=true points these at Pinterest's
+ *  sandbox (its own boards and pins, visible only to you); same switch as
+ *  PIN_SANDBOX on the worker and the pin-boards edge function. */
+export const PIN_API = /^(1|true|yes|on)$/i.test((process.env.EXPO_PUBLIC_PIN_SANDBOX ?? '').trim())
+  ? 'https://api-sandbox.pinterest.com/v5'
+  : 'https://api.pinterest.com/v5';
 
 /** Boards are needed for listing + creating; user_accounts:read for the profile. */
 export const PIN_SCOPES = ['boards:read', 'boards:write', 'pins:read', 'pins:write', 'user_accounts:read'];

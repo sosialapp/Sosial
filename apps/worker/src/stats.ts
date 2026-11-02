@@ -22,7 +22,7 @@ import {
 import { ensureToken as ensureXToken } from './x';
 import { ensureSession as ensureBlueskySession } from './bsky';
 import { ensureToken as ensureLinkedInToken } from './linkedin';
-import { ensureToken as ensurePinterestToken } from './pinterest';
+import { ensureToken as ensurePinterestToken, pinContentApi } from './pinterest';
 import { ensureToken as ensureYouTubeToken } from './youtube';
 import { ensureToken as ensureGmbToken } from './gmb';
 export const FB_GRAPH = 'https://graph.facebook.com/v21.0';
@@ -452,7 +452,7 @@ export async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Pr
       const start = new Date(end.getTime() - 30 * 86400000);
       const iso = (d: Date) => d.toISOString().slice(0, 10);
       const j = await jget(
-        `${PIN_API}/pins/${encodeURIComponent(remoteId)}/analytics` +
+        `${pinContentApi()}/pins/${encodeURIComponent(remoteId)}/analytics` +
           `?start_date=${iso(start)}&end_date=${iso(end)}&metric_types=IMPRESSION,SAVE,PIN_CLICK,OUTBOUND_CLICK`,
         { Authorization: `Bearer ${token}` },
       );

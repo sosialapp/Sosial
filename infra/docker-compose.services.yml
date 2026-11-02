@@ -89,6 +89,8 @@ services:
       LI_CLIENT_SECRET: ${LI_CLIENT_SECRET}
       PIN_CLIENT_ID: ${PIN_CLIENT_ID}
       PIN_CLIENT_SECRET: ${PIN_CLIENT_SECRET}
+      # true while the Pinterest app has Trial access (pins go to the API sandbox)
+      PIN_SANDBOX: ${PIN_SANDBOX:-}
       TT_PHOTO_HOST: ${TT_PHOTO_HOST}
       WORKER_SITE_URL: https://sosial.app
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
