@@ -21,7 +21,11 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
 };
 
-const PIN_API = "https://api.pinterest.com/v5";
+// Trial apps may not create Pins in production, so PIN_SANDBOX=true (same
+// switch as the worker) reads and creates boards in Pinterest's sandbox,
+// where the worker then publishes. Token refresh stays on production.
+const PIN_SANDBOX = /^(1|true|yes|on)$/i.test((Deno.env.get("PIN_SANDBOX") ?? "").trim());
+const PIN_API = PIN_SANDBOX ? "https://api-sandbox.pinterest.com/v5" : "https://api.pinterest.com/v5";
 const PIN_TOKEN_ENDPOINT = "https://api.pinterest.com/v5/oauth/token";
 const PIN_SCOPES = "boards:read,boards:write,pins:read,pins:write,user_accounts:read";
 
@@ -230,6 +234,18 @@ async function handle(req: Request): Promise<Response> {
   }
   if (!res.boards) {
     return bad(res.error ?? "Could not read your Pinterest boards.", res.status === 401 ? 409 : 502);
+  }
+
+  // The sandbox starts with no boards (it doesn't see your real ones), so
+  // there would be nothing to pick. Make one to publish into.
+  if (PIN_SANDBOX && res.boards.length === 0) {
+    const r = await fetch(`${PIN_API}/boards`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Sosial", privacy: "PUBLIC" }),
+    });
+    const b: any = await r.json().catch(() => ({}));
+    if (r.ok && b?.id) res.boards.push({ id: String(b.id), name: String(b.name ?? "Sosial") });
   }
 
   return Response.json(

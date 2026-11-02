@@ -10,7 +10,19 @@ import { storageSign, storageDownload } from './rest';
 import { env } from './env';
 import { info } from './logger';
 
-const PIN_API = 'https://api.pinterest.com/v5';
+/**
+ * Host for pins, boards, media and pin analytics. Apps on Pinterest's Trial
+ * access may not create Pins in production ("use API Sandbox instead"), so
+ * PIN_SANDBOX=true sends these calls to the sandbox, which has its own boards
+ * and pins, visible only to you. Sign-in, token refresh and account reads
+ * stay on production either way. Mirrored by the pin-boards edge function
+ * and EXPO_PUBLIC_PIN_SANDBOX on mobile.
+ */
+export function pinContentApi(): string {
+  return /^(1|true|yes|on)$/i.test(env('PIN_SANDBOX').trim())
+    ? 'https://api-sandbox.pinterest.com/v5'
+    : 'https://api.pinterest.com/v5';
+}
 const PIN_TOKEN_ENDPOINT = 'https://api.pinterest.com/v5/oauth/token';
 const PIN_SCOPES = 'boards:read,boards:write,pins:read,pins:write,user_accounts:read';
 const MAX_IMAGES = 4;
@@ -143,7 +155,7 @@ async function createImagePin(boardId: string, token: string, title: string, des
   if (buf.byteLength > MAX_BYTES) {
     throw new Error(`${tag}: over Pinterest’s 10 MB limit.`);
   }
-  const r = await fetch(`${PIN_API}/pins`, {
+  const r = await fetch(`${pinContentApi()}/pins`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -166,7 +178,7 @@ async function createVideoPin(boardId: string, token: string, title: string, des
   const h = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
   // 1. register the upload
   const reg: any = await (
-    await fetch(`${PIN_API}/media`, {
+    await fetch(`${pinContentApi()}/media`, {
       method: 'POST',
       headers: h,
       body: JSON.stringify({ media_type: 'video' }),
@@ -190,7 +202,7 @@ async function createVideoPin(boardId: string, token: string, title: string, des
   let delay = 5000;
   for (;;) {
     const st: any = await (
-      await fetch(`${PIN_API}/media/${encodeURIComponent(mediaId)}`, {
+      await fetch(`${pinContentApi()}/media/${encodeURIComponent(mediaId)}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
     ).json().catch(() => ({}));
@@ -204,7 +216,7 @@ async function createVideoPin(boardId: string, token: string, title: string, des
     delay = Math.min(delay + 2000, 10000);
   }
   // 4. create the Pin from the finished media
-  const r = await fetch(`${PIN_API}/pins`, {
+  const r = await fetch(`${pinContentApi()}/pins`, {
     method: 'POST',
     headers: h,
     body: JSON.stringify({

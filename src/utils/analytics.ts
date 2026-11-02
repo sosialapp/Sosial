@@ -3,7 +3,7 @@ import { TT_API } from './tiktokConfig';
 import { getValidToken } from './tiktokAuth';
 import { MetaState } from './metaStore';
 import { mastodonBase } from './mastodonConfig';
-import { PIN_API } from './pinConfig';
+import { PIN_ACCOUNT_API, PIN_API } from './pinConfig';
 import { getValidPin } from './pinAuth';
 import { pinAnalytics } from './pinPublish';
 import { LI_API, LI_VERSION } from './liConfig';
@@ -560,7 +560,7 @@ async function pinStats(m: MetaState, start: number, end: number): Promise<Chann
     const { token } = await getValidPin();
     const h = { Authorization: `Bearer ${token}` };
     try {
-      const acct: any = await jget(`${PIN_API}/user_account`, h);
+      const acct: any = await jget(`${PIN_ACCOUNT_API}/user_account`, h);
       base.followers = num(acct.follower_count) || null;
       if (acct.username && !m.pinUsername) base.label = `@${acct.username}`;
     } catch {}

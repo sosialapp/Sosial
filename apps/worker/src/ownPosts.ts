@@ -16,13 +16,13 @@
  * read on X's API. LinkedIn and Google Business have no per-post list here.
  */
 import { rest } from './db';
+import { pinContentApi } from './pinterest';
 import { info, warn } from './logger';
 import type { ChannelRow, TokenRow } from './avatars';
 import {
   DIRECT_REPLY_COUNTS,
   FB_GRAPH,
   IG_GRAPH,
-  PIN_API,
   THREADS_API,
   YT_API,
   accessToken,
@@ -330,7 +330,7 @@ async function tiktokPosts(c: ChannelRow, t: TokenRow): Promise<OwnPost[]> {
 
 async function pinterestPosts(c: ChannelRow, t: TokenRow): Promise<OwnPost[]> {
   const token = await accessToken(c, t);
-  const j = await jget(`${PIN_API}/pins?page_size=${PIN_LIMIT}`, { Authorization: `Bearer ${token}` });
+  const j = await jget(`${pinContentApi()}/pins?page_size=${PIN_LIMIT}`, { Authorization: `Bearer ${token}` });
   if (!Array.isArray(j?.items)) throw new Error(j?.message ?? 'pinterest pins read failed');
   const out: OwnPost[] = [];
   for (const p of j.items) {
