@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getWorkspaceContext } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { checkoutPriceId, pricesConfigured, stripe, ultimatePriceId } from '@/lib/billing/stripe';
+import { publicOrigin } from '@/lib/site';
 
 /**
  * Whether the caller may buy Ultimate: workspace owners and admins only.
@@ -68,7 +69,7 @@ async function ultimateCheckout(
     );
   }
 
-  const origin = req.headers.get('origin') ?? new URL(req.url).origin;
+  const origin = req.headers.get('origin') ?? publicOrigin(req);
   try {
     const s = stripe();
     let customerId = sub?.stripe_customer_id ?? null;
@@ -149,7 +150,7 @@ export async function POST(req: Request) {
     !!sub?.stripe_subscription_id &&
     ['active', 'trialing', 'past_due'].includes(sub.status ?? '');
 
-  const origin = req.headers.get('origin') ?? new URL(req.url).origin;
+  const origin = req.headers.get('origin') ?? publicOrigin(req);
 
   try {
     const s = stripe();
