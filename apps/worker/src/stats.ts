@@ -288,6 +288,10 @@ async function snapshotFollowers(c: ChannelRow, t: TokenRow): Promise<void> {
   }
 }
 
+/** Facebook Page posts are `{page-id}_{post-id}`; Sosial saves videos and
+ *  reels under the bare video id. */
+export const isFacebookVideoId = (remoteId: string): boolean => /^\d+$/.test(remoteId.trim());
+
 export async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<Stats> {
   switch (c.provider) {
     case 'facebook': {
@@ -300,13 +304,17 @@ export async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Pr
       // stores; our own replies come off in snapshotChannel.
       const edges =
         'reactions.summary(total_count,viewer_reaction).limit(0),comments.filter(stream).summary(total_count).limit(0)';
-      let j = await jget(`${FB_GRAPH}/${id}?fields=${encodeURIComponent(`shares,${edges}`)}&access_token=${tok}`);
-      let note: string | undefined;
-      if (j?.error) {
-        // Videos and reels are saved under the video id, and a Video has no
-        // `shares` field: asking for it errors the whole read. Retry without.
+      // Videos and reels are saved under the video id, and a Video has no
+      // `shares` field: asking for it errors the whole read. Page posts are
+      // `{page-id}_{post-id}`, so a bare id is a video and skips shares.
+      const video = isFacebookVideoId(remoteId);
+      const videoNote = 'Facebook reports no share count for videos and reels.';
+      let j = await jget(`${FB_GRAPH}/${id}?fields=${encodeURIComponent(video ? edges : `shares,${edges}`)}&access_token=${tok}`);
+      let note: string | undefined = video ? videoNote : undefined;
+      if (j?.error && !video) {
+        // A post id that turned out to be a video after all: retry without.
         j = await jget(`${FB_GRAPH}/${id}?fields=${encodeURIComponent(edges)}&access_token=${tok}`);
-        note = 'Facebook reports no share count for videos and reels.';
+        note = videoNote;
       }
       if (j?.error) {
         // The login may lack the permission for reactions/comments; shares
