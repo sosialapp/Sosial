@@ -146,6 +146,20 @@ async function handle(req: Request): Promise<Response> {
   let access = await readSecret(tk.access_token_secret_id);
   if (!access) return bad("Pinterest is not fully connected, reconnect it.", 409);
 
+  // The sandbox rejects the OAuth (production) token ("Authentication
+  // failed."); it needs a sandbox token from the developer portal, same
+  // PIN_SANDBOX_TOKEN the worker publishes with.
+  const sandboxToken = (Deno.env.get("PIN_SANDBOX_TOKEN") ?? "").trim();
+  if (PIN_SANDBOX) {
+    if (!sandboxToken) {
+      return bad(
+        "Pinterest sandbox mode is on but PIN_SANDBOX_TOKEN is not set. Generate a sandbox token in the Pinterest developer portal and add it to the server.",
+        409,
+      );
+    }
+    access = sandboxToken;
+  }
+
   // Rotate the token pair in place (mirrors the mobile/worker refresh posture).
   const refresh = async (): Promise<boolean> => {
     const cid = Deno.env.get("PIN_CLIENT_ID") ?? "";
@@ -225,11 +239,12 @@ async function handle(req: Request): Promise<Response> {
     return { boards: out };
   };
 
+  // Refreshing only makes sense for the OAuth token, not the sandbox one.
   const expired = tk.expires_at ? new Date(tk.expires_at).getTime() <= Date.now() + 60_000 : false;
-  if (expired) await refresh();
+  if (expired && !PIN_SANDBOX) await refresh();
 
   let res = await fetchBoards();
-  if (!res.boards && res.status === 401 && (await refresh())) {
+  if (!res.boards && res.status === 401 && !PIN_SANDBOX && (await refresh())) {
     res = await fetchBoards();
   }
   if (!res.boards) {
