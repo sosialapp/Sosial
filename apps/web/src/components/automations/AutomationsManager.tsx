@@ -361,7 +361,6 @@ export default function AutomationsManager({
   if (!paid) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
-        <Header />
         <div className="card overflow-hidden">
           <div className="grid gap-0 md:grid-cols-[minmax(0,1fr)_320px]">
             <div className="p-7 sm:p-9">
@@ -402,8 +401,7 @@ export default function AutomationsManager({
   return (
     <div className="space-y-5">
       {/* ------------------------------------------------- header --- */}
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <Header />
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-end">
         <div className="card flex flex-wrap items-center gap-x-5 gap-y-3 px-4 py-3">
           <span className="flex items-center gap-2 text-sm font-bold">
             <span className="relative flex h-2.5 w-2.5">
@@ -962,18 +960,6 @@ const TEMPLATES: { name: string; keywords: string; reply: string; scope: AutoRep
 
 /** MATCH_MODES value → dictionary key (the hint is the same key + `Hint`). */
 const MATCH_LABEL: Record<MatchMode, string> = { word: 'matchWord', contains: 'matchContains', exact: 'matchExact' };
-
-function Header() {
-  const t = useT(automationMessages);
-  return (
-    <div>
-      <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">{t('title')}</h1>
-      <p className="mt-1 max-w-xl text-sm text-muted">
-        {t('sub')}
-      </p>
-    </div>
-  );
-}
 
 function Stat({
   icon,
