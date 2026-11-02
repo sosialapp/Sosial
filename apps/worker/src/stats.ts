@@ -628,7 +628,7 @@ let legacyStatsColumns = false;
  * saves and clicks, PostgREST rejects the unknown columns; write the row
  * without them instead of failing every snapshot until the migration runs.
  */
-async function writeStats(row: Record<string, unknown>): Promise<void> {
+export async function writeStats(row: Record<string, unknown>): Promise<void> {
   const send = (body: Record<string, unknown>) =>
     rest('/rest/v1/post_stats', {
       method: 'POST',
