@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import {
-  PLANS, PLAN_ORDER, priceFor, formatUsd,
+  PAID_PLANS_OPEN, PLANS, PLAN_ORDER, priceFor, formatUsd,
   type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
 import { BrandIcon, BRAND_PATHS, type BrandProvider } from '@/components/BrandIcon';
@@ -35,7 +35,7 @@ const CHANNELS: BrandProvider[] = [
   'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb',
 ];
 
-const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier'] as const;
+const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier', 'grok'] as const;
 
 /** Channel marks offered to the background field (matches the hero). */
 const GRID_LOGOS: BrandProvider[] = [
@@ -231,9 +231,19 @@ export default function PricingPlans({
                   </ul>
 
                   <div className="mt-auto">
-                    <Link href={ctaHref} className={`btn w-full ${featured ? 'btn-primary' : 'btn-ghost'}`}>
-                      {ctaLabel}
-                    </Link>
+                    {key !== 'free' && !PAID_PLANS_OPEN ? (
+                      // Sales closed: greyed, not a link, so nobody reaches checkout.
+                      <span
+                        aria-disabled="true"
+                        className={`btn w-full cursor-not-allowed opacity-50 ${featured ? 'btn-primary' : 'btn-ghost'}`}
+                      >
+                        {ctaLabel}
+                      </span>
+                    ) : (
+                      <Link href={ctaHref} className={`btn w-full ${featured ? 'btn-primary' : 'btn-ghost'}`}>
+                        {ctaLabel}
+                      </Link>
+                    )}
                   </div>
                 </div>
               </article>

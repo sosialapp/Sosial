@@ -67,8 +67,6 @@ const en = {
       a: 'Existing subscribers get notice before a price change takes effect. The public pricing page always reflects what new customers pay today.',
     },
   ],
-  ctaTitle: 'See everything before you commit to anything.',
-  ctaBody: 'Read the prices, the privacy policy and the terms first. Then start free, with no card.',
 };
 
 export type TransparencyCopy = typeof en;
@@ -105,8 +103,6 @@ const es: TransparencyCopy = {
     { q: '¿Cómo saco mis datos?', a: 'Pídelo a soporte y recibirás una exportación de tus publicaciones, calendario y contenido del espacio de trabajo. La eliminación funciona igual, por escrito.' },
     { q: '¿Cambiarán los precios sin aviso?', a: 'Los suscriptores actuales reciben aviso antes de que un cambio de precio se aplique. La página de precios pública siempre muestra lo que pagan hoy los nuevos clientes.' },
   ],
-  ctaTitle: 'Míralo todo antes de comprometerte a nada.',
-  ctaBody: 'Lee primero los precios, la política de privacidad y las condiciones. Después empieza gratis, sin tarjeta.',
 };
 
 const fr: TransparencyCopy = {
@@ -141,8 +137,6 @@ const fr: TransparencyCopy = {
     { q: 'Comment récupérer mes données ?', a: 'Demandez-le au support et vous recevrez un export de vos publications, de votre planning et du contenu de l’espace de travail. La suppression fonctionne de la même façon, par écrit.' },
     { q: 'Les prix changeront-ils sans prévenir ?', a: 'Les abonnés sont prévenus avant qu’un changement de prix s’applique. La page des tarifs publique indique toujours ce que paient aujourd’hui les nouveaux clients.' },
   ],
-  ctaTitle: 'Voyez tout avant de vous engager.',
-  ctaBody: 'Lisez d’abord les tarifs, la politique de confidentialité et les conditions. Puis commencez gratuitement, sans carte.',
 };
 
 const de: TransparencyCopy = {
@@ -177,8 +171,6 @@ const de: TransparencyCopy = {
     { q: 'Wie bekomme ich meine Daten heraus?', a: 'Frag beim Support an und du erhältst einen Export deiner Beiträge, deines Zeitplans und der Workspace-Inhalte. Löschen funktioniert genauso, schriftlich.' },
     { q: 'Ändern sich die Preise ohne Ankündigung?', a: 'Bestehende Abonnenten werden informiert, bevor eine Preisänderung gilt. Die öffentliche Preisseite zeigt immer, was Neukunden heute zahlen.' },
   ],
-  ctaTitle: 'Sieh dir alles an, bevor du dich auf etwas festlegst.',
-  ctaBody: 'Lies zuerst die Preise, die Datenschutzerklärung und die Nutzungsbedingungen. Dann starte gratis, ohne Karte.',
 };
 
 const ja: TransparencyCopy = {
@@ -213,8 +205,6 @@ const ja: TransparencyCopy = {
     { q: 'データを取り出すには？', a: 'サポートにご依頼いただければ、投稿、スケジュール、ワークスペースのコンテンツをエクスポートしてお送りします。削除も同じく書面で対応します。' },
     { q: '予告なく料金が変わることはありますか？', a: '料金変更が適用される前に、既存の契約者へお知らせします。公開されている料金ページには、常に新規のお客様が現在支払う金額を掲載しています。' },
   ],
-  ctaTitle: '決める前に、すべてを確認。',
-  ctaBody: 'まず料金、プライバシーポリシー、利用規約を読んでください。それから、カード不要で無料で始めましょう。',
 };
 
 const ko: TransparencyCopy = {
@@ -249,8 +239,6 @@ const ko: TransparencyCopy = {
     { q: '내 데이터를 내보내려면?', a: '지원팀에 요청하면 게시물, 일정, 워크스페이스 콘텐츠를 내보내 드립니다. 삭제도 같은 방식으로, 서면으로 처리합니다.' },
     { q: '예고 없이 요금이 바뀌나요?', a: '요금 변경이 적용되기 전에 기존 구독자에게 알립니다. 공개 요금 페이지에는 항상 신규 고객이 지금 내는 금액이 나와 있습니다.' },
   ],
-  ctaTitle: '무엇이든 결정하기 전에 모든 걸 확인하세요.',
-  ctaBody: '요금, 개인정보 처리방침, 이용약관을 먼저 읽어 보세요. 그다음 카드 없이 무료로 시작하세요.',
 };
 
 const zh: TransparencyCopy = {
@@ -284,8 +272,6 @@ const zh: TransparencyCopy = {
     { q: '如何导出我的数据？', a: '向客服提出申请，你会收到帖子、排期和工作区内容的导出文件。删除也是同样的方式，以书面形式处理。' },
     { q: '价格会不经通知就变动吗？', a: '价格变动生效前会先通知现有订阅用户。公开的价格页面始终显示新客户当前支付的价格。' },
   ],
-  ctaTitle: '在做任何决定之前，先看清一切。',
-  ctaBody: '先阅读价格、隐私政策和条款，然后免费开始，无需绑卡。',
 };
 
 export const transparencyCopy: Record<Locale, TransparencyCopy> = { en, es, fr, de, ja, ko, zh };

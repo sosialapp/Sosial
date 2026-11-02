@@ -309,22 +309,6 @@ export function ResourceTile({ r, href }: { r: Resource; href: string }) {
   );
 }
 
-/** Dark closing band with the sign-up button, shared by both detail pages. */
-export function CtaBand({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
-  return (
-    <div className="reveal rounded-[28px] bg-ink p-7 text-bone md:flex md:items-center md:justify-between md:gap-8 md:p-10">
-      <div className="max-w-xl">
-        <p className="text-[11px] font-extrabold tracking-[0.14em] text-bone/60 uppercase">{eyebrow}</p>
-        <h2 className="mt-2 font-display text-2xl leading-tight font-extrabold tracking-tight md:text-[1.75rem]">{title}</h2>
-        <p className="mt-2 text-sm leading-relaxed text-bone/70">{body}</p>
-      </div>
-      <Link href="/login" className="btn btn-bolt btn-lg mt-6 shrink-0 justify-center md:mt-0">
-        Start scheduling free
-      </Link>
-    </div>
-  );
-}
-
 /** Small "← Blog" style link at the top of a detail page. */
 export function BackLink({ href, label }: { href: string; label: string }) {
   return (

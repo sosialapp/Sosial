@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Building2, Check, Compass, Hand, Minus, Scale, Smartphone } from 'lucide-react';
 import Reveal from '@/components/anim/Reveal';
 import { FaqList } from '@/components/site/PageBlocks';
-import { CtaCard, Hero, IconGrid, Section, SectionHead } from '@/components/site/Marketing';
+import { Hero, IconGrid, Section, SectionHead } from '@/components/site/Marketing';
 import PageCms from '@/components/site/PageCms';
 import { compareCopy } from '@/content/pages/compare';
 import { fill } from '@/lib/i18n/locales';
@@ -130,7 +130,6 @@ export default async function ComparePage() {
 
       <FaqList items={c.faq} />
 
-      <CtaCard title={c.ctaTitle} body={c.ctaBody} />
     </>
   );
 }

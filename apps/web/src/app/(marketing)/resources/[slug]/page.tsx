@@ -6,7 +6,7 @@ import { formatPageDate, sitePageHtml, sitePageMeta } from '@/lib/sitePages';
 import { allResources, resource } from '@/content/resources';
 import { resourceHref } from '@/content/types';
 import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
-import { BackLink, CtaBand, RailCard, ReadingLayout, ResourceTile, kindTone, resourceSections } from '@/components/site/ResourceKit';
+import { BackLink, RailCard, ReadingLayout, ResourceTile, kindTone, resourceSections } from '@/components/site/ResourceKit';
 import { ShareLinks } from '@/components/site/ArticleAside';
 
 /** CMS edits go live within minutes. */
@@ -118,13 +118,6 @@ export default async function ResourcePage({ params }: { params: Promise<{ slug:
           </div>
         </ReadingLayout>
 
-        <div className="mx-auto max-w-[1200px] px-4 pt-10 pb-16 md:pb-20">
-          <CtaBand
-            eyebrow="Next step"
-            title="Put this into a live calendar."
-            body="Sosial turns these into scheduled posts across all ten channels. Free to start."
-          />
-        </div>
       </article>
 
       {more.length > 0 ? (

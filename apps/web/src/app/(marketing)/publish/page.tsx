@@ -3,7 +3,7 @@ import { seo } from '@/lib/seo';
 import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import { Activity, CalendarDays, ListChecks, PauseCircle, PencilLine, Ruler, Send, ShieldCheck } from 'lucide-react';
 import { FaqList } from '@/components/site/PageBlocks';
-import { CtaCard, Hero, IconGrid, Section, SectionHead, Split, Stats } from '@/components/site/Marketing';
+import { Hero, IconGrid, Section, SectionHead, Split, Stats } from '@/components/site/Marketing';
 import PageCms from '@/components/site/PageCms';
 import AppPreview from '@/components/site/app-preview/AppPreview';
 import { publishCopy } from '@/content/pages/publish';
@@ -91,7 +91,6 @@ export default async function PublishPage() {
 
       <FaqList items={c.faq} />
 
-      <CtaCard title={c.ctaTitle} body={c.ctaBody} />
     </>
   );
 }

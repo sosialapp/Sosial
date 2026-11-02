@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ArrowRight, Check, type LucideIcon } from 'lucide-react';
+import HeroGrid from '@/components/site/HeroGrid';
 import Reveal from '@/components/anim/Reveal';
 import { siteI18n } from '@/lib/i18n/server';
 
@@ -37,7 +38,7 @@ export function IconTile({ icon: Icon, size = 'md' }: { icon: LucideIcon; size?:
 /** Small line above a heading: an icon and a word, nothing more. */
 export function Kicker({ icon: Icon, children }: { icon?: LucideIcon; children: ReactNode }) {
   return (
-    <p className="flex items-center gap-2 text-sm font-medium text-ink/55">
+    <p data-grid-avoid className="flex items-center gap-2 text-sm font-medium text-ink/55">
       {Icon ? <Icon className="h-4 w-4" strokeWidth={1.8} aria-hidden="true" /> : null}
       {children}
     </p>
@@ -88,25 +89,29 @@ export async function Hero({
   const { t } = await siteI18n();
   return (
     <section className="relative overflow-hidden">
-      <div className="mx-auto max-w-[1200px] px-4 pt-16 sm:px-6 sm:pt-24 md:pt-28">
-        <Reveal y={18} stagger={0.07}>
-          <Kicker icon={icon}>{kicker}</Kicker>
-          <h1 className={`mt-5 max-w-4xl ${H1}`}>{title}</h1>
-          <p className={`mt-6 max-w-2xl ${LEDE}`}>{lede}</p>
-          <div className="mt-9">
-            <CtaRow primary={primary ?? { href: '/login', label: t('heroCta') }} secondary={secondary} />
-          </div>
-          {meta ? <p className="mt-5 text-xs text-ink/45">{meta}</p> : null}
-        </Reveal>
+      {/* Same interactive grid as the landing hero, behind the copy only. */}
+      <div className="relative overflow-clip [touch-action:pan-y]">
+        <HeroGrid />
+        <div className="relative z-[2] mx-auto max-w-[1200px] px-4 pt-16 pb-16 sm:px-6 sm:pt-24 sm:pb-20 md:pt-28">
+          <Reveal y={18} stagger={0.07}>
+            <Kicker icon={icon}>{kicker}</Kicker>
+            <h1 data-grid-avoid className={`mt-5 max-w-4xl ${H1}`}>{title}</h1>
+            <p data-grid-avoid className={`mt-6 max-w-2xl ${LEDE}`}>{lede}</p>
+            <div data-grid-avoid className="mt-9 w-fit max-w-full">
+              <CtaRow primary={primary ?? { href: '/login', label: t('heroCta') }} secondary={secondary} />
+            </div>
+            {meta ? <p data-grid-avoid className="mt-5 text-xs text-ink/45">{meta}</p> : null}
+          </Reveal>
+        </div>
       </div>
       {visual ? (
-        <div className="mx-auto mt-16 max-w-[1200px] px-4 sm:mt-20 sm:px-6">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-6">
           <Reveal y={32}>
             <div className="rounded-[28px] border border-line bg-surface p-2 sm:p-4 md:p-6">{visual}</div>
           </Reveal>
         </div>
       ) : null}
-      <div className={visual ? 'h-20 sm:h-28' : 'h-16 sm:h-24'} />
+      {visual ? <div className="h-20 sm:h-28" /> : null}
     </section>
   );
 }
@@ -286,46 +291,3 @@ export function Steps({ items }: { items: IconItem[] }) {
   );
 }
 
-/** The closing card every page ends on; light, so it never merges with the black footer below. */
-export async function CtaCard({
-  title,
-  body,
-  primary: primaryCta,
-  secondary: secondaryCta,
-}: {
-  title: string;
-  body: string;
-  primary?: Cta;
-  secondary?: Cta;
-}) {
-  const { t, href } = await siteI18n();
-  const primary = primaryCta ?? { href: '/login', label: t('heroCta') };
-  const secondary = secondaryCta ?? { href: href('/pricing'), label: t('siteSeePricing') };
-  return (
-    <section className="px-3 pb-6 pt-4 sm:px-4">
-      <Reveal className="mx-auto max-w-[1440px]">
-        <div className="relative overflow-hidden rounded-[32px] border border-line bg-surface px-6 py-16 sm:px-12 sm:py-20 md:py-24">
-          <div className="mx-auto max-w-[1100px]">
-            <h2 className="max-w-3xl font-display text-[2.25rem] font-[700] leading-[1.05] tracking-[-0.035em] text-balance sm:text-5xl md:text-[3.5rem]">
-              {title}
-            </h2>
-            <p className="mt-5 max-w-xl text-lg leading-relaxed text-ink/60">{body}</p>
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
-              <Link href={primary.href} className="btn btn-primary btn-lg justify-center gap-2">
-                {primary.label}
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-              <Link
-                href={secondary.href}
-                className="group inline-flex items-center justify-center gap-1.5 py-2 text-[15px] font-medium text-ink/75 transition hover:text-ink"
-              >
-                {secondary.label}
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </Reveal>
-    </section>
-  );
-}

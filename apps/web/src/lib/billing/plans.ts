@@ -196,6 +196,14 @@ export const PLANS: Record<PlanKey, PlanDef> = {
 
 /** Canonical display order, cheapest first. Ultimate is intentionally absent -
  *  public pricing, comparison tables and change-plan lists iterate this. */
+/**
+ * Paid plans stay closed until Meta and TikTok approve Sosial for production:
+ * every paid plan button is greyed out and does nothing (UI only, billing is
+ * untouched). Flip to true to open sales. Mirrored in src/utils/plans.ts and
+ * apps/web/src/lib/billing/plans.ts.
+ */
+export const PAID_PLANS_OPEN = false;
+
 export const PLAN_ORDER: PlanKey[] = ['free', 'solo', 'team', 'business'];
 
 export const BILLING_INTERVALS: BillingInterval[] = ['monthly', 'annual'];

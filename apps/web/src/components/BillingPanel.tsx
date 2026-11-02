@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
-  PLANS, PLAN_ORDER, priceFor, priceLabel, formatUsd, monthlyEquivalent,
+  PAID_PLANS_OPEN, PLANS, PLAN_ORDER, priceFor, priceLabel, formatUsd, monthlyEquivalent,
   annualSavingsPct, type BillingInterval, type PlanKey,
 } from '@/lib/billing/plans';
 import type { UsageSnapshot } from '@/lib/billing/usage';
@@ -447,7 +447,7 @@ export default function BillingPanel({
                     ) : (
                       <button
                         type="button"
-                        disabled={busy !== null || !stripeReady}
+                        disabled={busy !== null || !stripeReady || !PAID_PLANS_OPEN}
                         onClick={() => select(k as Exclude<PlanKey, 'free'>)}
                         className={`btn w-full ${higher && p.featured ? 'btn-primary' : higher ? 'btn-bolt' : 'btn-ghost'}`}
                       >
