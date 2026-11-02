@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image } from 'react-native';
 import { Svg, Path, G, Defs, ClipPath, Rect, Circle, RadialGradient, Stop } from 'react-native-svg';
 import { PostPage } from '../types';
@@ -66,6 +66,10 @@ interface ChromeProps {
   maxH?: number;
   /** render the "made with Sosial" badge (free-plan watermark) */
   watermark?: boolean;
+  /** ref to the card body (the AutoFit box that clips the blocks) */
+  bodyRef?: React.Ref<any>;
+  /** reports AutoFit's content scale so gestures can map screen px to units */
+  onFit?: (ratio: number) => void;
   children: React.ReactNode;
 }
 
@@ -101,10 +105,11 @@ function Watermark({ font, pad, size, color }: { font: FontId; pad: (v: number) 
 
 /** Auto-fit: measures available body height vs natural content height and
  * scales content down (min 45%) so nothing ever clips out of the fixed card. */
-function AutoFit({ style, children, fit, maxH }: { style: any; children: React.ReactNode; fit?: boolean; maxH?: number }) {
+function AutoFit({ style, children, fit, maxH, bodyRef, onFit }: { style: any; children: React.ReactNode; fit?: boolean; maxH?: number; bodyRef?: React.Ref<any>; onFit?: (ratio: number) => void }) {
   const [avail, setAvail] = useState(0);
   const [natural, setNatural] = useState(0);
   const ratio = avail > 0 && natural > avail + 1 ? Math.max(0.45, avail / natural) : 1;
+  useEffect(() => onFit?.(ratio), [ratio, onFit]);
   const onOuter = (e: any) => {
     const h = e.nativeEvent.layout.height;
     setAvail((p) => (Math.abs(p - h) > 1 ? h : p));
@@ -117,7 +122,7 @@ function AutoFit({ style, children, fit, maxH }: { style: any; children: React.R
     ? { ...style, flex: undefined, minHeight: undefined, flexShrink: 1, maxHeight: maxH, overflow: 'hidden' as const }
     : style;
   return (
-    <View onLayout={onOuter} style={[base, ratio < 1 ? { height: Math.max(1, Math.round(natural * ratio)), overflow: 'hidden' } : null]}>
+    <View ref={bodyRef} onLayout={onOuter} style={[base, ratio < 1 ? { height: Math.max(1, Math.round(natural * ratio)), overflow: 'hidden' } : null]}>
       <View
         onLayout={onInner}
         style={
@@ -133,7 +138,7 @@ function AutoFit({ style, children, fit, maxH }: { style: any; children: React.R
 }
 
 /** Platform-authentic card templates wrapping the content blocks. */
-export default function SocialCardChrome({ page, pad, fit, maxH, watermark, children }: ChromeProps) {
+export default function SocialCardChrome({ page, pad, fit, maxH, watermark, bodyRef, onFit, children }: ChromeProps) {
   const style = page.cardStyle ?? 'minimal';
   const cardBg = page.cardColor ?? '#FFFFFFF2';
   const { firstHandle, name } = useChrome(page);
@@ -201,7 +206,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
           </View>
           <Dots size={pad(12)} color={gray} />
         </View>
-        <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
+        <AutoFit fit={fit} maxH={maxH} bodyRef={bodyRef} onFit={onFit} style={body(true, true)}>{children}</AutoFit>
         {/* stats */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: pad(12), paddingBottom: pad(7) }}>
           <View style={{ width: pad(15), height: pad(15), borderRadius: pad(7.5), backgroundColor: '#1877F2', alignItems: 'center', justifyContent: 'center' }}>
@@ -253,7 +258,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
             <Dots size={pad(11)} color={gray} />
           </View>
         </View>
-        <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
+        <AutoFit fit={fit} maxH={maxH} bodyRef={bodyRef} onFit={onFit} style={body(true, true)}>{children}</AutoFit>
         {/* Engagement strip (user-supplied art, 357×54) replaces the glyph
             action row, full-width, aspect-preserved. */}
         {/* aspect-locked like web (a fixed 20px height drew it at half size) */}
@@ -299,7 +304,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
             <Dots size={pad(12)} color={ink} />
           </View>
         </View>
-        <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
+        <AutoFit fit={fit} maxH={maxH} bodyRef={bodyRef} onFit={onFit} style={body(true, true)}>{children}</AutoFit>
         <View style={{ paddingHorizontal: pad(12), paddingBottom: pad(11), gap: pad(6) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(10) }}>
             <ActionIcon name="ig-heart" size={pad(20)} color={ink} />
@@ -349,7 +354,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
             </G>
           </Svg>
         </View>
-        <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
+        <AutoFit fit={fit} maxH={maxH} bodyRef={bodyRef} onFit={onFit} style={body(true, true)}>{children}</AutoFit>
         <View style={{ paddingHorizontal: pad(13), paddingBottom: pad(11), gap: pad(6) }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: pad(11) }}>
             <ActionIcon name="th-heart" size={pad(20)} color={ink} />
@@ -378,7 +383,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
             <Text style={{ ...F(font), fontSize: pad(8), color: gray }} numberOfLines={1}>{firstHandle} · 2h</Text>
           </View>
         </View>
-        <AutoFit fit={fit} maxH={maxH} style={body(true, true)}>{children}</AutoFit>
+        <AutoFit fit={fit} maxH={maxH} bodyRef={bodyRef} onFit={onFit} style={body(true, true)}>{children}</AutoFit>
         {/* reply · repost · like · save · share · more, like the app */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: pad(14), paddingBottom: pad(10), gap: pad(4) }}>
           {[
@@ -406,7 +411,7 @@ export default function SocialCardChrome({ page, pad, fit, maxH, watermark, chil
   // minimal
   return (
     <View style={{ flex: fit ? undefined : 1, flexShrink: fit ? 1 : 0 }}>
-      <AutoFit fit={fit} maxH={maxH} style={{ flex: 1, gap: pad(10), backgroundColor: cardBg, borderRadius: pad(14), padding: pad(13), borderWidth: pad(1), borderColor: '#11111112' }}>
+      <AutoFit fit={fit} maxH={maxH} bodyRef={bodyRef} onFit={onFit} style={{ flex: 1, gap: pad(10), backgroundColor: cardBg, borderRadius: pad(14), padding: pad(13), borderWidth: pad(1), borderColor: '#11111112' }}>
         {children}
       </AutoFit>
       {watermark ? (

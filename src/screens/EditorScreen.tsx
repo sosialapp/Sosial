@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Dimensions, KeyboardAvoidingView, NativeScrollEvent, NativeSyntheticEvent, Animated, PanResponder, StatusBar, type ScrollViewInstance } from 'react-native';
 import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { usePost } from '../store/PostContext';
@@ -17,7 +17,7 @@ import { saveProjectPreset } from '../utils/presets';
 import { saveProject } from './HomeScreen';
 import { loadAccount } from '../utils/account';
 import { CanvasMoveProvider } from '../components/CanvasMove';
-import { patchPlace, placeOf, type PlaceTarget } from '../utils/blockLayout';
+import { clampedBlockOffset, patchPlace, placeOf, type BlockGeom, type PlaceTarget } from '../utils/blockLayout';
 import type { Placement } from '../types';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
@@ -64,6 +64,10 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
   const moveTargetR = useRef(moveTarget);
   moveTargetR.current = moveTarget;
   const moveStartR = useRef<Placement>({});
+  // Measured card-body geometry of the block being moved (from PostCanvas).
+  const moveGeomR = useRef<BlockGeom | null>(null);
+  const onMoveGeom = useCallback((g: BlockGeom | null) => { moveGeomR.current = g; }, []);
+  useEffect(() => { moveGeomR.current = null; }, [moveTarget]);
 
   const beginPreviewDrag = (id: string) => {
     const p = postR.current;
@@ -142,12 +146,21 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
         const t = moveTargetR.current;
         const pg = pageR.current;
         if (!t || !pg) return;
+        const p0 = moveStartR.current;
+        // Blocks stay inside the card body (outside it the card clips them);
+        // the title and profile row may roam the whole canvas.
+        if (t.kind === 'block') {
+          const geom = moveGeomR.current;
+          if (!geom) return;
+          const next = patchPlace(pg, t, clampedBlockOffset(p0, { dx: g.dx, dy: g.dy }, geom, stageScaleR.current || 1));
+          patchPageR.current({ title: next.title, pfp: next.pfp, blocks: next.blocks });
+          return;
+        }
         const u = stageScaleR.current || 1;
         const at = (v0: number | undefined, d: number, lim: number) => {
           const v = Math.max(-lim, Math.min(lim, (v0 ?? 0) + d / u));
           return Math.abs(v) < 3 ? undefined : Math.round(v * 2) / 2;
         };
-        const p0 = moveStartR.current;
         const next = patchPlace(pg, t, { dx: at(p0.dx, g.dx, CANVAS_W), dy: at(p0.dy, g.dy, CANVAS_W * sizeRatioR.current) });
         patchPageR.current({ title: next.title, pfp: next.pfp, blocks: next.blocks });
       },
@@ -274,14 +287,14 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
                       }}
                       onLongPress={() => beginPreviewDrag(p.id)}
                     >
-                  <PostCanvas page={p} ratio={sizeRatio} scale={stageScale} watermark={wmFor(p)} />
+                  <PostCanvas page={p} ratio={sizeRatio} scale={stageScale} watermark={wmFor(p)} onMoveGeom={onMoveGeom} />
                 </TouchableOpacity>
               </Animated.View>
             ))}
           </ScrollView>
         ) : (
           <View>
-            <PostCanvas page={page} ratio={sizeRatio} scale={stageScale} watermark={wmFor(page)} />
+            <PostCanvas page={page} ratio={sizeRatio} scale={stageScale} watermark={wmFor(page)} moveId={moveTarget?.kind === 'block' ? moveTarget.id : undefined} onMoveGeom={onMoveGeom} />
             {moveTarget ? <View {...movePan.panHandlers} style={s.moveLayer} /> : null}
           </View>
         )}

@@ -88,6 +88,58 @@ export function imageFrameAspect(b: ContentBlock, blocks: ContentBlock[]): numbe
 
 const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/** A measured box in screen points. */
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** What the move gesture needs to keep a block inside its card body: the
+ *  block's measured rect (relative to the card body), the card-body box, the
+ *  AutoFit scale applied to the card content, and the placement the rect was
+ *  measured with (so a stale measurement after an earlier drag can be
+ *  re-based without measuring again mid-gesture). */
+export interface BlockGeom {
+  rect: Rect;
+  box: Rect;
+  fit: number;
+  at?: Placement;
+}
+
+/** Clamp a drag delta so the element stays inside a box: the whole element
+ *  when it fits, otherwise its centre. Mirrors the web CanvasEditLayer. */
+export function fitOffset(d: number, lo: number, len: number, boxLo: number, boxLen: number): number {
+  return len <= boxLen
+    ? clampN(d, boxLo - lo, boxLo + boxLen - lo - len)
+    : clampN(d, boxLo - lo - len / 2, boxLo + boxLen - lo - len / 2);
+}
+
+/** New design-unit offsets for a dragged block, clamped to the card body.
+ *  `unit` = screen points per design unit at the card, drag = screen points. */
+export function clampedBlockOffset(
+  p0: Placement,
+  drag: { dx: number; dy: number },
+  geom: BlockGeom,
+  unit: number,
+): { dx?: number; dy?: number } {
+  // AutoFit scales the card content, so a design unit is worth unit * fit
+  // screen points inside the body (the web layer's geo.k * g.fit).
+  const u = unit * (geom.fit > 0 ? geom.fit : 1);
+  const p0x = (p0.dx ?? 0) * u;
+  const p0y = (p0.dy ?? 0) * u;
+  // The rect was measured with `geom.at` applied; re-base it to the placement
+  // the gesture started from (usually identical, differs after a 2nd drag).
+  const rx = geom.rect.x + ((p0.dx ?? 0) - (geom.at?.dx ?? 0)) * u;
+  const ry = geom.rect.y + ((p0.dy ?? 0) - (geom.at?.dy ?? 0)) * u;
+  const mx = fitOffset(drag.dx, rx, geom.rect.w, geom.box.x, geom.box.w);
+  const my = fitOffset(drag.dy, ry, geom.rect.h, geom.box.y, geom.box.h);
+  // Same 3-unit threshold as the title / profile move, back to whole units.
+  const snap = (v: number) => (Math.abs(v) < 3 ? undefined : Math.round(v * 2) / 2);
+  return { dx: snap((p0x + mx) / u), dy: snap((p0y + my) / u) };
+}
+
 /** View style for a placement; s = canvas px per design unit. */
 export function placeStyle(p: Placement | undefined, s: number): ViewStyle | undefined {
   if (!p) return undefined;

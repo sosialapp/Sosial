@@ -114,7 +114,6 @@ export default function CommentReport({
   );
 
   const replied = rows.filter((r) => r.status === 'replied').length;
-  const handled = rows.filter((r) => r.status === 'resolved' || r.status === 'ignored').length;
   const waiting = rows.filter((r) => r.status === 'new').length;
   const moderated = rows.filter((r) => r.status === 'hidden' || r.status === 'deleted').length;
 
@@ -174,7 +173,6 @@ export default function CommentReport({
   const tiles = [
     { key: 'crTotal', value: String(rows.length) },
     { key: 'crReplied', value: String(replied) },
-    { key: 'crHandled', value: String(handled) },
     { key: 'crWaiting', value: String(waiting) },
     { key: 'crModerated', value: String(moderated) },
     { key: 'crRate', value: pct(replied, rows.length) },
@@ -225,7 +223,7 @@ export default function CommentReport({
             </View>
           ) : (
             // Per account: who, then the three numbers that matter. Replied,
-            // handled and moderated stay in the tiles above and the CSV.
+            // waiting and moderated stay in the tiles above and the CSV.
             // Same rows as the web CommentReportCard.
             <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
               {groups.map((g, i) => (
