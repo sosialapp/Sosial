@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, T } from '../theme';
 import NotificationBell from '../components/NotificationBell';
 import { useTourTarget } from '../components/Tour';
-import { SocialGlyph } from '../components/ui';
+import { SocialGlyph, ChannelAvatar, AccountAvatars } from '../components/ui';
 import ConnectButton from '../components/ConnectButton';
 import { loadManagedPosts, onManagedPostsChanged, ManagedPost } from '../utils/managed';
 import { loadMetaState, connectedChannelIds, loadAccounts } from '../utils/metaStore';
@@ -15,6 +15,7 @@ import { fmtDateTime, platformsLabel } from '../utils/reminders';
 import { requiresTitle, SOCIAL_META } from '../constants';
 import { supabase, currentSession, isSupabaseConfigured } from '../utils/supabase';
 import { tr, activeLocale } from '../i18n';
+import { interactionsOf } from '../utils/analyticsMath';
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -47,9 +48,13 @@ interface CloudTiles {
   scheduled: number;
   channelsLive: number;
   channelsTotal: number;
-  upcoming: { id: string; title: string; providers: string[]; at: number }[];
-  recent: { id: string; title: string; providers: string[]; at: number }[];
+  upcoming: { id: string; title: string; providers: string[]; accounts: TileAccount[]; at: number }[];
+  recent: { id: string; title: string; providers: string[]; accounts: TileAccount[]; at: number }[];
+  /** Every connected account, live first (web dashboard parity). */
+  channels: { id: string; provider: string; name: string; avatar?: string; live: boolean }[];
 }
+
+type TileAccount = { platform: string; avatar?: string };
 
 interface CloudDashPost {
   id: string;
@@ -59,7 +64,7 @@ interface CloudDashPost {
   sent_at: string | null;
   chain_id: string | null;
   chain_position: number | null;
-  post_targets: { provider: string }[] | null;
+  post_targets: { provider: string; channel_id: string }[] | null;
 }
 
 /** Web parity (apps/web/src/lib/chains.ts): threads read as ONE post -
@@ -78,9 +83,9 @@ async function loadCloudTiles(): Promise<CloudTiles | null> {
     const [{ data: posts }, { data: chans }] = await Promise.all([
       sb
         .from('posts')
-        .select('id, title, status, scheduled_at, sent_at, chain_id, chain_position, post_targets(provider)')
+        .select('id, title, status, scheduled_at, sent_at, chain_id, chain_position, post_targets(provider, channel_id)')
         .eq('workspace_id', wsId),
-      sb.from('connected_channels').select('id, status').eq('workspace_id', wsId),
+      sb.from('connected_channels').select('id, provider, display_name, status, metadata').eq('workspace_id', wsId),
     ]);
     if (!posts) return null;
     const rows = posts as CloudDashPost[];
@@ -90,10 +95,29 @@ async function loadCloudTiles(): Promise<CloudTiles | null> {
     const queuedHeads = rows.filter(
       (p) => (p.status === 'queued' || p.status === 'publishing') && isChainHead(p),
     );
-    const chanRows = (chans ?? []) as { id: string; status: string }[];
+    const chanRows = (chans ?? []) as {
+      id: string;
+      provider: string;
+      display_name: string | null;
+      status: string;
+      metadata: Record<string, unknown> | null;
+    }[];
+    const avatarOf = (id: string): string | undefined => {
+      const v = chanRows.find((c) => c.id === id)?.metadata?.avatar;
+      return typeof v === 'string' && v ? v : undefined;
+    };
     const providersOf = (p: CloudDashPost): string[] => [
       ...new Set((p.post_targets ?? []).map((t) => String(t.provider)).filter(Boolean)),
     ];
+    /** One avatar per account the post goes out on. */
+    const accountsOf = (p: CloudDashPost): TileAccount[] => {
+      const seen = new Set<string>();
+      return (p.post_targets ?? []).flatMap((t) => {
+        if (seen.has(t.channel_id)) return [];
+        seen.add(t.channel_id);
+        return [{ platform: String(t.provider), avatar: avatarOf(t.channel_id) }];
+      });
+    };
     const upcoming = queuedHeads
       .filter((p) => p.scheduled_at)
       .sort((a, b) => Date.parse(a.scheduled_at ?? '') - Date.parse(b.scheduled_at ?? ''))
@@ -102,6 +126,7 @@ async function loadCloudTiles(): Promise<CloudTiles | null> {
         id: p.id,
         title: p.title ?? '',
         providers: providersOf(p),
+        accounts: accountsOf(p),
         at: Date.parse(p.scheduled_at ?? ''),
       }));
     const recent = sent
@@ -112,6 +137,7 @@ async function loadCloudTiles(): Promise<CloudTiles | null> {
         id: p.id,
         title: p.title ?? '',
         providers: providersOf(p),
+        accounts: accountsOf(p),
         at: Date.parse(p.sent_at ?? ''),
       }));
     return {
@@ -122,6 +148,15 @@ async function loadCloudTiles(): Promise<CloudTiles | null> {
       channelsTotal: chanRows.length,
       upcoming,
       recent,
+      channels: chanRows
+        .map((c) => ({
+          id: c.id,
+          provider: c.provider,
+          name: c.display_name?.trim() || SOCIAL_META[c.provider]?.label || c.provider,
+          avatar: avatarOf(c.id),
+          live: c.status === 'connected',
+        }))
+        .sort((a, b) => Number(b.live) - Number(a.live)),
     };
   } catch {
     return null;
@@ -184,7 +219,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
           );
           const engagement = a.postStats
             .filter((r) => recentPosts.has(r.post_id) && live7.has(r.channel_id))
-            .reduce((n, r) => n + r.likes + r.comments + r.shares, 0);
+            .reduce((n, r) => n + interactionsOf(r), 0);
           setSummary({ followers, engagement, hasFollowers });
         } catch {
           setSummary(null);
@@ -247,17 +282,21 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
     { label: tr('dTotal'), value: String(cloud ? cloud.total : posts.length), icon: 'bar-chart-outline' },
     { label: tr('dLive'), value: `${cloud ? cloud.channelsLive : channels}/${cloud ? cloud.channelsTotal : PROVIDER_KEYS.length}`, icon: 'link-outline' },
   ];
-  const upcomingRows = cloud
-    ? cloud.upcoming.map((u) => ({ key: u.id, title: u.title, providers: u.providers, at: u.at }))
+  const upcomingRows: PostRow[] = cloud
+    ? cloud.upcoming.map((u) => ({ key: u.id, title: u.title, providers: u.providers, accounts: u.accounts, at: u.at }))
     : upcomingLocal.map((u) => ({ key: u.id, title: u.title || u.body, providers: u.platforms ?? [], at: u.scheduledAt ?? 0 }));
-  const recentRows = cloud
-    ? cloud.recent.map((p) => ({ key: p.id, title: p.title, providers: p.providers, at: p.at }))
+  const recentRows: PostRow[] = cloud
+    ? cloud.recent.map((p) => ({ key: p.id, title: p.title, providers: p.providers, accounts: p.accounts, at: p.at }))
     : recentLocal.map((p) => ({ key: p.id, title: p.title || p.body, providers: p.platforms ?? [], at: p.sentAt ?? 0 }));
   const today = new Date().toLocaleDateString(activeLocale(), { weekday: 'long', month: 'long', day: 'numeric' });
 
-  /** One post line: channel logos, the text, and when. */
-  const postLine = (r: { key: string; title: string; providers: string[]; at: number }, i: number, when: string) => (
+  /** One post line: the accounts it goes out on (avatar + logo badge), the
+   *  text, and when. Device-local rows know platforms only, not accounts. */
+  const postLine = (r: PostRow, i: number, when: string) => (
     <TouchableOpacity key={r.key} onPress={onPost} activeOpacity={0.75} style={[s.line, i > 0 && s.lineDivider]}>
+      {r.accounts?.length ? (
+        <AccountAvatars accounts={r.accounts} size={28} />
+      ) : (
       <View style={{ flexDirection: 'row' }}>
         {(r.providers.length ? r.providers : ['any']).slice(0, 3).map((pv, j) => (
           <View
@@ -268,6 +307,7 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
           </View>
         ))}
       </View>
+      )}
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={s.lineT} numberOfLines={1}>
           {r.title || (requiresTitle(r.providers) ? 'Untitled' : platformsLabel(r.providers.length ? r.providers : ['any']))}
@@ -355,6 +395,39 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
           </TouchableOpacity>
         </View>
 
+        {/* connected accounts: who is live and who needs a reconnect (web parity) */}
+        {cloud && cloud.channels.length > 0 ? (
+          <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
+            <View style={s.secHead}>
+              <Text style={s.secT}>{tr('dConnectedAccts')}</Text>
+              <TouchableOpacity onPress={onConnect} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={s.secCount}>{`${cloud.channelsLive}/${cloud.channelsTotal}`}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={[s.card, { paddingVertical: 4 }]}>
+              {cloud.channels.slice(0, 6).map((c, i) => (
+                <TouchableOpacity key={c.id} onPress={onConnect} activeOpacity={0.75} style={[s.line, i > 0 && s.lineDivider]}>
+                  <ChannelAvatar platform={c.provider} avatar={c.avatar} size={32} ring={C.card} />
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.lineT} numberOfLines={1}>{c.name}</Text>
+                    <Text style={s.lineS} numberOfLines={1}>{SOCIAL_META[c.provider]?.label ?? c.provider}</Text>
+                  </View>
+                  {c.live ? (
+                    <View style={[s.dot, { backgroundColor: '#12914A' }]} />
+                  ) : (
+                    <View style={s.reconnect}>
+                      <Text style={s.reconnectT}>{tr('uReconnect')}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+              {cloud.channels.length > 6 ? (
+                <Text style={[s.lineS, { paddingVertical: 10 }]}>+{cloud.channels.length - 6}</Text>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
         {/* up next */}
         {upcomingRows.length > 0 ? (
           <View style={{ paddingHorizontal: 20, marginTop: 22 }}>
@@ -384,6 +457,8 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
   );
 }
 
+type PostRow = { key: string; title: string; providers: string[]; accounts?: TileAccount[]; at: number };
+
 const makeS = (C: Palette) => StyleSheet.create({
   masthead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 20 },
   wordmark: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, letterSpacing: -0.4, color: C.ink },
@@ -407,5 +482,8 @@ const makeS = (C: Palette) => StyleSheet.create({
   logo: { width: 30, height: 30, borderRadius: 10, borderWidth: 2, borderColor: C.card, alignItems: 'center', justifyContent: 'center' },
   lineT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14.5, letterSpacing: -0.2, color: C.ink },
   lineS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, color: C.muted },
+  dot: { width: 8, height: 8, borderRadius: 4 },
+  reconnect: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: C.paleRed },
+  reconnectT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: C.redText },
   lineWhen: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted, maxWidth: 110, textAlign: 'right' },
 });

@@ -29,11 +29,20 @@ export default async function AnalyticsPage() {
   const [posts, channels, postStats, channelStats, followerHistory, comments] = await Promise.all([
     fetchPostsLite(sb, ctx.workspace.id),
     fetchChannels(sb, ctx.workspace.id),
+    // saves/clicks arrive with p119; until that migration runs the wider
+    // select fails, so fall back to the original columns instead of zeros.
     sb
       .from('post_stats')
-      .select('post_id, channel_id, provider, likes, comments, shares, views')
+      .select('post_id, channel_id, provider, likes, comments, shares, saves, clicks, views')
       .eq('workspace_id', ctx.workspace.id)
-      .then((r) => (r.error ? [] : (r.data ?? []))),
+      .then(async (r) => {
+        if (!r.error) return r.data ?? [];
+        const old = await sb
+          .from('post_stats')
+          .select('post_id, channel_id, provider, likes, comments, shares, views')
+          .eq('workspace_id', ctx.workspace.id);
+        return old.error ? [] : (old.data ?? []);
+      }),
     sb
       .from('channel_stats')
       .select('channel_id, provider, followers, fetched_at')

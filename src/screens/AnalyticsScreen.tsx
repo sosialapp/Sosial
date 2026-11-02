@@ -4,8 +4,8 @@ import Ionicons from '@expo/vector-icons/build/Ionicons';
 import { useTheme, Palette, R, T } from '../theme';
 import NotificationBell from '../components/NotificationBell';
 import CommentReport from '../components/CommentReport';
-import { SocialGlyph, Seg } from '../components/ui';
-import { BarsChart, HBarList } from '../components/charts';
+import { ChannelAvatar, AccountAvatars, Seg } from '../components/ui';
+import { TrendChart, ChartModeToggle, type ChartMode } from '../components/charts';
 import { Tabs } from '../components/ui-kit';
 import { useTourTarget } from '../components/Tour';
 import { SOCIAL_META, requiresTitle } from '../constants';
@@ -18,6 +18,20 @@ import {
   type CloudPost,
 } from '../utils/cloudAnalytics';
 import { tr } from '../i18n';
+import {
+  addLocalDays,
+  addStats,
+  emptyTotals,
+  engagementRate,
+  fillBuckets,
+  followerSeries,
+  interactionsOf,
+  localDayOf,
+  rangeBuckets,
+  recentWeeks,
+  weekdayCounts as countWeekdays,
+  type EngagementTotals,
+} from '../utils/analyticsMath';
 
 /**
  * Mirrors the web analytics dashboard (apps/web AnalyticsDashboard): reads
@@ -25,8 +39,6 @@ import { tr } from '../i18n';
  * renders the same cards, stat grid, pipeline, weekly/weekday rhythm,
  * top posts, recently sent, channel performance.
  */
-
-const DAY = 86400000;
 
 type RangePreset = 'last7' | 'last30' | 'mtd';
 
@@ -55,11 +67,6 @@ function full(n: number | null): string {
   }
 }
 
-const startOfDay = (t: number): number => {
-  const d = new Date(t);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-};
-
 const fmtDate = (iso: string | null): string => {
   if (!iso) return '-';
   const d = new Date(iso);
@@ -83,6 +90,9 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const [chanSel, setChanSel] = useState<string[]>([]);
   const [metric, setMetric] = useState<'posts' | 'followers' | 'engagement' | 'interactions'>('posts');
   const [rhythm, setRhythm] = useState<'weeks' | 'weekdays'>('weeks');
+  // Same defaults as web: the hero opens as a line, the rhythm as bars.
+  const [perfMode, setPerfMode] = useState<ChartMode>('line');
+  const [rhythmMode, setRhythmMode] = useState<ChartMode>('bar');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,11 +139,13 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const now = useMemo(() => Date.now(), [data, preset]);
   const range = useMemo((): { from: number; to: number; label: string } => {
-    const sod = startOfDay(now);
-    if (preset === 'last7') return { from: sod - 6 * DAY, to: sod + DAY - 1, label: tr('dLast7') };
-    if (preset === 'last30') return { from: sod - 29 * DAY, to: sod + DAY - 1, label: tr('iLast30') };
+    // Calendar days, not n × 24h, so a DST switch never adds or drops a day
+    // (utils/analyticsMath, same as web).
+    const endOfToday = addLocalDays(now, 1) - 1;
+    if (preset === 'last7') return { from: addLocalDays(now, -6), to: endOfToday, label: tr('dLast7') };
+    if (preset === 'last30') return { from: addLocalDays(now, -29), to: endOfToday, label: tr('iLast30') };
     const d = new Date(now);
-    return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: sod + DAY - 1, label: tr('iMtd') };
+    return { from: new Date(d.getFullYear(), d.getMonth(), 1).getTime(), to: endOfToday, label: tr('iMtd') };
   }, [preset, now]);
 
   const connected = useMemo(
@@ -147,7 +159,21 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
     return !Number.isNaN(t) && t >= range.from && t <= range.to;
   };
   const postDate = (p: CloudPost): string | null => p.sent_at ?? p.scheduled_at ?? p.created_at ?? null;
-  const chanOk = (channelId: string): boolean => chanSel.length === 0 || chanSel.includes(channelId);
+  // Web parity: with no channel picked, totals cover live accounts only, so a
+  // revoked account stops adding followers and reactions.
+  const connectedIds = useMemo(() => new Set(connected.map((c) => c.id)), [connected]);
+  const chanOk = (channelId: string): boolean =>
+    chanSel.length === 0 ? connectedIds.has(channelId) : chanSel.includes(channelId);
+  const avatarOf = (channelId: string): string | undefined => data?.channels.find((c) => c.id === channelId)?.avatar;
+  /** One avatar per account a post went out on. */
+  const accountsOf = (p: CloudPost): { platform: string; avatar?: string }[] => {
+    const seen = new Set<string>();
+    return p.targets.flatMap((t) => {
+      if (seen.has(t.channel_id)) return [];
+      seen.add(t.channel_id);
+      return [{ platform: t.provider, avatar: avatarOf(t.channel_id) }];
+    });
+  };
 
   const scoped = useMemo(() => {
     const posts = data?.posts ?? [];
@@ -169,38 +195,34 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const funnelMax = Math.max(1, drafts, queued, sent.length, failed);
 
   // Engagement aggregates, latest snapshots, not date-bound (like web).
-  const statsScoped = useMemo(() => (data?.postStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel]);
-  const likes = statsScoped.reduce((a, r) => a + (r.likes ?? 0), 0);
-  const comments = statsScoped.reduce((a, r) => a + (r.comments ?? 0), 0);
-  const shares = statsScoped.reduce((a, r) => a + (r.shares ?? 0), 0);
-  const views = statsScoped.reduce((a, r) => a + (r.views == null ? 0 : Number(r.views)), 0);
-  const hasViews = statsScoped.some((r) => r.views != null);
-  const chanStatsScoped = useMemo(() => (data?.channelStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel]);
+  // Audience interactions only; see utils/analyticsMath for the definition.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const statsScoped = useMemo(() => (data?.postStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel, connectedIds]);
+  const totals = useMemo(() => statsScoped.reduce((acc, r) => addStats(acc, r), emptyTotals()), [statsScoped]);
+  const interactions = interactionsOf(totals);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const chanStatsScoped = useMemo(() => (data?.channelStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel, connectedIds]);
   const followers = chanStatsScoped.reduce((a, r) => a + (r.followers ?? 0), 0);
   const hasFollowers = chanStatsScoped.some((r) => r.followers !== null);
-  const eng = hasFollowers && followers > 0 ? `${(((likes + comments + shares) / followers) * 100).toFixed(1)}%` : null;
+  const engPct = hasFollowers ? engagementRate(interactions, followers) : null;
+  const eng = engPct === null ? null : `${engPct.toFixed(1)}%`;
 
-  // Weekly + weekday rhythm (range-scoped, from sent posts).
-  const weeks: { label: string; count: number }[] = [];
-  for (let i = 7; i >= 0; i--) {
-    const start = now - (i + 1) * 7 * DAY;
-    const end = now - i * 7 * DAY;
-    const count = sent.filter((p) => {
-      if (!p.sent_at) return false;
-      const t = new Date(p.sent_at).getTime();
-      return t >= start && t < end;
-    }).length;
-    weeks.push({ label: `${new Date(end).getMonth() + 1}/${new Date(end).getDate()}`, count });
-  }
-  const weekMax = Math.max(1, ...weeks.map((w) => w.count));
-  const weekdayCounts = new Array(7).fill(0);
-  for (const p of sent) {
-    if (!p.sent_at) continue;
-    const d = new Date(p.sent_at);
-    if (Number.isNaN(d.getTime())) continue;
-    weekdayCounts[d.getDay()] += 1;
-  }
-  const weekdayMax = Math.max(1, ...weekdayCounts);
+  // Rhythm: the last 8 weeks whatever the range (it used to be cut from the
+  // range-scoped posts, leaving most weeks at zero), weekdays within the range.
+  const sentTimes = (list: CloudPost[]): number[] =>
+    list.flatMap((p) => (p.sent_at ? [new Date(p.sent_at).getTime()] : [])).filter(Number.isFinite);
+  const weeks = recentWeeks(
+    now,
+    sentTimes(
+      (data?.posts ?? []).filter(
+        (p) =>
+          (p.status === 'sent' || p.status === 'partial') &&
+          (chanSel.length === 0 || p.targets.some((t) => chanSel.includes(t.channel_id))),
+      ),
+    ),
+  ).map((w) => ({ label: `${new Date(w.start).getMonth() + 1}/${new Date(w.start).getDate()}`, count: w.value }));
+  const weekMax = Math.max(0, ...weeks.map((w) => w.count));
+  const weekdayCounts = countWeekdays(sentTimes(sent));
 
   const recent = [...sent]
     .filter((p) => p.sent_at)
@@ -209,110 +231,91 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
 
   // Top posts: interactions summed across the post's targets.
   const statsByPost = useMemo(() => {
-    const map = new Map<string, { likes: number; comments: number; shares: number; views: number | null }>();
-    for (const r of statsScoped) {
-      const cur = map.get(r.post_id) ?? { likes: 0, comments: 0, shares: 0, views: null };
-      cur.likes += r.likes ?? 0;
-      cur.comments += r.comments ?? 0;
-      cur.shares += r.shares ?? 0;
-      if (r.views != null) cur.views = (cur.views ?? 0) + Number(r.views);
-      map.set(r.post_id, cur);
-    }
+    const map = new Map<string, EngagementTotals>();
+    for (const r of statsScoped) map.set(r.post_id, addStats(map.get(r.post_id) ?? emptyTotals(), r));
     return map;
   }, [statsScoped]);
 
   const topPosts = useMemo(() => {
     const rows = sent.map((p) => {
-      const agg = statsByPost.get(p.id);
-      const lk = agg?.likes ?? 0;
-      const cm = agg?.comments ?? 0;
-      const sh = agg?.shares ?? 0;
+      const agg = statsByPost.get(p.id) ?? emptyTotals();
       return {
+        ...agg,
         id: p.id,
         title: p.title || p.body?.slice(0, 60) || (requiresTitle(p.targets.map((t) => t.provider)) ? tr('aUntitled') : ''),
         sentAt: p.sent_at,
-        providers: [...new Set(p.targets.map((t) => t.provider))],
-        likes: lk,
-        comments: cm,
-        shares: sh,
-        views: agg?.views ?? null,
-        interactions: lk + cm + sh,
+        accounts: accountsOf(p),
+        interactions: interactionsOf(agg),
       };
     });
     rows.sort((a, b) => b.interactions - a.interactions);
     return rows.slice(0, 5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sent, statsByPost]);
 
-  // Channel performance rows (latest snapshots, channel-filtered).
-  const totalsBy = useMemo(() => {
-    const map = new Map<string, { likes: number; comments: number; shares: number; views: number | null }>();
-    for (const r of statsScoped) {
-      const cur = map.get(r.channel_id) ?? { likes: 0, comments: 0, shares: 0, views: null };
-      cur.likes += r.likes ?? 0;
-      cur.comments += r.comments ?? 0;
-      cur.shares += r.shares ?? 0;
-      if (r.views != null) cur.views = (cur.views ?? 0) + Number(r.views);
-      map.set(r.channel_id, cur);
-    }
-    return map;
-  }, [statsScoped]);
-
+  // Channel rows (latest snapshots, channel-filtered): who, then three numbers.
   const perfRows = useMemo(() => {
+    const totalsBy = new Map<string, EngagementTotals>();
+    for (const r of statsScoped) totalsBy.set(r.channel_id, addStats(totalsBy.get(r.channel_id) ?? emptyTotals(), r));
     return (data?.channels ?? [])
       .filter((c) => c.status === 'connected' || c.status === 'expired')
-      .filter((c) => chanOk(c.id))
+      .filter((c) => chanSel.length === 0 || chanSel.includes(c.id))
       .map((c: CloudChannel) => {
-        const tot = totalsBy.get(c.id);
-        const snap = chanStatsScoped.find((sn) => sn.channel_id === c.id);
-        const sn2 = sent.filter((p) => p.targets.some((t) => t.channel_id === c.id && t.status === 'sent')).length;
+        const inter = interactionsOf(totalsBy.get(c.id));
+        const snap = (data?.channelStats ?? []).find((sn) => sn.channel_id === c.id);
         const fol = snap?.followers ?? null;
+        const pct = engagementRate(inter, fol);
         return {
           channel: c,
           label: c.display_name?.trim() || SOCIAL_META[c.provider]?.label || c.provider,
+          sub: c.handle?.trim() ? `@${c.handle.trim().replace(/^@+/, '')}` : SOCIAL_META[c.provider]?.label ?? c.provider,
           followers: fol,
-          likes: tot?.likes ?? 0,
-          comments: tot?.comments ?? 0,
-          shares: tot?.shares ?? 0,
-          views: tot?.views ?? null,
-          sent: sn2,
-          eng: fol && fol > 0 ? `${((((tot?.likes ?? 0) + (tot?.comments ?? 0) + (tot?.shares ?? 0)) / fol) * 100).toFixed(1)}%` : null,
+          interactions: inter,
+          eng: pct === null ? null : `${pct.toFixed(1)}%`,
+          sent: sent.filter((p) => p.targets.some((t) => t.channel_id === c.id && t.status === 'sent')).length,
         };
       })
       .filter((r) => r.sent > 0 || r.followers !== null);
-  }, [data, chanStatsScoped, totalsBy, sent, chanSel]);
+  }, [data, statsScoped, sent, chanSel]);
 
-  /** Per-day series for the hero chart (weekly buckets past ~2 months). */
-  const series = (() => {
-    const first = startOfDay(range.from);
-    const last = startOfDay(range.to);
-    const span = Math.max(1, Math.round((last - first) / DAY) + 1);
-    const step = span > 62 ? 7 : 1;
-    const out: { label: string; value: number }[] = [];
-    for (let t = first; t <= last; t += step * DAY) {
-      out.push({ label: `${new Date(t).getMonth() + 1}/${new Date(t).getDate()}`, value: 0 });
+  /** Hero series: every day of the range (weekly past ~2 months), zero-filled.
+   *  Same buckets and rules as web (utils/analyticsMath). */
+  const series = useMemo((): { label: string; value: number | null }[] => {
+    const { buckets } = rangeBuckets(range.from, range.to);
+    const label = (t: number): string => `${new Date(t).getMonth() + 1}/${new Date(t).getDate()}`;
+    if (metric === 'followers') {
+      const captures = [
+        ...(data?.followerHistory ?? [])
+          .filter((r) => chanOk(r.channel_id))
+          .map((r) => ({ channel_id: r.channel_id, at: localDayOf(r.captured_on), followers: r.followers })),
+        ...chanStatsScoped.map((r) => ({ channel_id: r.channel_id, at: new Date(r.fetched_at).getTime(), followers: r.followers })),
+      ];
+      const values = followerSeries(buckets, captures);
+      return buckets.map((b, i) => ({ label: label(b.start), value: values[i] }));
     }
-    for (const p of sent) {
-      if (!p.sent_at) continue;
-      const t = new Date(p.sent_at).getTime();
-      if (Number.isNaN(t) || t < first || t > last + DAY) continue;
-      const i = Math.floor((startOfDay(t) - first) / DAY / step);
-      if (i < 0 || i >= out.length) continue;
-      if (metric === 'interactions') {
-        const agg = statsByPost.get(p.id);
-        out[i].value += (agg?.likes ?? 0) + (agg?.comments ?? 0) + (agg?.shares ?? 0);
-      } else {
-        out[i].value += 1;
-      }
+    const events = sent.flatMap((p) => {
+      const at = p.sent_at ? new Date(p.sent_at).getTime() : Number.NaN;
+      if (!Number.isFinite(at)) return [];
+      return [{ at, value: metric === 'posts' ? 1 : interactionsOf(statsByPost.get(p.id)) }];
+    });
+    const filled = fillBuckets(buckets, events);
+    if (metric === 'engagement') {
+      return filled.map((b) => {
+        const pct = hasFollowers ? engagementRate(b.value, followers) : null;
+        return { label: label(b.start), value: pct === null ? 0 : Number(pct.toFixed(2)) };
+      });
     }
-    return out;
-  })();
+    return filled.map((b) => ({ label: label(b.start), value: b.value }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, sent, statsByPost, range, metric, followers, hasFollowers, chanStatsScoped]);
 
   const metricCells: { id: typeof metric; label: string; value: string; desc: string }[] = [
     { id: 'posts', label: tr('iPosts'), value: full(sent.length), desc: tr('aDescPosts') },
     { id: 'followers', label: tr('dFollowers'), value: hasFollowers ? compact(followers) : '-', desc: tr('aDescFollowers') },
     { id: 'engagement', label: tr('iEng'), value: eng ?? '-', desc: tr('aDescEng') },
-    { id: 'interactions', label: tr('dInteractions'), value: compact(likes + comments + shares), desc: tr('aDescInter') },
+    { id: 'interactions', label: tr('dInteractions'), value: compact(interactions), desc: tr('aDescInter') },
   ];
+  const chartLabels = { type: tr('aChartType'), line: tr('aChartLine'), bar: tr('aChartBar') };
 
   const pipe = [
     { label: tr('iDrafts'), value: drafts, color: C.faint },
@@ -332,26 +335,6 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
       default: return { label: tr('aStDraft'), color: C.muted };
     }
   };
-
-  const glyphStack = (providers: string[], size: number) => (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      {providers.slice(0, 3).map((pv, i) => (
-        <View
-          key={`${pv}-${i}`}
-          style={{
-            width: size, height: size, borderRadius: size / 2,
-            backgroundColor: SOCIAL_META[pv]?.bg ?? C.ink,
-            alignItems: 'center', justifyContent: 'center',
-            borderWidth: 2, borderColor: C.card,
-            marginLeft: i === 0 ? 0 : -size * 0.3,
-            zIndex: providers.length - i,
-          }}
-        >
-          <SocialGlyph platform={pv} size={size * 0.58} color="#fff" />
-        </View>
-      ))}
-    </View>
-  );
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bone }}>
@@ -396,7 +379,6 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
               </TouchableOpacity>
               {connected.map((c) => {
                 const on = chanSel.includes(c.id);
-                const brand = SOCIAL_META[c.provider]?.bg ?? C.ink;
                 const name = c.display_name?.trim() || SOCIAL_META[c.provider]?.label || c.provider;
                 return (
                   <TouchableOpacity
@@ -405,9 +387,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                     style={[s.chanChip, on && { backgroundColor: C.ink, borderColor: C.ink }]}
                     activeOpacity={0.75}
                   >
-                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: brand, alignItems: 'center', justifyContent: 'center' }}>
-                      <SocialGlyph platform={c.provider} size={12} color="#fff" />
-                    </View>
+                    <ChannelAvatar platform={c.provider} avatar={c.avatar} size={22} ring={on ? C.ink : C.card} />
                     <Text style={[s.chanChipT, on && { color: C.onInk }]} numberOfLines={1}>{name}</Text>
                   </TouchableOpacity>
                 );
@@ -459,36 +439,25 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                       })}
                     </View>
                     <View style={{ padding: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
-                      <Text style={s.secS}>{metricCells.find((m) => m.id === metric)?.desc} · {range.label.toLowerCase()}</Text>
-                      <View style={{ marginTop: 12 }}>
-                        {metric === 'posts' || metric === 'interactions' ? (
-                          <BarsChart
-                            data={series.map((b) => b.value)}
-                            color={C.accent}
-                            height={120}
-                            gridLines={3}
-                            labels={series.map((b, i) => (i % Math.max(1, Math.ceil(series.length / 6)) === 0 ? b.label : ''))}
-                            formatValue={(v) => compact(v)}
-                          />
-                        ) : (
-                          <HBarList
-                            rows={perfRows
-                              .map((r) => ({
-                                label: r.label,
-                                value: metric === 'followers' ? r.followers ?? 0 : r.followers ? ((r.likes + r.comments + r.shares) / r.followers) * 100 : 0,
-                                color: SOCIAL_META[r.channel.provider]?.bg ?? C.accent,
-                              }))
-                              .sort((a, b) => b.value - a.value)}
-                            max={Math.max(
-                              1,
-                              ...perfRows.map((r) =>
-                                metric === 'followers' ? r.followers ?? 0 : r.followers ? ((r.likes + r.comments + r.shares) / r.followers) * 100 : 0,
-                              ),
-                            )}
-                            formatValue={(v) => (metric === 'engagement' ? `${v.toFixed(1)}%` : full(v))}
-                          />
-                        )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <Text style={[s.secS, { flex: 1, marginTop: 0 }]}>
+                          {metricCells.find((m) => m.id === metric)?.desc} · {range.label.toLowerCase()}
+                        </Text>
+                        <ChartModeToggle value={perfMode} onChange={setPerfMode} labels={chartLabels} />
                       </View>
+                      <View style={{ marginTop: 12 }}>
+                        <TrendChart
+                          mode={perfMode}
+                          data={series.map((b) => b.value)}
+                          labels={series.map((b) => b.label)}
+                          color={C.accent}
+                          height={140}
+                          formatValue={(v) => (metric === 'engagement' ? `${v.toFixed(1)}%` : full(v))}
+                        />
+                      </View>
+                      {metric === 'interactions' || metric === 'engagement' ? (
+                        <Text style={s.postMeta}>{tr('aInterNote')}</Text>
+                      ) : null}
                     </View>
                   </View>
                 </View>
@@ -504,7 +473,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                       {topPosts.map((p, i) => (
                         <View key={p.id} style={[s.rankRow, i > 0 && s.divider]}>
                           <Text style={s.rank}>{i + 1}</Text>
-                          {glyphStack(p.providers, 28)}
+                          <AccountAvatars accounts={p.accounts} size={26} />
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={s.postT} numberOfLines={1}>{p.title || tr('aUntitled')}</Text>
                             <View style={s.metaRow}>
@@ -512,6 +481,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                               <Stat icon="heart-outline" v={p.likes} C={C} />
                               <Stat icon="chatbubble-outline" v={p.comments} C={C} />
                               <Stat icon="repeat" v={p.shares} C={C} />
+                              {p.saves > 0 ? <Stat icon="bookmark-outline" v={p.saves} C={C} /> : null}
                             </View>
                           </View>
                           <Text style={s.postInter}>{compact(p.interactions)}</Text>
@@ -558,16 +528,19 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                         ]}
                       />
                     </View>
-                    <Text style={[s.secS, { marginTop: 6 }]}>
-                      {rhythm === 'weeks' ? tr('aRhythmWeeks').replace('{n}', String(weekMax)) : tr('aRhythmWeekdays')}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 6 }}>
+                      <Text style={[s.secS, { flex: 1, marginTop: 0 }]}>
+                        {rhythm === 'weeks' ? tr('aRhythmWeeks').replace('{n}', String(weekMax)) : tr('aRhythmWeekdays')}
+                      </Text>
+                      <ChartModeToggle value={rhythmMode} onChange={setRhythmMode} labels={chartLabels} />
+                    </View>
                     <View style={{ marginTop: 12 }}>
-                      <BarsChart
+                      <TrendChart
+                        mode={rhythmMode}
                         data={rhythm === 'weeks' ? weeks.map((w) => w.count) : weekdayCounts}
+                        labels={rhythm === 'weeks' ? weeks.map((w) => w.label) : tr('aWeekdayShort').split(',')}
                         color={C.accent}
                         height={110}
-                        gridLines={3}
-                        labels={rhythm === 'weeks' ? weeks.map((w) => w.label) : tr('aWeekdayShort').split(',')}
                         formatValue={(v) => String(Math.round(v))}
                       />
                     </View>
@@ -584,21 +557,14 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                     <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
                       {perfRows.map((r, i) => (
                         <View key={r.channel.id} style={[s.rankRow, i > 0 && s.divider]}>
-                          <View style={[s.brandTile, { backgroundColor: SOCIAL_META[r.channel.provider]?.bg ?? C.ink }]}>
-                            <SocialGlyph platform={r.channel.provider} size={16} color="#fff" />
-                          </View>
+                          <ChannelAvatar platform={r.channel.provider} avatar={r.channel.avatar} size={34} ring={C.card} />
                           <View style={{ flex: 1, minWidth: 0 }}>
                             <Text style={s.postT} numberOfLines={1}>{r.label}</Text>
-                            <View style={s.metaRow}>
-                              <Text style={s.postS}>{r.eng ?? '-'} eng · {r.sent} sent</Text>
-                              <Stat icon="heart-outline" v={r.likes} C={C} />
-                              <Stat icon="chatbubble-outline" v={r.comments} C={C} />
-                            </View>
+                            <Text style={s.postS} numberOfLines={1}>{r.sub}</Text>
                           </View>
-                          <View style={{ alignItems: 'flex-end' }}>
-                            <Text style={s.postInter}>{compact(r.followers)}</Text>
-                            <Text style={s.postS}>{tr('aFollowersWord')}</Text>
-                          </View>
+                          <Num v={compact(r.followers)} label={tr('aFollowersWord')} s={s} />
+                          <Num v={compact(r.interactions)} label={tr('dInteractions')} s={s} />
+                          <Num v={r.eng ?? '-'} label={tr('iEng')} s={s} />
                         </View>
                       ))}
                     </View>
@@ -616,7 +582,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                         const st = statusChip(p.status);
                         return (
                           <View key={p.id} style={[s.rankRow, i > 0 && s.divider]}>
-                            {glyphStack([...new Set(p.targets.map((t) => t.provider))], 26)}
+                            <AccountAvatars accounts={accountsOf(p)} size={24} />
                             <View style={{ flex: 1, minWidth: 0 }}>
                               <Text style={s.postT} numberOfLines={1}>
                                 {p.title || p.body || (requiresTitle(p.targets.map((t) => t.provider)) ? tr('aUntitled') : '')}
@@ -645,10 +611,21 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
             id: c.id,
             provider: c.provider,
             display_name: c.display_name,
+            avatar: c.avatar,
           }))}
           rangeLabel={range.label}
         />
       </ScrollView>
+    </View>
+  );
+}
+
+/** One labelled number in an account row (same look as the comment report). */
+function Num({ v, label, s }: { v: string; label: string; s: ReturnType<typeof makeS> }) {
+  return (
+    <View style={{ width: 62, alignItems: 'flex-end' }}>
+      <Text style={s.numV} numberOfLines={1}>{v}</Text>
+      <Text style={s.numL} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -688,6 +665,8 @@ const makeS = (C: Palette) => StyleSheet.create({
   hint: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 19, color: C.muted, marginTop: 8 },
   postT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13.5, color: C.ink },
   postS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: C.muted },
+  numV: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 15, letterSpacing: -0.3, color: C.ink, fontVariant: ['tabular-nums'] },
+  numL: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 9, letterSpacing: 0.4, textTransform: 'uppercase', color: C.faint, marginTop: 2 },
   postInter: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 17, letterSpacing: -0.4, color: C.ink },
   postMeta: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, lineHeight: 16, color: C.faint, marginTop: 8 },
   rowCard: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: R.lg, borderWidth: 1, padding: 12 },

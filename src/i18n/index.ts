@@ -10,9 +10,9 @@ export type Messages = Record<string, string>;
 
 const en: Messages = {
   aDescPosts: 'Posts published each day',
-  aDescFollowers: 'Followers per channel, latest snapshot',
-  aDescEng: 'Interactions ÷ followers, per channel',
-  aDescInter: 'Interactions from posts published each day',
+  aDescFollowers: 'Follower total, latest snapshot carried forward',
+  aDescEng: 'Interactions ÷ followers, from the latest snapshots',
+  aDescInter: 'What your audience did on posts published each day',
   aStQueued: 'Queued',
   aStSent: 'Sent',
   aStFailed: 'Failed',
@@ -727,13 +727,18 @@ const en: Messages = {
   mtCommTabsB: 'Comments are replies on your posts, messages are DMs. Both land here within about five minutes of arriving.',
   mtCommFiltersT: 'Filter by account',
   mtCommFiltersB: 'Show one channel or all of them. Resolved and ignored comments stay listed but leave the open count.',
+  aChartType: 'Chart type',
+  aChartLine: 'Line',
+  aChartBar: 'Bar',
+  dConnectedAccts: 'Connected accounts',
+  aInterNote: 'Interactions are likes and reactions, comments, shares, saves and clicks from your audience. Your own replies and likes don’t count.',
 };
 
 const es: Messages = {
   aDescPosts: 'Publicaciones por día',
-  aDescFollowers: 'Seguidores por canal, última instantánea',
-  aDescEng: 'Interacciones ÷ seguidores, por canal',
-  aDescInter: 'Interacciones de las publicaciones de cada día',
+  aDescFollowers: 'Total de seguidores, última instantánea arrastrada',
+  aDescEng: 'Interacciones ÷ seguidores, de las últimas instantáneas',
+  aDescInter: 'Lo que hizo tu audiencia en las publicaciones de cada día',
   aStQueued: 'En cola',
   aStSent: 'Enviada',
   aStFailed: 'Fallida',
@@ -1384,13 +1389,18 @@ const es: Messages = {
   pbSwitchTo: 'Cambiar a {plan}',
   pbActive: 'Activo',
   pbSwitchQ: '¿Cambiar a {plan}?',
+  aChartType: 'Tipo de gráfico',
+  aChartLine: 'Líneas',
+  aChartBar: 'Barras',
+  dConnectedAccts: 'Cuentas conectadas',
+  aInterNote: 'Las interacciones son me gusta y reacciones, comentarios, compartidos, guardados y clics de tu audiencia. Tus propias respuestas y me gusta no cuentan.',
 };
 
 const fr: Messages = {
   aDescPosts: 'Publications par jour',
-  aDescFollowers: 'Abonnés par canal, dernier relevé',
-  aDescEng: 'Interactions ÷ abonnés, par canal',
-  aDescInter: 'Interactions des publications de chaque jour',
+  aDescFollowers: 'Total d’abonnés, dernier relevé reporté',
+  aDescEng: 'Interactions ÷ abonnés, d’après les derniers relevés',
+  aDescInter: 'Ce que votre audience a fait sur les publications de chaque jour',
   aStQueued: 'En file',
   aStSent: 'Envoyée',
   aStFailed: 'Échec',
@@ -2041,13 +2051,18 @@ const fr: Messages = {
   pbSwitchTo: 'Passer à {plan}',
   pbActive: 'Actif',
   pbSwitchQ: 'Passer à {plan} ?',
+  aChartType: 'Type de graphique',
+  aChartLine: 'Courbe',
+  aChartBar: 'Barres',
+  dConnectedAccts: 'Comptes connectés',
+  aInterNote: 'Les interactions sont les j’aime et réactions, commentaires, partages, enregistrements et clics de votre audience. Vos propres réponses et j’aime ne comptent pas.',
 };
 
 const de: Messages = {
   aDescPosts: 'Veröffentlichte Beiträge pro Tag',
-  aDescFollowers: 'Follower pro Kanal, letzter Stand',
-  aDescEng: 'Interaktionen ÷ Follower, pro Kanal',
-  aDescInter: 'Interaktionen der Beiträge pro Tag',
+  aDescFollowers: 'Follower gesamt, letzter Stand fortgeschrieben',
+  aDescEng: 'Interaktionen ÷ Follower, aus den letzten Ständen',
+  aDescInter: 'Was dein Publikum mit den Posts jedes Tages gemacht hat',
   aStQueued: 'Geplant',
   aStSent: 'Gesendet',
   aStFailed: 'Fehlgeschlagen',
@@ -2698,13 +2713,18 @@ const de: Messages = {
   pbSwitchTo: 'Zu {plan} wechseln',
   pbActive: 'Aktiv',
   pbSwitchQ: 'Zu {plan} wechseln?',
+  aChartType: 'Diagrammtyp',
+  aChartLine: 'Linie',
+  aChartBar: 'Balken',
+  dConnectedAccts: 'Verbundene Konten',
+  aInterNote: 'Interaktionen sind Likes und Reaktionen, Kommentare, Shares, Speicherungen und Klicks deines Publikums. Eigene Antworten und Likes zählen nicht.',
 };
 
 const ja: Messages = {
   aDescPosts: '1 日ごとの公開投稿数',
-  aDescFollowers: 'チャンネルごとのフォロワー（最新）',
-  aDescEng: 'インタラクション ÷ フォロワー（チャンネル別）',
-  aDescInter: '各日に公開した投稿へのインタラクション',
+  aDescFollowers: 'フォロワー合計（最新の値を引き継ぎ）',
+  aDescEng: 'インタラクション ÷ フォロワー（最新の値）',
+  aDescInter: '各日の投稿にオーディエンスが行ったこと',
   aStQueued: '予約済み',
   aStSent: '送信済み',
   aStFailed: '失敗',
@@ -3355,13 +3375,18 @@ const ja: Messages = {
   pbSwitchTo: '{plan}に切り替え',
   pbActive: '利用中',
   pbSwitchQ: '{plan}に切り替えますか？',
+  aChartType: 'グラフの種類',
+  aChartLine: '折れ線',
+  aChartBar: '棒',
+  dConnectedAccts: '接続済みアカウント',
+  aInterNote: 'インタラクションはオーディエンスによるいいね・リアクション、コメント、シェア、保存、クリックです。自分の返信やいいねは含みません。',
 };
 
 const ko: Messages = {
   aDescPosts: '일별 게시물 수',
-  aDescFollowers: '채널별 팔로워, 최신 값',
-  aDescEng: '상호작용 ÷ 팔로워, 채널별',
-  aDescInter: '일별 게시물의 상호작용',
+  aDescFollowers: '팔로워 합계, 최신 값 유지',
+  aDescEng: '상호작용 ÷ 팔로워, 최신 값 기준',
+  aDescInter: '매일 게시한 글에 대한 오디언스의 반응',
   aStQueued: '대기 중',
   aStSent: '발행됨',
   aStFailed: '실패',
@@ -4012,13 +4037,18 @@ const ko: Messages = {
   pbSwitchTo: '{plan}로 전환',
   pbActive: '사용 중',
   pbSwitchQ: '{plan}로 전환할까요?',
+  aChartType: '차트 유형',
+  aChartLine: '선',
+  aChartBar: '막대',
+  dConnectedAccts: '연결된 계정',
+  aInterNote: '상호작용은 오디언스의 좋아요와 반응, 댓글, 공유, 저장, 클릭입니다. 내 답글과 좋아요는 포함되지 않아요.',
 };
 
 const zh: Messages = {
   aDescPosts: '每天发布的帖子',
-  aDescFollowers: '各频道粉丝，最新快照',
-  aDescEng: '互动 ÷ 粉丝，按频道',
-  aDescInter: '每天发布帖子的互动',
+  aDescFollowers: '粉丝总数，沿用最新快照',
+  aDescEng: '互动 ÷ 粉丝，基于最新快照',
+  aDescInter: '受众对每天所发帖子的互动',
   aStQueued: '排队中',
   aStSent: '已发布',
   aStFailed: '失败',
@@ -4669,6 +4699,11 @@ const zh: Messages = {
   pbSwitchTo: '切换到 {plan}',
   pbActive: '使用中',
   pbSwitchQ: '切换到 {plan}？',
+  aChartType: '图表类型',
+  aChartLine: '折线',
+  aChartBar: '柱状',
+  dConnectedAccts: '已连接账号',
+  aInterNote: '互动是受众的点赞和回应、评论、分享、收藏和点击。你自己的回复和点赞不计入。',
 };
 
 const DICTS: Record<string, Messages> = { en, es, fr, de, ja, ko, zh };

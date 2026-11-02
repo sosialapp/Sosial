@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Download } from 'lucide-react';
-import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import ChannelAvatar from '@/components/ChannelAvatar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useMessages } from '@/lib/i18n/client';
 import { fill } from '@/lib/i18n/locales';
@@ -48,7 +48,6 @@ interface ChannelGroup {
   provider: string;
   total: number;
   replied: number;
-  handled: number;
   waiting: number;
 }
 
@@ -78,10 +77,12 @@ export default function CommentReportCard({
   rows,
   rangeLabel,
   channelLabel,
+  channelAvatar,
 }: {
   rows: CommentReportRow[];
   rangeLabel: string;
   channelLabel: (channelId: string, provider: string) => string;
+  channelAvatar: (channelId: string) => string | undefined;
 }) {
   const t = useMessages();
 
@@ -97,12 +98,10 @@ export default function CommentReportCard({
       provider: r.platform,
       total: 0,
       replied: 0,
-      handled: 0,
       waiting: 0,
     };
     g.total += 1;
     if (r.status === 'replied') g.replied += 1;
-    if (r.status === 'resolved' || r.status === 'ignored') g.handled += 1;
     if (r.status === 'new') g.waiting += 1;
     groups.set(r.channel_id, g);
   }
@@ -178,60 +177,41 @@ export default function CommentReportCard({
         {rows.length === 0 ? (
           <p className="mt-4 rounded-2xl bg-paper-dim px-4 py-6 text-center text-sm text-muted">{t('crEmpty')}</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[600px] text-sm">
-              <thead>
-                <tr className="border-b border-line-soft text-left text-[11px] font-bold uppercase tracking-wide text-faint">
-                  <th scope="col" className="pb-2 pr-3 font-bold">
-                    {t('crAccount')}
-                  </th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
-                    {t('crTotal')}
-                  </th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
-                    {t('crReplied')}
-                  </th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
-                    {t('crHandled')}
-                  </th>
-                  <th scope="col" className="pb-2 pr-3 text-right font-bold">
-                    {t('crWaiting')}
-                  </th>
-                  <th scope="col" className="pb-2 text-right font-bold">
-                    {t('crRate')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {groupRows.map((g) => (
-                  <tr key={g.id} className="border-b border-line-soft/60 last:border-0">
-                    <td className="py-2.5 pr-3">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <BrandIcon provider={g.provider as BrandProvider} className="h-5 w-5 shrink-0" />
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium text-ink">
-                            {channelLabel(g.id, g.provider)}
-                          </span>
-                          <span className="block text-[11px] text-faint">
-                            {providerMeta(g.provider).label}
-                          </span>
-                        </span>
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.total}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.replied}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.handled}</td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums text-ink">{g.waiting}</td>
-                    <td className="py-2.5 text-right tabular-nums text-ink">{pct(g.replied, g.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          // Per account: who, then the three numbers that matter. The full
+          // breakdown (replied, handled, moderated) is in the tiles above and
+          // the CSV. Same rows as the mobile CommentReport.
+          <ul className="mt-4 divide-y divide-line-soft">
+            {groupRows.map((g) => (
+              // Narrow cards wrap the numbers under the name instead of crushing it.
+              <li key={g.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
+                <span className="flex min-w-[9rem] flex-1 items-center gap-3">
+                  <ChannelAvatar provider={g.provider} avatar={channelAvatar(g.id)} size={32} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-bold text-ink">{channelLabel(g.id, g.provider)}</span>
+                    <span className="block truncate text-[11px] text-faint">{providerMeta(g.provider).label}</span>
+                  </span>
+                </span>
+                <span className="ml-auto flex gap-2 sm:gap-3">
+                  <Num label={t('crTotal')} value={String(g.total)} />
+                  <Num label={t('crWaiting')} value={String(g.waiting)} />
+                  <Num label={t('crRate')} value={pct(g.replied, g.total)} />
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
 
         <p className="mt-3 text-[11px] leading-relaxed text-faint">{t('crNote')}</p>
       </CardContent>
     </Card>
+  );
+}
+
+function Num({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="w-[52px] shrink-0 text-right sm:w-16">
+      <span className="block font-display text-base font-extrabold leading-none tabular-nums text-ink">{value}</span>
+      <span className="mt-1 block truncate text-[10px] font-bold uppercase tracking-wide text-faint">{label}</span>
+    </span>
   );
 }

@@ -6,7 +6,7 @@ import * as Sharing from 'expo-sharing';
 import { Palette, useTheme } from '../theme';
 import { supabase, currentSession } from '../utils/supabase';
 import { SOCIAL_META } from '../constants';
-import { SocialGlyph } from './ui';
+import { ChannelAvatar } from './ui';
 import { tr } from '../i18n';
 
 /**
@@ -30,6 +30,7 @@ interface Channel {
   id: string;
   provider: string;
   display_name: string | null;
+  avatar?: string;
 }
 
 interface GroupRow {
@@ -37,7 +38,6 @@ interface GroupRow {
   provider: string;
   total: number;
   replied: number;
-  handled: number;
   waiting: number;
 }
 
@@ -126,12 +126,10 @@ export default function CommentReport({
         provider: r.platform,
         total: 0,
         replied: 0,
-        handled: 0,
         waiting: 0,
       };
       g.total += 1;
       if (r.status === 'replied') g.replied += 1;
-      if (r.status === 'resolved' || r.status === 'ignored') g.handled += 1;
       if (r.status === 'new') g.waiting += 1;
       map.set(r.channel_id, g);
     }
@@ -226,21 +224,19 @@ export default function CommentReport({
               <Text style={s.stateT}>{tr('crEmpty')}</Text>
             </View>
           ) : (
+            // Per account: who, then the three numbers that matter. Replied,
+            // handled and moderated stay in the tiles above and the CSV.
+            // Same rows as the web CommentReportCard.
             <View style={[s.card, { marginTop: 10, paddingVertical: 4 }]}>
-              <View style={s.rowHead}>
-                <Text style={[s.rowHeadT, { flex: 1 }]}>{tr('crAccount')}</Text>
-                <Text style={[s.rowHeadT, { width: 34, textAlign: 'right' }]}>{tr('crTotal')}</Text>
-                <Text style={[s.rowHeadT, { width: 34, textAlign: 'right' }]}>{tr('crReplied')}</Text>
-                <Text style={[s.rowHeadT, { width: 34, textAlign: 'right' }]}>{tr('crHandled')}</Text>
-                <Text style={[s.rowHeadT, { width: 34, textAlign: 'right' }]}>{tr('crWaiting')}</Text>
-                <Text style={[s.rowHeadT, { width: 40, textAlign: 'right' }]}>{tr('crRate')}</Text>
-              </View>
               {groups.map((g, i) => (
                 <View key={g.id} style={[s.row, i > 0 && s.divider]}>
                   <View style={s.rowWho}>
-                    <View style={[s.avatar, { backgroundColor: SOCIAL_META[g.provider]?.bg ?? C.ink }]}>
-                      <SocialGlyph platform={g.provider} size={12} color="#fff" />
-                    </View>
+                    <ChannelAvatar
+                      platform={g.provider}
+                      avatar={channels.find((c) => c.id === g.id)?.avatar}
+                      size={32}
+                      ring={C.card}
+                    />
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={s.rowT} numberOfLines={1}>
                         {labelOf(g.id, g.provider)}
@@ -250,11 +246,9 @@ export default function CommentReport({
                       </Text>
                     </View>
                   </View>
-                  <Text style={[s.num, { width: 34 }]}>{g.total}</Text>
-                  <Text style={[s.num, { width: 34 }]}>{g.replied}</Text>
-                  <Text style={[s.num, { width: 34 }]}>{g.handled}</Text>
-                  <Text style={[s.num, { width: 34 }]}>{g.waiting}</Text>
-                  <Text style={[s.num, { width: 40 }]}>{pct(g.replied, g.total)}</Text>
+                  <Num value={String(g.total)} label={tr('crTotal')} s={s} />
+                  <Num value={String(g.waiting)} label={tr('crWaiting')} s={s} />
+                  <Num value={pct(g.replied, g.total)} label={tr('crRate')} s={s} />
                 </View>
               ))}
             </View>
@@ -263,6 +257,15 @@ export default function CommentReport({
           <Text style={s.note}>{tr('crNote')}</Text>
         </>
       )}
+    </View>
+  );
+}
+
+function Num({ value, label, s }: { value: string; label: string; s: ReturnType<typeof makeS> }) {
+  return (
+    <View style={{ width: 58, alignItems: 'flex-end' }}>
+      <Text style={s.numV} numberOfLines={1}>{value}</Text>
+      <Text style={s.numL} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -339,26 +342,25 @@ function makeS(C: Palette) {
       borderColor: C.lineSoft,
       paddingHorizontal: 14,
     },
-    rowHead: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-    rowHeadT: {
+    row: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 11 },
+    divider: { borderTopWidth: 1, borderTopColor: C.lineSoft },
+    rowWho: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: C.ink },
+    rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10.5, color: C.faint, marginTop: 1 },
+    numV: {
+      fontFamily: 'PlusJakartaSans_800ExtraBold',
+      fontSize: 15,
+      letterSpacing: -0.3,
+      color: C.ink,
+      fontVariant: ['tabular-nums'],
+    },
+    numL: {
       fontFamily: 'PlusJakartaSans_700Bold',
-      fontSize: 9.5,
+      fontSize: 9,
       letterSpacing: 0.4,
       textTransform: 'uppercase',
       color: C.faint,
-    },
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
-    divider: { borderTopWidth: 1, borderTopColor: C.lineSoft },
-    rowWho: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
-    avatar: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
-    rowT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12.5, color: C.ink },
-    rowS: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10.5, color: C.faint, marginTop: 1 },
-    num: {
-      fontFamily: 'PlusJakartaSans_500Medium',
-      fontSize: 12,
-      color: C.ink,
-      textAlign: 'right',
-      fontVariant: ['tabular-nums'],
+      marginTop: 2,
     },
     note: {
       fontFamily: 'PlusJakartaSans_400Regular',
