@@ -94,7 +94,7 @@ begin
          now(),
          'snapshot:full:' || cc.id::text || ':' || (m / i.full_iv)::text
   from connected_channels cc
-  cross join lateral (select analytics_interval_minutes(cc.provider, true) as full_iv) i
+  cross join lateral (select analytics_interval_minutes(cc.provider::text, true) as full_iv) i
   where cc.status = 'connected'
     and m % i.full_iv < 15
   on conflict (idempotency_key) do nothing;
@@ -108,8 +108,8 @@ begin
          'snapshot:followers:' || cc.id::text || ':' || (m / i.f_iv)::text
   from connected_channels cc
   cross join lateral (
-    select analytics_interval_minutes(cc.provider, true) as full_iv,
-           analytics_interval_minutes(cc.provider, false) as f_iv
+    select analytics_interval_minutes(cc.provider::text, true) as full_iv,
+           analytics_interval_minutes(cc.provider::text, false) as f_iv
   ) i
   where cc.status = 'connected'
     and m % i.full_iv >= 15
@@ -153,7 +153,7 @@ begin
   select 'snapshot_analytics',
          jsonb_build_object('channel_id', cc.id, 'on_demand', true),
          now(),
-         'snapshot:full:' || cc.id::text || ':' || (m / analytics_interval_minutes(cc.provider, true))::text
+         'snapshot:full:' || cc.id::text || ':' || (m / analytics_interval_minutes(cc.provider::text, true))::text
   from connected_channels cc
   where cc.workspace_id = p_workspace
     and cc.status = 'connected'
