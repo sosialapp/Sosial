@@ -409,17 +409,20 @@ async function ownRepliesByPost(c: ChannelRow): Promise<Map<string, number>> {
   return out;
 }
 
-export async function snapshotOwnPosts(channelId: string): Promise<{ saved: number; skipped: string | null }> {
+export async function snapshotOwnPosts(
+  channelId: string,
+): Promise<{ saved: number; skipped: string | null; fresh: Set<string> }> {
+  const fresh = new Set<string>();
   try {
     const got = await getChannel(channelId);
-    if (!got) return { saved: 0, skipped: 'channel gone' };
+    if (!got) return { saved: 0, skipped: 'channel gone', fresh };
     const { c, t } = got;
-    if (c.status !== 'connected') return { saved: 0, skipped: `channel ${c.status}` };
+    if (c.status !== 'connected') return { saved: 0, skipped: `channel ${c.status}`, fresh };
     const read = READERS[c.provider];
-    if (!read) return { saved: 0, skipped: `${c.provider} has no own-posts read` };
+    if (!read) return { saved: 0, skipped: `${c.provider} has no own-posts read`, fresh };
 
     const [posts, targets, own] = await Promise.all([read(c, t), sosialTargets(c.id), ownRepliesByPost(c)]);
-    if (!posts.length) return { saved: 0, skipped: 'no posts' };
+    if (!posts.length) return { saved: 0, skipped: 'no posts', fresh };
 
     const now = new Date().toISOString();
     const rows = posts.map((p) => {
@@ -478,16 +481,17 @@ export async function snapshotOwnPosts(channelId: string): Promise<{ saved: numb
           fetched_at: r.fetched_at,
         });
         refreshed += 1;
+        fresh.add(r.post_target_id);
       } catch (e: any) {
         warn(`own posts ${c.provider}/${c.external_id} target ${r.post_target_id}: ${String(e?.message ?? e).slice(0, 120)}`);
       }
     }
     info(`own posts ${c.provider}/${c.external_id}: ${rows.length} saved, ${refreshed} Sosial posts refreshed`);
-    return { saved: rows.length, skipped: null };
+    return { saved: rows.length, skipped: null, fresh };
   } catch (e: any) {
     // Before migration p120 the table is missing; a provider may refuse. Either
     // way the regular per-post snapshot carries on.
     warn(`own posts ${channelId}: ${String(e?.message ?? e).slice(0, 160)}`);
-    return { saved: 0, skipped: 'failed' };
+    return { saved: 0, skipped: 'failed', fresh };
   }
 }

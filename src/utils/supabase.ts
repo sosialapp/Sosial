@@ -609,10 +609,22 @@ async function callChannelFunction(name: string, body: Record<string, unknown>):
   if (!res.ok) {
     const m = String(json?.error ?? '');
     if (res.status === 401) throw new Error('Your cloud session expired, sign in again (Account tab).');
-    if (res.status === 403) throw new Error('You are not a member of this workspace.');
-    throw new Error(m || 'Cloud request failed, try again.');
+    if (res.status === 403) throw new Error(m || 'You are not a member of this workspace.');
+    throw Object.assign(new Error(m || 'Cloud request failed, try again.'), { status: res.status });
   }
   return json;
+}
+
+/** Live X access token from the cloud copy of an account (x-token), or null
+ *  when the account is no longer in the cloud. */
+export async function cloudXToken(workspaceId: string, externalId: string): Promise<{ accessToken: string; expiresAt: number } | null> {
+  try {
+    const json = await callChannelFunction('x-token', { workspace_id: workspaceId, external_id: externalId });
+    return { accessToken: String(json.access_token), expiresAt: Date.parse(String(json.expires_at)) || Date.now() + 3600_000 };
+  } catch (e: any) {
+    if (e?.status === 404) return null;
+    throw e;
+  }
 }
 
 /** Mirror one channel's device credentials into Vault. Returns the channel id. */

@@ -38,7 +38,7 @@ const PROVIDER_FIELDS: Record<ProviderKey, readonly string[]> = {
   instagram: ['igToken', 'igId', 'igName'],
   threads: ['threadsToken', 'threadsId', 'threadsName'],
   tiktok: ['ttAccessToken', 'ttRefreshToken', 'ttExpiresAt', 'ttOpenId', 'ttName', 'ttLastPrivacy', 'ttPhotoHost'],
-  x: ['xAccessToken', 'xRefreshToken', 'xExpiresAt', 'xUserId', 'xName'],
+  x: ['xAccessToken', 'xRefreshToken', 'xExpiresAt', 'xUserId', 'xName', 'xCloudWorkspace', 'xCloudRefresh'],
   bluesky: ['bskyAccessJwt', 'bskyRefreshJwt', 'bskyExpiresAt', 'bskyDid', 'bskyHandle', 'bskyName', 'bskyPdsHost', 'bskyAppPassword'],
   mastodon: ['mastodonAccessToken', 'mastodonInstance', 'mastodonAccountId', 'mastodonName'],
   linkedin: ['liAccessToken', 'liRefreshToken', 'liExpiresAt', 'liPersonUrn', 'liName', 'liOrgId', 'liOrgName'],

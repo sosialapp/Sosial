@@ -3,6 +3,7 @@ import * as Crypto from 'expo-crypto';
 import { X_CLIENT_ID, X_AUTH_ENDPOINT, X_TOKEN_ENDPOINT, X_API, X_SCOPES } from './xConfig';
 import { BRIDGE_URL, appReturnUrl, openAuth } from './metaAuth';
 import { loadProviderFields, saveProviderFields } from './metaStore';
+import { cloudXToken } from './supabase';
 
 /** X nests errors three different ways, normalize to a human string.
  *  The machine code (invalid_grant etc.) is appended so failures are debuggable. */
@@ -147,6 +148,19 @@ export async function getValidXToken(accountId?: string): Promise<string> {
     return access;
   }
   if (!refresh) throw new Error('X not connected');
+  // In the cloud: the server owns the session. X refresh tokens are
+  // single-use, so refreshing this copy here would sign the cloud out (and
+  // the next cloud refresh would sign this phone out). Ask the server.
+  const cloudWs = f.xCloudWorkspace as string | undefined;
+  if (cloudWs && f.xCloudRefresh === refresh && f.xUserId) {
+    const t = await cloudXToken(cloudWs, String(f.xUserId));
+    if (t) {
+      await saveProviderFields('x', { xAccessToken: t.accessToken, xExpiresAt: t.expiresAt }, accountId);
+      return t.accessToken;
+    }
+    // Taken out of the cloud: this phone's own session is the only one again.
+    await saveProviderFields('x', { xCloudWorkspace: undefined, xCloudRefresh: undefined }, accountId);
+  }
   try {
     const t = await refreshXToken(refresh);
     await saveProviderFields('x', {
