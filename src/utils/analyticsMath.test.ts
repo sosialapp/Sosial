@@ -22,10 +22,15 @@ describe('analyticsMath mirror', () => {
 });
 
 describe('interactionsOf', () => {
-  it('sums every audience action and ignores missing fields', () => {
-    expect(interactionsOf({ likes: 3, comments: 2, shares: 1, saves: 4, clicks: 5 })).toBe(15);
+  it('sums likes, comments, shares (reposts + quotes) and saves', () => {
+    expect(interactionsOf({ likes: 3, comments: 2, shares: 1, saves: 4 })).toBe(10);
     expect(interactionsOf({ likes: 3 })).toBe(3);
     expect(interactionsOf(null)).toBe(0);
+  });
+
+  it('does not count link clicks as interactions', () => {
+    expect(interactionsOf({ likes: 3, comments: 2, shares: 1, saves: 4, clicks: 5 })).toBe(10);
+    expect(interactionsOf({ clicks: 9 })).toBe(0);
   });
 });
 

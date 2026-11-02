@@ -4,9 +4,11 @@
  * (src/utils/analyticsMath.test.ts keeps the two identical), so both apps
  * bucket, sum and scale the same way and show the same numbers.
  *
- * Interactions are what the AUDIENCE did to OUR posts: reactions, comments
- * received, shares/reposts, saves and clicks. The worker strips our own
- * replies, self-likes and self-reposts before it writes post_stats
+ * Interactions are what the AUDIENCE did to OUR posts: reactions/likes,
+ * comments received, shares (reposts AND quotes, which providers report inside
+ * their share/repost counts) and saves/bookmarks. Link clicks are tracked and
+ * shown as their own column, but they are NOT interactions. The worker strips
+ * our own replies, self-likes and self-reposts before it writes post_stats
  * (apps/worker/src/stats.ts), so the plain sum below is the whole definition.
  */
 
@@ -34,10 +36,12 @@ const n0 = (v: unknown): number => {
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
 
-/** Audience interactions on one stats row (or a summed total). */
+/** Audience interactions on one stats row (or a summed total): reactions,
+ *  comments, shares (reposts + quotes) and saves. Clicks are deliberately not
+ *  part of it; they are shown separately. */
 export function interactionsOf(s: EngagementCounts | null | undefined): number {
   if (!s) return 0;
-  return n0(s.likes) + n0(s.comments) + n0(s.shares) + n0(s.saves) + n0(s.clicks);
+  return n0(s.likes) + n0(s.comments) + n0(s.shares) + n0(s.saves);
 }
 
 export function emptyTotals(): EngagementTotals {
