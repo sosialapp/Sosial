@@ -42,6 +42,11 @@ export interface MetaState {
   xExpiresAt?: number;
   xUserId?: string;
   xName?: string;
+  // Set once the session is uploaded to the cloud: the workspace, and the
+  // refresh token sent. While it still matches xRefreshToken the server owns
+  // the session and getValidXToken asks it (x-token) instead of refreshing.
+  xCloudWorkspace?: string;
+  xCloudRefresh?: string;
   // Bluesky (AT Protocol), handle + app password, no OAuth. accessJwt lives
   // ~2h; the PDS host is per-account (resolved at login) and every call goes
   // there. Silent refresh via getValidBsky() in bskyAuth.ts.

@@ -560,6 +560,45 @@ interface TargetRow {
   posts?: { chain_id: string | null; chain_position: number | null } | null;
 }
 
+/**
+ * Public metrics for many X posts in one call per 100 ids. Posts X leaves
+ * out (deleted) are simply missing; `problem` carries X's reason when the
+ * whole read failed, so the per-post error says something useful.
+ */
+async function xMetrics(c: ChannelRow, t: TokenRow, targets: TargetRow[]): Promise<Map<string, Stats> & { problem?: string }> {
+  const out: Map<string, Stats> & { problem?: string } = new Map();
+  const ids = [...new Set(targets.map((tg) => String(tg.remote_id ?? '').split(',')[0].trim()).filter(Boolean))];
+  try {
+    const token = await accessToken(c, t);
+    for (let i = 0; i < ids.length; i += 100) {
+      const r = await fetch(
+        `${X_API}/tweets?ids=${ids.slice(i, i + 100).join(',')}&tweet.fields=public_metrics`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const j: any = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        out.problem = `X ${r.status}: ${j?.detail ?? j?.title ?? 'post read failed'}`;
+        break;
+      }
+      for (const d of j?.data ?? []) {
+        const pm = d?.public_metrics;
+        if (!pm) continue;
+        out.set(String(d.id), {
+          ...ZERO,
+          likes: num(pm.like_count),
+          comments: num(pm.reply_count),
+          views: num(pm.impression_count) || null,
+          shares: num(pm.retweet_count) + num(pm.quote_count),
+          saves: num(pm.bookmark_count),
+        });
+      }
+    }
+  } catch (e: any) {
+    out.problem = String(e?.message ?? e).slice(0, 160);
+  }
+  return out;
+}
+
 /** Platforms whose reply count covers direct replies only; the rest
  *  (Instagram, Facebook stream, YouTube, LinkedIn) count the whole tree. */
 export const DIRECT_REPLY_COUNTS = new Set(['x', 'bluesky', 'mastodon', 'threads']);
@@ -647,7 +686,12 @@ export async function writeStats(row: Record<string, unknown>): Promise<void> {
   }
 }
 
-export async function snapshotChannel(channelId: string): Promise<{ updated: number; failed: number; skipped: string | null }> {
+/** `fresh`: targets the own-posts pass just refreshed from its post list;
+ *  reading them again one by one would spend API calls for the same numbers. */
+export async function snapshotChannel(
+  channelId: string,
+  fresh: Set<string> = new Set(),
+): Promise<{ updated: number; failed: number; skipped: string | null }> {
   const got = await getChannel(channelId);
   if (!got) return { updated: 0, failed: 0, skipped: 'channel gone' };
   const { c, t } = got;
@@ -678,11 +722,16 @@ export async function snapshotChannel(channelId: string): Promise<{ updated: num
 
   let updated = 0;
   let failed = 0;
-  for (const target of targets) {
+  const due = targets.filter((tg) => !fresh.has(tg.id));
+  // X: one batched lookup (up to 100 ids) instead of a read per post, which
+  // tripped the per-endpoint rate limit and failed the whole snapshot.
+  const xBatch = c.provider === 'x' && due.length ? await xMetrics(c, t, due) : null;
+  for (const target of due) {
     const remoteId = String(target.remote_id ?? '').split(',')[0].trim();
     if (!remoteId) continue;
     try {
-      const s = await statsFor(c, t, remoteId);
+      const s = xBatch ? xBatch.get(remoteId) : await statsFor(c, t, remoteId);
+      if (!s) throw new Error(xBatch?.problem ?? 'Could not read post.');
       s.comments = Math.max(0, s.comments - (await ownReplies(c, target, remoteId)));
       await writeStats({
         post_target_id: target.id,
@@ -705,7 +754,7 @@ export async function snapshotChannel(channelId: string): Promise<{ updated: num
       warn(`stats ${c.provider}/${c.external_id} target ${target.id}: ${String(e?.message ?? e).slice(0, 160)}`);
     }
   }
-  info(`snapshot ${c.provider}/${c.external_id}: ${updated} updated, ${failed} failed`);
+  info(`snapshot ${c.provider}/${c.external_id}: ${updated} updated, ${failed} failed, ${targets.length - due.length} already fresh`);
   // Only a total failure is a job failure, a systematic breakage (expired
   // token, API change) should back off and retry.
   if (updated === 0 && failed > 0) {

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loadMetaState, loadAccounts, loadProviderFields, saveAccounts, makeAccount, readAccountsForWorkspace, writeAccountsForWorkspace, type MetaState } from './metaStore';
+import { loadMetaState, loadAccounts, loadProviderFields, saveProviderFields, saveAccounts, makeAccount, readAccountsForWorkspace, writeAccountsForWorkspace, type MetaState } from './metaStore';
 import { connectedAccounts, accountExternalId, PROVIDER_KEYS, type ConnectedAccount } from './socialAccounts';
 import { getValidYt } from './ytAuth';
 import { supabase, currentSession, importChannelToken, removeChannelToken } from './supabase';
@@ -285,6 +285,17 @@ export async function buildImportPayload(
 }
 
 /**
+ * X only: remember that the cloud now holds this session (which refresh
+ * token went up, to which workspace). From then on getValidXToken asks the
+ * server for access tokens instead of refreshing here, since X refresh
+ * tokens are single-use and two holders sign each other out.
+ */
+async function markCloudHeld(payload: ImportPayload, workspaceId: string, accountId?: string): Promise<void> {
+  if (payload.provider !== 'x' || !payload.refresh_token) return;
+  await saveProviderFields('x', { xCloudWorkspace: workspaceId, xCloudRefresh: payload.refresh_token }, accountId).catch(() => {});
+}
+
+/**
  * Enable cloud publishing for one channel. Throws friendly errors for the UI:
  * not signed in, nothing to import, or the function's message.
  */
@@ -297,10 +308,13 @@ export async function enableCloudChannel(key: CloudChannelKey): Promise<void> {
     const payload = await buildImportPayload(key, await loadMetaState());
     if (!payload) throw new Error('Reconnect this channel first, there are no credentials on this device to send.');
     await importChannelToken({ workspace_id: session.workspace.id, ...payload });
+    await markCloudHeld(payload, session.workspace.id);
   } else {
     for (const a of targets) {
       const payload = await buildImportPayload(key, {}, a.id);
-      if (payload) await importChannelToken({ workspace_id: session.workspace.id, ...payload });
+      if (!payload) continue;
+      await importChannelToken({ workspace_id: session.workspace.id, ...payload });
+      await markCloudHeld(payload, session.workspace.id, a.id);
     }
   }
   await setCloudChannel(key, true);
@@ -850,6 +864,7 @@ export async function syncCloudChannels(): Promise<CloudSyncResult> {
           continue;
         }
         await importChannelToken({ workspace_id: session.workspace.id, ...payload });
+        await markCloudHeld(payload, session.workspace.id, a.id);
         if (!flagged.has(ch)) {
           await setCloudChannel(ch, true);
           flagged.add(ch);

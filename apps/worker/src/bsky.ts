@@ -74,7 +74,7 @@ async function xrpc(pdsHost: string, method: string, token: string, body: any, c
     body,
   });
   const j: any = await r.json().catch(() => ({}));
-  return { status: r.status, ok: r.ok, json: j };
+  return { status: r.status, ok: r.ok, json: j, headers: r.headers };
 }
 
 /** Session access tokens are JWTs ('ey….'); app passwords never look like one. */
@@ -84,15 +84,22 @@ function jwtLike(tok: string): boolean {
 
 interface CachedSession {
   token: string;
+  refresh: string;
   did: string;
   pdsHost: string;
   at: number;
   cred: string;
 }
-/** Bluesky rate-limits createSession hard (~5/5min per account): reuse the
- *  minted session instead of one per job (publish, inbox, stats, avatars,
- *  refresh all call through here). Access JWTs live ~2h. */
+/** Bluesky rate-limits createSession hard (30 per 5 min, 300 per day per
+ *  account): reuse the minted session instead of one per job (publish,
+ *  inbox, stats, avatars, refresh all call through here), renew it with
+ *  refreshSession rather than a new sign-in, and let jobs that start
+ *  together share one sign-in. Access JWTs live ~2h. */
 const appPasswordSessions = new Map<string, CachedSession>();
+const signingIn = new Map<string, Promise<CachedSession>>();
+/** After a rate-limit answer, no new sign-in for this channel until then:
+ *  retrying straight away only extends Bluesky's lockout. */
+const signInBlockedUntil = new Map<string, number>();
 
 function mintedError(status: number, body: any): Error {
   const code = String(body?.error ?? '');
@@ -144,31 +151,69 @@ export async function ensureSession(b: Bundle, force = false): Promise<Session> 
     throw new Error('Bluesky session expired, reconnect in Connect to refresh.');
   }
 
-  // App-password credential: mint a session and cache it (40 min, well inside
+  // App-password credential: mint a session and cache it (90 min, inside
   // the ~2h access-JWT life) so repeat jobs never re-hit createSession.
-  const identifier = String(b.channel.metadata?.bluesky_handle ?? did);
   const cacheKey = `${b.channel.id}:${did}`;
   const cached = appPasswordSessions.get(cacheKey);
-  if (!force && cached && cached.cred === access && cached.pdsHost === pdsHost && Date.now() - cached.at < 40 * 60_000) {
+  const usable = cached && cached.cred === access && cached.pdsHost === pdsHost;
+  if (!force && usable && Date.now() - cached.at < 90 * 60_000) {
     return { token: cached.token, did: cached.did, pdsHost: cached.pdsHost };
   }
+  let pending = signingIn.get(cacheKey);
+  if (!pending) {
+    pending = mintSession(b, access, pdsHost, usable ? cached : undefined).finally(() => signingIn.delete(cacheKey));
+    signingIn.set(cacheKey, pending);
+  }
+  const session = await pending;
+  appPasswordSessions.set(cacheKey, session);
+  return { token: session.token, did: session.did, pdsHost: session.pdsHost };
+}
+
+/** Renew the cached session if there is one, else sign in with the app
+ *  password (at most once per lockout window). */
+async function mintSession(b: Bundle, password: string, pdsHost: string, prev?: CachedSession): Promise<CachedSession> {
+  const did = b.channel.external_id;
+  if (prev?.refresh) {
+    const r = await xrpc(pdsHost, 'com.atproto.server.refreshSession', prev.refresh, '', 'application/json');
+    if (r.ok && r.json?.accessJwt) {
+      return {
+        token: String(r.json.accessJwt),
+        refresh: String(r.json.refreshJwt || prev.refresh),
+        did: String(r.json.did || prev.did),
+        pdsHost,
+        at: Date.now(),
+        cred: password,
+      };
+    }
+  }
+  const key = b.channel.id;
+  const blocked = signInBlockedUntil.get(key) ?? 0;
+  if (blocked > Date.now()) throw mintedError(429, {});
+  const identifier = String(b.channel.metadata?.bluesky_handle ?? did);
   const r = await xrpc(
     pdsHost,
     'com.atproto.server.createSession',
     '',
-    JSON.stringify({ identifier, password: access }),
+    JSON.stringify({ identifier, password }),
     'application/json',
   );
-  if (!r.ok || !r.json?.accessJwt) throw mintedError(r.status, r.json);
-  const session: CachedSession = {
+  if (!r.ok || !r.json?.accessJwt) {
+    if (r.status === 429 || /RateLimitExceeded/i.test(String(r.json?.error ?? ''))) {
+      // Bluesky sends the reset time; fall back to 10 minutes without it.
+      const reset = Number(r.headers?.get?.('ratelimit-reset')) * 1000;
+      signInBlockedUntil.set(key, reset > Date.now() ? reset : Date.now() + 10 * 60_000);
+    }
+    throw mintedError(r.status, r.json);
+  }
+  signInBlockedUntil.delete(key);
+  return {
     token: String(r.json.accessJwt),
+    refresh: String(r.json.refreshJwt ?? ''),
     did: String(r.json.did || did),
     pdsHost,
     at: Date.now(),
-    cred: access,
+    cred: password,
   };
-  appPasswordSessions.set(cacheKey, session);
-  return { token: session.token, did: session.did, pdsHost: session.pdsHost };
 }
 
 async function restPatchByChannel(channelId: string, body: Record<string, any>): Promise<void> {

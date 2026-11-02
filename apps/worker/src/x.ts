@@ -4,7 +4,7 @@
  * multipart image upload (≤5 MB, GIFs included), v2 chunked video upload
  * (INIT/APPEND/FINALIZE/STATUS), POST /tweets.
  */
-import { readSecret, updateSecret } from './db';
+import { readSecret, updateSecret, callRpc, rest } from './db';
 import { storageSign, storageDownload, storageChunks, storageHeadSize } from './rest';
 import { assertMediaAllowed } from './mediaLimits';
 import { info } from './logger';
@@ -82,6 +82,22 @@ async function xjson(url: string, init: RequestInit, fallback: string): Promise<
   return j;
 }
 
+const EXPIRED_MSG = 'X session expired, toggle cloud publishing off and on in Connect to refresh.';
+
+/** In-flight refresh per channel: concurrent jobs share one refresh. */
+const refreshing = new Map<string, Promise<string>>();
+
+/**
+ * Live access token for the channel. X refresh tokens are single-use: the
+ * first refresh rotates the token and the old one dies on the spot, so two
+ * jobs refreshing with the same token at once (publish + stats + comment
+ * sync, or the worker and the x-token function the app uses) leave the
+ * loser, and often the channel, with a dead session. That was the "posting
+ * on X works sometimes" bug. Refreshes are serialised per channel in this
+ * process and across processes through a short lease on channel_tokens, and
+ * the token row is re-read under the lock, so a refresh someone else just
+ * did is reused instead of repeated.
+ */
 export async function ensureToken(b: Bundle, force = false): Promise<string> {
   const fresh =
     !force && b.secrets.expires_at && Date.parse(b.secrets.expires_at) > Date.now() + 600000;
@@ -89,15 +105,73 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
     const access = await readSecret(b.secrets.access_secret_id);
     if (access) return access;
   }
-  if (!b.secrets.refresh_secret_id) {
-    throw new Error('X session expired, toggle cloud publishing off and on in Connect to refresh.');
+  const running = refreshing.get(b.channel.id);
+  if (running) return running;
+  const p = refreshUnderLease(b, force).finally(() => refreshing.delete(b.channel.id));
+  refreshing.set(b.channel.id, p);
+  return p;
+}
+
+interface TokenState {
+  access_token_secret_id: string | null;
+  refresh_token_secret_id: string | null;
+  expires_at: string | null;
+}
+
+async function tokenState(channelId: string): Promise<TokenState | null> {
+  const rows = await rest<TokenState[]>(
+    `/rest/v1/channel_tokens?channel_id=eq.${encodeURIComponent(channelId)}` +
+      '&select=access_token_secret_id,refresh_token_secret_id,expires_at',
+  ).catch(() => null);
+  return rows?.[0] ?? null;
+}
+
+/** Lease from p121; true when held. Before the migration runs the RPC is
+ *  missing, and the in-process lock alone still covers the worker. */
+async function claimLease(channelId: string): Promise<boolean> {
+  try {
+    return (await callRpc<boolean>('claim_token_refresh', { p_channel_id: channelId, p_seconds: 30 })) === true;
+  } catch {
+    return true;
   }
+}
+
+async function refreshUnderLease(b: Bundle, force: boolean): Promise<string> {
+  // Someone else (the app's x-token call) may be mid-refresh: wait for their
+  // lease, up to ~20s, then go on and use whatever they stored.
+  let held = await claimLease(b.channel.id);
+  for (let i = 0; !held && i < 40; i++) {
+    await sleep(500);
+    held = await claimLease(b.channel.id);
+  }
+  try {
+    const now = (await tokenState(b.channel.id)) ?? {
+      access_token_secret_id: b.secrets.access_secret_id,
+      refresh_token_secret_id: b.secrets.refresh_secret_id,
+      expires_at: b.secrets.expires_at,
+    };
+    // A refresh landed after this job loaded its bundle: use it. On a forced
+    // refresh (X said 401) only a newer token than the bundle's counts.
+    const rotated = now.expires_at !== b.secrets.expires_at;
+    const live = now.expires_at && Date.parse(now.expires_at) > Date.now() + 600000;
+    if (live && (!force || rotated) && now.access_token_secret_id) {
+      const access = await readSecret(now.access_token_secret_id);
+      if (access) return access;
+    }
+    return await refreshWith(b, now);
+  } finally {
+    if (held) await callRpc('release_token_refresh', { p_channel_id: b.channel.id }).catch(() => {});
+  }
+}
+
+async function refreshWith(b: Bundle, s: TokenState): Promise<string> {
+  if (!s.refresh_token_secret_id) throw new Error(EXPIRED_MSG);
   const clientId = String(b.channel.metadata?.xClientId ?? '');
   if (!clientId) {
     throw new Error('X channel imported before client-id metadata, toggle cloud publishing off and on in Connect to refresh.');
   }
-  const refresh = await readSecret(b.secrets.refresh_secret_id);
-  if (!refresh) throw new Error('X session expired, toggle cloud publishing off and on in Connect to refresh.');
+  const refresh = await readSecret(s.refresh_token_secret_id);
+  if (!refresh) throw new Error(EXPIRED_MSG);
   const body = new URLSearchParams({
     client_id: clientId,
     grant_type: 'refresh_token',
@@ -110,35 +184,26 @@ export async function ensureToken(b: Bundle, force = false): Promise<string> {
   });
   const j: any = await r.json().catch(() => ({}));
   if (!j.access_token) {
+    // The token may have been replaced while this request was out (a
+    // reconnect re-imported it): one retry with the stored one.
+    const again = await tokenState(b.channel.id);
+    const latest = again?.refresh_token_secret_id ? await readSecret(again.refresh_token_secret_id) : null;
+    if (again && latest && latest !== refresh) return refreshWith(b, again);
     throw new Error(`${xerr(j, 'X session expired')}, toggle cloud publishing off and on in Connect to refresh.`);
   }
   const newAccess = String(j.access_token);
   const newRefresh = String(j.refresh_token || refresh);
-  if (b.secrets.access_secret_id) await updateSecret(b.secrets.access_secret_id, newAccess);
-  await updateSecret(b.secrets.refresh_secret_id, newRefresh);
-  const { required } = await import('./env.js');
-  const base = required('WORKER_SUPABASE_URL').replace(/\/+$/, '');
-  const k = required('WORKER_SERVICE_ROLE_KEY');
-  const pr = await fetch(
-    `${base}/rest/v1/channel_tokens?channel_id=eq.${encodeURIComponent(b.channel.id)}`,
-    {
-      method: 'PATCH',
-      headers: {
-        apikey: k,
-        Authorization: `Bearer ${k}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify({
-        expires_at: new Date(Date.now() + Number(j.expires_in ?? 7200) * 1000).toISOString(),
-        updated_at: new Date().toISOString(),
-      }),
-    },
-  );
-  if (!pr.ok) {
-    const t = await pr.text().catch(() => '');
-    throw new Error(`patch channel_tokens (${pr.status}): ${t.slice(0, 200)}`);
-  }
+  // Refresh first: it is the one that can't be minted again.
+  await updateSecret(s.refresh_token_secret_id, newRefresh);
+  if (s.access_token_secret_id) await updateSecret(s.access_token_secret_id, newAccess);
+  await rest(`/rest/v1/channel_tokens?channel_id=eq.${encodeURIComponent(b.channel.id)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      expires_at: new Date(Date.now() + Number(j.expires_in ?? 7200) * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
+  });
   return newAccess;
 }
 

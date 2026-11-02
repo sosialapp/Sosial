@@ -274,7 +274,7 @@ async function handleSnapshotAnalytics(job: Job): Promise<void> {
   // keep it from running.
   const own = await snapshotOwnPosts(channelId);
   debug(`snapshot_analytics own posts ${channelId}: ${own.skipped ?? `${own.saved} saved`}`);
-  const { updated, failed, skipped } = await snapshotChannel(channelId);
+  const { updated, failed, skipped } = await snapshotChannel(channelId, own.fresh);
   if (skipped) debug(`snapshot_analytics channel ${channelId}: skipped (${skipped})`);
   else debug(`snapshot_analytics channel ${channelId}: ${updated} updated, ${failed} failed`);
 }

@@ -8,7 +8,8 @@
 // POST { workspace_id, provider, external_id, display_name?, handle?,
 //        instance_url?, scopes?[], metadata?{}, access_token, refresh_token?,
 //        token_type?, expires_at?, refresh_expires_at? }
-// → 200 { channel_id } · 401 unauthenticated · 403 not a member · 400 bad body
+// → 200 { channel_id, kept? } · 401 unauthenticated · 403 not a member · 400 bad body
+//   kept: X only, the server already holds a newer session than the one sent
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -21,6 +22,11 @@ const PROVIDERS = new Set([
 
 function bad(msg: string, status = 400): Response {
   return Response.json({ error: msg }, { status });
+}
+
+async function sha256(v: string): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -160,6 +166,38 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
+  // X refresh tokens are single-use, and the phone re-sends its copy every
+  // time Connect syncs. Once the worker has refreshed, that copy is dead, and
+  // storing it over the live one broke publishing until the next reconnect.
+  // Same token as the last upload: keep the server's tokens, update only the
+  // profile. A different token (new sign-in, or a refresh on the phone) is
+  // newer than what the server has and replaces it as before.
+  const fingerprint = refresh_token ? await sha256(refresh_token) : null;
+  if (provider === "x" && fingerprint) {
+    const { data: cur } = await admin
+      .from("connected_channels")
+      .select("id, status, channel_tokens(refresh_token_secret_id, refresh_fingerprint)")
+      .eq("workspace_id", workspace_id)
+      .eq("provider", provider)
+      .eq("external_id", external_id)
+      .maybeSingle();
+    const row = cur as
+      | { id: string; status: string; channel_tokens: { refresh_token_secret_id: string | null; refresh_fingerprint: string | null } | null }
+      | null;
+    const tok = Array.isArray(row?.channel_tokens) ? row?.channel_tokens[0] : row?.channel_tokens;
+    if (row && row.status === "connected" && tok?.refresh_token_secret_id && tok.refresh_fingerprint === fingerprint) {
+      await admin
+        .from("connected_channels")
+        .update({
+          display_name: typeof body["display_name"] === "string" ? body["display_name"] : undefined,
+          handle: typeof body["handle"] === "string" ? body["handle"] : undefined,
+          metadata: metadata as never,
+        })
+        .eq("id", row.id);
+      return Response.json({ channel_id: row.id, kept: true });
+    }
+  }
+
   // Re-import hygiene: clear canonical names FIRST (Vault enforces unique
   // names). By-name (not by previous row) so orphan secrets from any failed
   // removal can never collide. If creation fails after this, the channel is
@@ -238,18 +276,22 @@ serve(async (req: Request): Promise<Response> => {
   }
 
   // Token row (replace on re-import = rotation without history buildup).
-  const { error: tErr } = await admin.from("channel_tokens").upsert(
-    {
-      channel_id: ch.id,
-      access_token_secret_id: accessId,
-      refresh_token_secret_id: refreshId,
-      token_type: typeof body["token_type"] === "string" ? body["token_type"] : "Bearer",
-      expires_at: typeof body["expires_at"] === "string" ? body["expires_at"] : null,
-      refresh_expires_at:
-        typeof body["refresh_expires_at"] === "string" ? body["refresh_expires_at"] : null,
-    },
-    { onConflict: "channel_id" },
-  );
+  const tokenRow = {
+    channel_id: ch.id,
+    access_token_secret_id: accessId,
+    refresh_token_secret_id: refreshId,
+    token_type: typeof body["token_type"] === "string" ? body["token_type"] : "Bearer",
+    expires_at: typeof body["expires_at"] === "string" ? body["expires_at"] : null,
+    refresh_expires_at:
+      typeof body["refresh_expires_at"] === "string" ? body["refresh_expires_at"] : null,
+    refresh_fingerprint: fingerprint,
+  };
+  let { error: tErr } = await admin.from("channel_tokens").upsert(tokenRow, { onConflict: "channel_id" });
+  if (tErr && /refresh_fingerprint/.test(tErr.message ?? "")) {
+    // Before migration p121 the column is missing: store the row without it.
+    const { refresh_fingerprint: _fp, ...legacy } = tokenRow;
+    ({ error: tErr } = await admin.from("channel_tokens").upsert(legacy, { onConflict: "channel_id" }));
+  }
   if (tErr) {
     await admin.rpc("vault_delete_secret", { secret_id: accessId });
     if (refreshId) await admin.rpc("vault_delete_secret", { secret_id: refreshId });
