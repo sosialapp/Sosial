@@ -42,7 +42,6 @@ import {
   refreshCommunityInbox,
   replyToCommunityComment,
   sendCommunityMessage,
-  setCommunityCommentStatus,
   moderateCommunityComment,
   subscribeCommunityChanges,
 } from '../utils/community';
@@ -171,7 +170,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   };
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  /** An inbox-state or hide write is in flight. */
+  /** A hide / unhide write is in flight. */
   const [stateBusy, setStateBusy] = useState(false);
   const [openConv, setOpenConv] = useState<CommunityConversation | null>(null);
   const [thread, setThread] = useState<CommunityMessage[] | null>(null);
@@ -415,32 +414,6 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   };
 
   /**
-   * Inbox state, applied optimistically. Resolving or ignoring is our own
-   * bookkeeping: the platform comment is untouched and nothing is sent, so
-   * this needs no extra permission (p110 narrow RPC, status column only).
-   */
-  const setStatus = async (ids: string[], status: 'new' | 'resolved' | 'ignored') => {
-    if (!ids.length || stateBusy) return;
-    const marked = new Set(ids);
-    setStateBusy(true);
-    setErr(null);
-    setComments((prev) => prev.map((c) => (marked.has(c.id) ? { ...c, status } : c)));
-    try {
-      await setCommunityCommentStatus(ids, status);
-    } catch (e) {
-      // Put the list back the way the server has it, rather than guessing.
-      setErr(e instanceof Error ? e.message : 'Could not update the comment.');
-      try {
-        mergeComments(await fetchCommunityComments());
-      } catch {
-        /* keep the optimistic list rather than blanking it */
-      }
-    } finally {
-      setStateBusy(false);
-    }
-  };
-
-  /**
    * Hide (or show again) a comment on the platform itself, applied
    * optimistically; the worker does the platform call.
    */
@@ -528,13 +501,11 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
       .map((g) => {
         const list = [...g.list].sort((x, y) => x.created_at.localeCompare(y.created_at));
         const answered = new Set(list.filter((c) => c.is_own && c.parent_external_id).map((c) => c.parent_external_id));
-        // Resolved and ignored are ours: they leave the "to answer" pile even
-        // though nobody replied.
+        // Hidden ones, and comments filed as resolved / ignored before those
+        // buttons went away, leave the "to answer" pile too.
         const handled = (c: CommunityComment) =>
           c.status === 'replied' || c.status === 'resolved' || c.status === 'ignored' || c.status === 'hidden' || answered.has(c.external_id);
         const open = list.filter((c) => !c.is_own && !handled(c));
-        const resolved = list.filter((c) => !c.is_own && c.status === 'resolved').length;
-        const ignored = list.filter((c) => !c.is_own && c.status === 'ignored').length;
         const seen = new Set<string>();
         const people = [...list].reverse().filter((c) => {
           if (c.is_own) return false;
@@ -547,8 +518,6 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
           ...g,
           list,
           open,
-          resolved,
-          ignored,
           answered,
           people,
           unread: list.filter((c) =>
@@ -625,7 +594,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
               </View>
             ) : others > 0 ? (
               <Text style={[s.commentT, { color: C.greenText }]}>
-                ✓ {g.resolved + g.ignored > 0 ? 'All handled' : 'All answered'}
+                ✓ All answered
               </Text>
             ) : null}
           </View>
@@ -861,16 +830,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                         </View>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginTop: 4, marginLeft: 4 }}>
                           <Text style={s.commentT}>{timeAgo(c.created_at)}</Text>
-                          {c.status === 'resolved' ? (
-                            <TouchableOpacity
-                              onPress={() => void setStatus([c.id], 'new')}
-                              hitSlop={8}
-                              disabled={stateBusy}
-                              accessibilityLabel="Resolved. Tap to reopen"
-                            >
-                              <Text style={[s.replyLink, { color: C.greenText }]}>✓ Resolved</Text>
-                            </TouchableOpacity>
-                          ) : c.status === 'hidden' ? (
+                          {c.status === 'hidden' ? (
                             <TouchableOpacity
                               onPress={() => void moderate(c, false)}
                               hitSlop={8}
@@ -880,15 +840,6 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                             >
                               <Ionicons name="eye-off-outline" size={12} color={C.muted} />
                               <Text style={[s.replyLink, { color: C.muted }]}>Hidden · Unhide</Text>
-                            </TouchableOpacity>
-                          ) : c.status === 'ignored' ? (
-                            <TouchableOpacity
-                              onPress={() => void setStatus([c.id], 'new')}
-                              hitSlop={8}
-                              disabled={stateBusy}
-                              accessibilityLabel="Ignored. Tap to reopen"
-                            >
-                              <Text style={[s.replyLink, { color: C.muted }]}>Ignored</Text>
                             </TouchableOpacity>
                           ) : (
                             <>

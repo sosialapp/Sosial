@@ -206,19 +206,6 @@ export async function replyToCommunityComment(commentId: string, text: string): 
 }
 
 /**
- * Inbox state for comments (p110). Resolving or ignoring is our own
- * bookkeeping: nothing is sent to the platform, so no extra permission.
- */
-export async function setCommunityCommentStatus(
-  ids: string[],
-  status: 'new' | 'resolved' | 'ignored',
-): Promise<void> {
-  if (!ids.length) return;
-  const { error } = await supabase().rpc('comment_set_status', { p_comments: ids, p_status: status });
-  if (error) throw new Error(error.message);
-}
-
-/**
  * Hide (or show again) a comment on the platform itself. Unlike the inbox
  * states this changes what the public sees, so it goes through the
  * moderate-comment function and the worker (Facebook and Instagram only).
