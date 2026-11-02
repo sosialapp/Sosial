@@ -97,7 +97,7 @@ interface CachedSession {
  *  together share one sign-in. Access JWTs live ~2h. */
 const appPasswordSessions = new Map<string, CachedSession>();
 const signingIn = new Map<string, Promise<CachedSession>>();
-/** After a rate-limit answer, no new sign-in for this channel until then:
+/** After a rate-limit answer, no new sign-in for this account until then:
  *  retrying straight away only extends Bluesky's lockout. */
 const signInBlockedUntil = new Map<string, number>();
 
@@ -153,7 +153,9 @@ export async function ensureSession(b: Bundle, force = false): Promise<Session> 
 
   // App-password credential: mint a session and cache it (90 min, inside
   // the ~2h access-JWT life) so repeat jobs never re-hit createSession.
-  const cacheKey = `${b.channel.id}:${did}`;
+  // Per account, not per channel: the same Bluesky account connected in two
+  // workspaces is still one account to Bluesky's sign-in limit.
+  const cacheKey = `${pdsHost}:${did}`;
   const cached = appPasswordSessions.get(cacheKey);
   const usable = cached && cached.cred === access && cached.pdsHost === pdsHost;
   if (!force && usable && Date.now() - cached.at < 90 * 60_000) {
@@ -186,7 +188,7 @@ async function mintSession(b: Bundle, password: string, pdsHost: string, prev?: 
       };
     }
   }
-  const key = b.channel.id;
+  const key = did;
   const blocked = signInBlockedUntil.get(key) ?? 0;
   if (blocked > Date.now()) throw mintedError(429, {});
   const identifier = String(b.channel.metadata?.bluesky_handle ?? did);
