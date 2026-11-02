@@ -92,6 +92,8 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   const [rhythm, setRhythm] = useState<'weeks' | 'weekdays'>('weeks');
   // Same defaults as web: the hero opens as a line, the rhythm as bars.
   const [perfMode, setPerfMode] = useState<ChartMode>('line');
+  // Which posts the numbers cover: Sosial's, ones posted directly, or both.
+  const [source, setSource] = useState<'all' | 'sosial' | 'native'>('all');
   const [rhythmMode, setRhythmMode] = useState<ChartMode>('bar');
 
   const load = useCallback(async () => {
@@ -197,8 +199,30 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   // Engagement aggregates, latest snapshots, not date-bound (like web).
   // Audience interactions only; see utils/analyticsMath for the definition.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const statsScoped = useMemo(() => (data?.postStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel, connectedIds]);
-  const totals = useMemo(() => statsScoped.reduce((acc, r) => addStats(acc, r), emptyTotals()), [statsScoped]);
+  const withSosial = source !== 'native';
+  const withNative = source !== 'sosial';
+  const statsScoped = useMemo(
+    () => (withSosial ? (data?.postStats ?? []).filter((r) => chanOk(r.channel_id)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, chanSel, connectedIds, withSosial],
+  );
+  // Posts made directly on the platform (web parity): Sosial's own are in
+  // post_stats, these rows are only the rest.
+  const nativeScoped = useMemo(
+    () => (withNative ? (data?.nativePosts ?? []).filter((r) => chanOk(r.channel_id)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, chanSel, connectedIds, withNative],
+  );
+  const nativeInRange = useMemo(
+    () => nativeScoped.filter((r) => inRange(r.posted_at)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nativeScoped, range],
+  );
+  const sentInScope = withSosial ? sent : [];
+  const totals = useMemo(
+    () => [...statsScoped, ...nativeScoped].reduce((acc, r) => addStats(acc, r), emptyTotals()),
+    [statsScoped, nativeScoped],
+  );
   const interactions = interactionsOf(totals);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const chanStatsScoped = useMemo(() => (data?.channelStats ?? []).filter((r) => chanOk(r.channel_id)), [data, chanSel, connectedIds]);
@@ -237,7 +261,14 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
   }, [statsScoped]);
 
   const topPosts = useMemo(() => {
-    const rows = sent.map((p) => {
+    const rows: (EngagementTotals & {
+      id: string;
+      title: string;
+      sentAt: string | null;
+      accounts: { platform: string; avatar?: string }[];
+      interactions: number;
+      native?: boolean;
+    })[] = sentInScope.map((p) => {
       const agg = statsByPost.get(p.id) ?? emptyTotals();
       return {
         ...agg,
@@ -248,15 +279,29 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
         interactions: interactionsOf(agg),
       };
     });
+    for (const r of nativeInRange) {
+      const agg = addStats(emptyTotals(), r);
+      rows.push({
+        ...agg,
+        id: `native:${r.id}`,
+        title: r.body?.slice(0, 60) || SOCIAL_META[r.provider]?.label || r.provider,
+        sentAt: r.posted_at,
+        accounts: [{ platform: r.provider, avatar: avatarOf(r.channel_id) }],
+        interactions: interactionsOf(agg),
+        native: true,
+      });
+    }
     rows.sort((a, b) => b.interactions - a.interactions);
     return rows.slice(0, 5);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sent, statsByPost]);
+  }, [sentInScope, nativeInRange, statsByPost]);
 
   // Channel rows (latest snapshots, channel-filtered): who, then three numbers.
   const perfRows = useMemo(() => {
     const totalsBy = new Map<string, EngagementTotals>();
-    for (const r of statsScoped) totalsBy.set(r.channel_id, addStats(totalsBy.get(r.channel_id) ?? emptyTotals(), r));
+    for (const r of [...statsScoped, ...nativeScoped]) {
+      totalsBy.set(r.channel_id, addStats(totalsBy.get(r.channel_id) ?? emptyTotals(), r));
+    }
     return (data?.channels ?? [])
       .filter((c) => c.status === 'connected' || c.status === 'expired')
       .filter((c) => chanSel.length === 0 || chanSel.includes(c.id))
@@ -275,8 +320,8 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
           sent: sent.filter((p) => p.targets.some((t) => t.channel_id === c.id && t.status === 'sent')).length,
         };
       })
-      .filter((r) => r.sent > 0 || r.followers !== null);
-  }, [data, statsScoped, sent, chanSel]);
+      .filter((r) => r.sent > 0 || r.followers !== null || totalsBy.has(r.channel.id));
+  }, [data, statsScoped, nativeScoped, sent, chanSel]);
 
   /** Hero series: every day of the range (weekly past ~2 months), zero-filled.
    *  Same buckets and rules as web (utils/analyticsMath). */
@@ -293,11 +338,16 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
       const values = followerSeries(buckets, captures);
       return buckets.map((b, i) => ({ label: label(b.start), value: values[i] }));
     }
-    const events = sent.flatMap((p) => {
-      const at = p.sent_at ? new Date(p.sent_at).getTime() : Number.NaN;
-      if (!Number.isFinite(at)) return [];
-      return [{ at, value: metric === 'posts' ? 1 : interactionsOf(statsByPost.get(p.id)) }];
-    });
+    const events = [
+      ...sentInScope.map((p) => ({
+        at: p.sent_at ? new Date(p.sent_at).getTime() : Number.NaN,
+        value: metric === 'posts' ? 1 : interactionsOf(statsByPost.get(p.id)),
+      })),
+      ...nativeInRange.map((r) => ({
+        at: r.posted_at ? new Date(r.posted_at).getTime() : Number.NaN,
+        value: metric === 'posts' ? 1 : interactionsOf(r),
+      })),
+    ].filter((e) => Number.isFinite(e.at));
     const filled = fillBuckets(buckets, events);
     if (metric === 'engagement') {
       return filled.map((b) => {
@@ -307,10 +357,10 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
     }
     return filled.map((b) => ({ label: label(b.start), value: b.value }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, sent, statsByPost, range, metric, followers, hasFollowers, chanStatsScoped]);
+  }, [data, sentInScope, nativeInRange, statsByPost, range, metric, followers, hasFollowers, chanStatsScoped]);
 
   const metricCells: { id: typeof metric; label: string; value: string; desc: string }[] = [
-    { id: 'posts', label: tr('iPosts'), value: full(sent.length), desc: tr('aDescPosts') },
+    { id: 'posts', label: tr('iPosts'), value: full(sentInScope.length + nativeInRange.length), desc: tr('aDescPosts') },
     { id: 'followers', label: tr('dFollowers'), value: hasFollowers ? compact(followers) : '-', desc: tr('aDescFollowers') },
     { id: 'engagement', label: tr('iEng'), value: eng ?? '-', desc: tr('aDescEng') },
     { id: 'interactions', label: tr('dInteractions'), value: compact(interactions), desc: tr('aDescInter') },
@@ -365,6 +415,20 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                 value={preset}
                 onChange={setPreset}
                 accessibilityLabel="Date range"
+              />
+            </View>
+
+            {/* Source: Sosial's posts, ones posted directly, or both (web parity) */}
+            <View style={{ paddingHorizontal: 24, marginTop: 10 }}>
+              <Seg
+                accessibilityLabel={tr('aSrcAria')}
+                value={source}
+                onChange={setSource}
+                options={[
+                  { value: 'all', label: tr('aSrcAll') },
+                  { value: 'sosial', label: tr('aSrcSosial') },
+                  { value: 'native', label: tr('aSrcNative') },
+                ]}
               />
             </View>
 
@@ -478,6 +542,7 @@ export default function AnalyticsScreen({ onConnect, onBack }: {
                             <Text style={s.postT} numberOfLines={1}>{p.title || tr('aUntitled')}</Text>
                             <View style={s.metaRow}>
                               <Text style={s.postS}>{fmtDate(p.sentAt)}</Text>
+                              {p.native ? <Text style={s.postS}>{tr('aSrcNative')}</Text> : null}
                               <Stat icon="heart-outline" v={p.likes} C={C} />
                               <Stat icon="chatbubble-outline" v={p.comments} C={C} />
                               <Stat icon="repeat" v={p.shares} C={C} />

@@ -25,14 +25,14 @@ import { ensureToken as ensureLinkedInToken } from './linkedin';
 import { ensureToken as ensurePinterestToken } from './pinterest';
 import { ensureToken as ensureYouTubeToken } from './youtube';
 import { ensureToken as ensureGmbToken } from './gmb';
-const FB_GRAPH = 'https://graph.facebook.com/v21.0';
-const IG_GRAPH = 'https://graph.instagram.com';
-const THREADS_API = 'https://graph.threads.net';
+export const FB_GRAPH = 'https://graph.facebook.com/v21.0';
+export const IG_GRAPH = 'https://graph.instagram.com';
+export const THREADS_API = 'https://graph.threads.net';
 const X_API = 'https://api.x.com/2';
-const YT_API = 'https://www.googleapis.com/youtube/v3';
+export const YT_API = 'https://www.googleapis.com/youtube/v3';
 const LI_API = 'https://api.linkedin.com';
 const LI_VERSION = '202405';
-const PIN_API = 'https://api.pinterest.com/v5';
+export const PIN_API = 'https://api.pinterest.com/v5';
 const GMB_BI = 'https://mybusinessbusinessinformation.googleapis.com/v1';
 const GMB_PERF = 'https://businessprofileperformance.googleapis.com/v1';
 
@@ -60,9 +60,9 @@ export interface Stats {
   note?: string;
 }
 
-const ZERO = { likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, views: null } as const;
+export const ZERO = { likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, views: null } as const;
 
-const num = (v: any): number => {
+export const num = (v: any): number => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
 };
@@ -80,7 +80,7 @@ function threadsMetrics(j: any): Record<string, number | undefined> {
 
 /* ------------------------------ channel ------------------------------ */
 
-async function getChannel(channelId: string): Promise<{ c: ChannelRow; t: TokenRow } | null> {
+export async function getChannel(channelId: string): Promise<{ c: ChannelRow; t: TokenRow } | null> {
   const rows = await rest<ChannelRow[]>(
     `/rest/v1/connected_channels?id=eq.${encodeURIComponent(channelId)}` +
       `&select=id,workspace_id,provider,external_id,instance_url,metadata,status,channel_tokens(access_token_secret_id,refresh_token_secret_id,expires_at)` +
@@ -102,7 +102,7 @@ async function directToken(c: ChannelRow, t: TokenRow): Promise<string> {
 }
 
 /** Fresh access token per provider (same rotation rules as publishing). */
-async function accessToken(c: ChannelRow, t: TokenRow): Promise<string> {
+export async function accessToken(c: ChannelRow, t: TokenRow): Promise<string> {
   const b = bundleFor(c, t);
   switch (c.provider) {
     case 'x':
@@ -121,20 +121,20 @@ async function accessToken(c: ChannelRow, t: TokenRow): Promise<string> {
 }
 
 /** Bluesky session (token + pds host) with the publish-time rotation. */
-async function blueskySession(c: ChannelRow, t: TokenRow): Promise<{ token: string; pdsHost: string }> {
+export async function blueskySession(c: ChannelRow, t: TokenRow): Promise<{ token: string; pdsHost: string }> {
   const sess = await ensureBlueskySession(bundleFor(c, t));
   return { token: sess.token, pdsHost: sess.pdsHost };
 }
 
 /** pdsHost is stored as a full URL, never prepend a second scheme. */
-function bskyApi(pdsHost: string): string {
+export function bskyApi(pdsHost: string): string {
   const h = pdsHost.replace(/\/+$/, '');
   return (h.startsWith('http://') || h.startsWith('https://') ? h : `https://${h}`) + '/xrpc';
 }
 
 /* ------------------------------ per provider ------------------------------ */
 
-async function jget(url: string, headers?: Record<string, string>): Promise<any> {
+export async function jget(url: string, headers?: Record<string, string>): Promise<any> {
   const r = await fetch(url, { headers: headers ?? {} });
   return r.json().catch(() => ({}));
 }
@@ -286,13 +286,16 @@ async function snapshotFollowers(c: ChannelRow, t: TokenRow): Promise<void> {
   }
 }
 
-async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<Stats> {
+export async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<Stats> {
   switch (c.provider) {
     case 'facebook': {
       const tok = encodeURIComponent(await accessToken(c, t));
+      // Videos and reels are saved under the video id, and a Video has no
+      // `shares` field: asking for it errors. That error used to throw the
+      // whole read away, so video posts never refreshed. Shares are now
+      // optional; reactions and comments are read either way.
       const core = await jget(`${FB_GRAPH}/${encodeURIComponent(remoteId)}?fields=shares&access_token=${tok}`);
-      if (core?.error) throw new Error(core.error.message ?? 'Could not read post.');
-      const out: Stats = { ...ZERO, shares: num(core.shares?.count) };
+      const out: Stats = { ...ZERO, shares: core?.error ? 0 : num(core?.shares?.count) };
       let denied = false;
       const id = encodeURIComponent(remoteId);
       // Every reaction type, not just Like. viewer_reaction is the Page's own
@@ -317,7 +320,10 @@ async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<S
         out.comments = num(j?.summary?.total_count);
       };
       await Promise.all([reactions(), comments()]);
+      // Nothing readable at all (deleted post, expired token): a real failure.
+      if (core?.error && denied) throw new Error(core.error.message ?? 'Could not read post.');
       if (denied) out.note = 'Reaction/comment counts need the pages_read_user_content permission on this login.';
+      else if (core?.error) out.note = 'Facebook reports no share count for videos and reels.';
       return out;
     }
     case 'instagram': {
@@ -556,7 +562,7 @@ interface TargetRow {
 
 /** Platforms whose reply count covers direct replies only; the rest
  *  (Instagram, Facebook stream, YouTube, LinkedIn) count the whole tree. */
-const DIRECT_REPLY_COUNTS = new Set(['x', 'bluesky', 'mastodon', 'threads']);
+export const DIRECT_REPLY_COUNTS = new Set(['x', 'bluesky', 'mastodon', 'threads']);
 
 const inList = (ids: string[]): string =>
   encodeURIComponent(`(${ids.map((v) => `"${v.replace(/"/g, '\\"')}"`).join(',')})`);
@@ -664,7 +670,9 @@ export async function snapshotChannel(channelId: string): Promise<{ updated: num
   const targets = await rest<TargetRow[]>(
     `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(c.id)}` +
       `&status=eq.sent&remote_id=not.is.null&select=id,post_id,remote_id,provider,posts(chain_id,chain_position)` +
-      `&order=sent_at.desc&limit=${MAX_TARGETS}`,
+      // nullslast: Postgres sorts NULL first on DESC, so targets without a
+      // sent_at could crowd real recent posts out of the window.
+      `&order=sent_at.desc.nullslast&limit=${MAX_TARGETS}`,
   );
   if (!targets?.length) return { updated: 0, failed: 0, skipped: 'no sent posts yet' };
 

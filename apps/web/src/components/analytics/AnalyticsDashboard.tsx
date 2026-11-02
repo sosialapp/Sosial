@@ -113,6 +113,26 @@ function download(name: string, mime: string, text: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+/** A post made directly on the platform (p120 channel_posts), with its
+ *  latest numbers. Only rows Sosial didn't publish are loaded. */
+export interface NativePostRow {
+  id: string;
+  channel_id: string;
+  provider: string;
+  url: string | null;
+  body: string | null;
+  posted_at: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves?: number | null;
+  clicks?: number | null;
+  views: number | null;
+}
+
+/** Which posts the numbers cover. */
+type PostSource = 'all' | 'sosial' | 'native';
+
 interface TopPost extends EngagementTotals {
   id: string;
   title: string;
@@ -121,6 +141,9 @@ interface TopPost extends EngagementTotals {
   /** The accounts it went out on, for the avatar stack. */
   accounts: { provider: string; avatar?: string }[];
   interactions: number;
+  /** Posted directly on the platform: opens there, no Sosial preview. */
+  native?: boolean;
+  href?: string;
 }
 
 export default function AnalyticsDashboard({
@@ -130,6 +153,7 @@ export default function AnalyticsDashboard({
   channelStats,
   followerHistory,
   commentRows,
+  nativePosts = [],
   workspaceId,
 }: {
   workspaceId: string;
@@ -139,6 +163,7 @@ export default function AnalyticsDashboard({
   channelStats: FollowerSnapshotRow[];
   followerHistory: FollowerHistoryRow[];
   commentRows: CommentReportRow[];
+  nativePosts?: NativePostRow[];
 }) {
   const t = useMessages();
   const locale = useLocale();
@@ -150,6 +175,7 @@ export default function AnalyticsDashboard({
   const [exportOpen, setExportOpen] = useState(false);
   const [perfMode, setPerfMode] = useState<ChartMode>('line');
   const [rhythmMode, setRhythmMode] = useState<ChartMode>('bar');
+  const [source, setSource] = useState<PostSource>('all');
   const [perfMetric, setPerfMetric] = useState<PerfMetric>('posts');
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [topSort, setTopSort] = useState<{ key: TopSortKey; dir: 'asc' | 'desc' }>({
@@ -301,12 +327,28 @@ export default function AnalyticsDashboard({
   const reportRows = commentRows.filter(
     (c) => !c.is_own && inRange(c.created_at) && (chanSel.length === 0 || chanSel.includes(c.channel_id)),
   );
+  // Two kinds of post: what Sosial sent (post_stats) and what was posted
+  // directly on the platform (channel_posts rows Sosial didn't publish, so
+  // nothing is counted twice). The source filter picks one or both.
+  const withSosial = source !== 'native';
+  const withNative = source !== 'sosial';
   const statsScoped = useMemo(
-    () => postStats.filter((r) => chanOk(r.channel_id)),
-    [postStats, chanSel],
+    () => (withSosial ? postStats.filter((r) => chanOk(r.channel_id)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [postStats, chanSel, withSosial, connectedIds],
   );
+  const nativeScoped = useMemo(
+    () => (withNative ? nativePosts.filter((r) => chanOk(r.channel_id)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [nativePosts, chanSel, withNative, connectedIds],
+  );
+  const nativeInRange = nativeScoped.filter((r) => inRange(r.posted_at));
+  const sentInScope = withSosial ? sent : [];
   // Audience interactions only; see lib/analyticsMath for the definition.
-  const totals = useMemo(() => statsScoped.reduce((acc, r) => addStats(acc, r), emptyTotals()), [statsScoped]);
+  const totals = useMemo(
+    () => [...statsScoped, ...nativeScoped].reduce((acc, r) => addStats(acc, r), emptyTotals()),
+    [statsScoped, nativeScoped],
+  );
   const { likes, comments } = totals;
   const views = totals.views ?? 0;
   const hasViews = totals.views !== null;
@@ -348,7 +390,7 @@ export default function AnalyticsDashboard({
     {
       metric: 'posts',
       label: t('anPostsPublished'),
-      value: full(sent.length),
+      value: full(sentInScope.length + nativeInRange.length),
       icon: Send,
       hint: fill(t('anPostsHint'), { range: range.label }),
     },
@@ -429,7 +471,21 @@ export default function AnalyticsDashboard({
 
   const topPosts: TopPost[] = useMemo(() => {
     const rows: TopPost[] = [];
-    for (const p of sent) {
+    for (const r of nativeInRange) {
+      const agg = addStats(emptyTotals(), r);
+      rows.push({
+        ...agg,
+        id: `native:${r.id}`,
+        title: r.body?.slice(0, 60) || providerMeta(r.provider).label,
+        sentAt: r.posted_at,
+        providers: [r.provider as ProviderKey],
+        accounts: [{ provider: r.provider, avatar: avatarOf(r.channel_id) }],
+        interactions: interactionsOf(agg),
+        native: true,
+        href: r.url ?? undefined,
+      });
+    }
+    for (const p of sentInScope) {
       const agg = statsByPost.get(p.id) ?? emptyTotals();
       const providers = [...new Set((p.post_targets ?? []).map((t) => t.provider))];
       rows.push({
@@ -449,11 +505,14 @@ export default function AnalyticsDashboard({
         : (new Date(a.sentAt ?? 0).getTime() - new Date(b.sentAt ?? 0).getTime()) * dir,
     );
     return rows.slice(0, 5);
-  }, [sent, statsByPost, topSort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sentInScope, nativeInRange, statsByPost, topSort]);
 
   // ---- channel performance table (latest snapshots, channel-filtered) ----
   const totalsBy = new Map<string, EngagementTotals>();
-  for (const r of statsScoped) totalsBy.set(r.channel_id, addStats(totalsBy.get(r.channel_id) ?? emptyTotals(), r));
+  for (const r of [...statsScoped, ...nativeScoped]) {
+    totalsBy.set(r.channel_id, addStats(totalsBy.get(r.channel_id) ?? emptyTotals(), r));
+  }
   const perfRows = channels
     .filter((c) => c.status === 'connected' || c.status === 'expired')
     .filter((c) => chanSel.length === 0 || chanSel.includes(c.id))
@@ -473,7 +532,7 @@ export default function AnalyticsDashboard({
         fetchedAt: snap?.fetched_at ?? null,
       };
     })
-    .filter((r) => r.sent > 0 || r.followers !== null);
+    .filter((r) => r.sent > 0 || r.followers !== null || totalsBy.has(r.channelId));
   const chanEng = (r: EngagementTotals & { followers: number | null }): string | null => {
     const pct = engagementRate(interactionsOf(r), r.followers);
     return pct === null ? null : `${pct.toFixed(1)}%`;
@@ -496,11 +555,16 @@ export default function AnalyticsDashboard({
       const values = followerSeries(buckets, captures);
       return buckets.map((b, i) => ({ label: label(b.start), value: values[i] }));
     }
-    const events = sent.flatMap((p) => {
-      const at = p.sent_at ? new Date(p.sent_at).getTime() : Number.NaN;
-      if (!Number.isFinite(at)) return [];
-      return [{ at, value: perfMetric === 'posts' ? 1 : interactionsOf(statsByPost.get(p.id)) }];
-    });
+    const events = [
+      ...sentInScope.map((p) => ({
+        at: p.sent_at ? new Date(p.sent_at).getTime() : Number.NaN,
+        value: perfMetric === 'posts' ? 1 : interactionsOf(statsByPost.get(p.id)),
+      })),
+      ...nativeInRange.map((r) => ({
+        at: r.posted_at ? new Date(r.posted_at).getTime() : Number.NaN,
+        value: perfMetric === 'posts' ? 1 : interactionsOf(r),
+      })),
+    ].filter((e) => Number.isFinite(e.at));
     const filled = fillBuckets(buckets, events);
     if (perfMetric === 'engagement') {
       return filled.map((b) => {
@@ -509,7 +573,8 @@ export default function AnalyticsDashboard({
       });
     }
     return filled.map((b) => ({ label: label(b.start), value: b.value }));
-  }, [sent, statsByPost, range, perfMetric, followers, hasFollowers, followerHistoryScoped, chanStatsScoped]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sentInScope, nativeInRange, statsByPost, range, perfMetric, followers, hasFollowers, followerHistoryScoped, chanStatsScoped]);
   const perfXInterval = Math.max(0, Math.ceil(perfSeries.length / 8) - 1);
   const perfDesc: Record<PerfMetric, string> = {
     posts: t('anXDescPosts'),
@@ -790,6 +855,19 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
             );
           })}
         </div>
+        <div className="shrink-0 lg:ml-auto">
+          <SegmentedPills
+            ariaLabel={t('anSrcAria')}
+            size="sm"
+            value={source}
+            onChange={setSource}
+            options={[
+              { value: 'all' as const, label: t('anSrcAll') },
+              { value: 'sosial' as const, label: t('anSrcSosial') },
+              { value: 'native' as const, label: t('anSrcNative') },
+            ]}
+          />
+        </div>
       </div>
 
       {/* Hero: the four numbers as tabs over one chart, like a real analytics
@@ -896,6 +974,10 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                     <button
                       type="button"
                       onClick={() => {
+                        if (p.native) {
+                          if (p.href) window.open(p.href, '_blank', 'noopener,noreferrer');
+                          return;
+                        }
                         const fullPost = sent.find((s) => s.id === p.id);
                         if (fullPost) {
                           openPreview(fullPost, p);
@@ -911,6 +993,9 @@ ${topPosts.map((p) => `<tr>${[p.title.slice(0, 90), p.sentAt ? new Date(p.sentAt
                         <span className="block truncate text-sm font-bold group-hover:underline">{p.title || t('untitled')}</span>
                         <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
                           <span>{fmtDate(p.sentAt, locale)}</span>
+                          {p.native ? (
+                            <span className="pill border border-line bg-paper font-bold text-muted">{t('anSrcNative')}</span>
+                          ) : null}
                           <span className="inline-flex items-center gap-1">
                             <Heart className="h-3 w-3" aria-hidden="true" />
                             {full(p.likes)}

@@ -219,7 +219,10 @@ export default function DashboardScreen({ team, onConnect, onPost, onAnalytics }
           );
           const engagement = a.postStats
             .filter((r) => recentPosts.has(r.post_id) && live7.has(r.channel_id))
-            .reduce((n, r) => n + interactionsOf(r), 0);
+            .reduce((n, r) => n + interactionsOf(r), 0) +
+            a.nativePosts
+              .filter((r) => r.posted_at && Date.parse(r.posted_at) >= since && live7.has(r.channel_id))
+              .reduce((n, r) => n + interactionsOf(r), 0);
           setSummary({ followers, engagement, hasFollowers });
         } catch {
           setSummary(null);

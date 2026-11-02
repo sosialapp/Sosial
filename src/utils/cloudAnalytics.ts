@@ -62,12 +62,30 @@ export interface CloudFollowerHistoryRow {
   captured_on: string;
 }
 
+/** A post made directly on the platform (p120 channel_posts) with its latest
+ *  numbers. Only rows Sosial didn't publish, so nothing is counted twice. */
+export interface CloudNativePost {
+  id: string;
+  channel_id: string;
+  provider: string;
+  url: string | null;
+  body: string | null;
+  posted_at: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  clicks: number;
+  views: number | null;
+}
+
 export interface CloudAnalytics {
   posts: CloudPost[];
   channels: CloudChannel[];
   postStats: CloudStatRow[];
   channelStats: CloudFollowerRow[];
   followerHistory: CloudFollowerHistoryRow[];
+  nativePosts: CloudNativePost[];
 }
 
 export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
@@ -78,7 +96,7 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
 
   // Same window as the web loader (apps/web analytics/page.tsx).
   const historyFloor = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
-  const [postsQ, chansQ, statsQ, folQ, histQ] = await Promise.all([
+  const [postsQ, chansQ, statsQ, folQ, histQ, nativeQ] = await Promise.all([
     sb
       .from('posts')
       .select('id, title, body, status, sent_at, scheduled_at, created_at, post_targets(id, provider, channel_id, status)')
@@ -111,6 +129,14 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
       .select('channel_id, followers, captured_on')
       .eq('workspace_id', wsId)
       .gte('captured_on', historyFloor),
+    // Web parity (analytics/page.tsx). Empty before migration p120.
+    sb
+      .from('channel_posts')
+      .select('id, channel_id, provider, url, body, posted_at, likes, comments, shares, saves, clicks, views')
+      .eq('workspace_id', wsId)
+      .is('post_target_id', null)
+      .order('posted_at', { ascending: false })
+      .limit(3000),
   ]);
 
   return {
@@ -158,6 +184,20 @@ export async function fetchCloudAnalytics(): Promise<CloudAnalytics | null> {
       channel_id: String(r.channel_id),
       followers: r.followers == null ? null : Number(r.followers),
       captured_on: String(r.captured_on ?? ''),
+    })),
+    nativePosts: ((nativeQ.data ?? []) as any[]).map((r) => ({
+      id: String(r.id),
+      channel_id: String(r.channel_id),
+      provider: String(r.provider),
+      url: r.url ?? null,
+      body: r.body ?? null,
+      posted_at: r.posted_at ?? null,
+      likes: Number(r.likes ?? 0),
+      comments: Number(r.comments ?? 0),
+      shares: Number(r.shares ?? 0),
+      saves: Number(r.saves ?? 0),
+      clicks: Number(r.clicks ?? 0),
+      views: r.views == null ? null : Number(r.views),
     })),
   };
 }

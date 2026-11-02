@@ -732,6 +732,10 @@ const en: Messages = {
   aChartBar: 'Bar',
   dConnectedAccts: 'Connected accounts',
   aInterNote: 'Interactions are likes and reactions, comments, shares, saves and clicks from your audience. Your own replies and likes don’t count.',
+  aSrcAria: 'Post source',
+  aSrcAll: 'All posts',
+  aSrcSosial: 'Sent with Sosial',
+  aSrcNative: 'Posted directly',
 };
 
 const es: Messages = {
@@ -1394,6 +1398,10 @@ const es: Messages = {
   aChartBar: 'Barras',
   dConnectedAccts: 'Cuentas conectadas',
   aInterNote: 'Las interacciones son me gusta y reacciones, comentarios, compartidos, guardados y clics de tu audiencia. Tus propias respuestas y me gusta no cuentan.',
+  aSrcAria: 'Origen de las publicaciones',
+  aSrcAll: 'Todas',
+  aSrcSosial: 'Enviadas con Sosial',
+  aSrcNative: 'Publicadas directamente',
 };
 
 const fr: Messages = {
@@ -2056,6 +2064,10 @@ const fr: Messages = {
   aChartBar: 'Barres',
   dConnectedAccts: 'Comptes connectés',
   aInterNote: 'Les interactions sont les j’aime et réactions, commentaires, partages, enregistrements et clics de votre audience. Vos propres réponses et j’aime ne comptent pas.',
+  aSrcAria: 'Origine des publications',
+  aSrcAll: 'Toutes',
+  aSrcSosial: 'Envoyées avec Sosial',
+  aSrcNative: 'Publiées directement',
 };
 
 const de: Messages = {
@@ -2718,6 +2730,10 @@ const de: Messages = {
   aChartBar: 'Balken',
   dConnectedAccts: 'Verbundene Konten',
   aInterNote: 'Interaktionen sind Likes und Reaktionen, Kommentare, Shares, Speicherungen und Klicks deines Publikums. Eigene Antworten und Likes zählen nicht.',
+  aSrcAria: 'Herkunft der Beiträge',
+  aSrcAll: 'Alle Beiträge',
+  aSrcSosial: 'Mit Sosial gesendet',
+  aSrcNative: 'Direkt gepostet',
 };
 
 const ja: Messages = {
@@ -3380,6 +3396,10 @@ const ja: Messages = {
   aChartBar: '棒',
   dConnectedAccts: '接続済みアカウント',
   aInterNote: 'インタラクションはオーディエンスによるいいね・リアクション、コメント、シェア、保存、クリックです。自分の返信やいいねは含みません。',
+  aSrcAria: '投稿の種類',
+  aSrcAll: 'すべての投稿',
+  aSrcSosial: 'Sosialから送信',
+  aSrcNative: '直接投稿',
 };
 
 const ko: Messages = {
@@ -4042,6 +4062,10 @@ const ko: Messages = {
   aChartBar: '막대',
   dConnectedAccts: '연결된 계정',
   aInterNote: '상호작용은 오디언스의 좋아요와 반응, 댓글, 공유, 저장, 클릭입니다. 내 답글과 좋아요는 포함되지 않아요.',
+  aSrcAria: '게시물 출처',
+  aSrcAll: '모든 게시물',
+  aSrcSosial: 'Sosial로 보냄',
+  aSrcNative: '직접 게시',
 };
 
 const zh: Messages = {
@@ -4704,6 +4728,10 @@ const zh: Messages = {
   aChartBar: '柱状',
   dConnectedAccts: '已连接账号',
   aInterNote: '互动是受众的点赞和回应、评论、分享、收藏和点击。你自己的回复和点赞不计入。',
+  aSrcAria: '帖子来源',
+  aSrcAll: '全部帖子',
+  aSrcSosial: '通过 Sosial 发送',
+  aSrcNative: '直接发布',
 };
 
 const DICTS: Record<string, Messages> = { en, es, fr, de, ja, ko, zh };
