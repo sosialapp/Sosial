@@ -12,7 +12,7 @@ import { httpJson, httpError, withParams } from './http';
 import { isoDate, mediaKind, previewText } from './postPreview';
 import type {
   Account, Page, NormalizedConversation, NormalizedMessage, NormalizedComment,
-  SendResult, Capabilities, InboxAdapter, OwnPost,
+  SendResult, Capabilities, InboxAdapter, OwnPost, NewReply,
 } from './types';
 
 const X = 'https://api.x.com/2';
@@ -69,6 +69,11 @@ function readPage(data: any): DmPage {
   };
 }
 
+/** DM events read on a routine sweep. Only the head matters there (a new
+ *  message is always the newest event); older conversations are already
+ *  stored, and every event returned counts against the account's reads. */
+const DM_HEAD_EVENTS = 25;
+
 /** One paged read of the account's DM events (newest first), used to collage
  *  the conversation list (X has no working conversation list on most tiers). */
 async function dmEventsPage(account: Account, cursor: string | null): Promise<DmPage> {
@@ -78,7 +83,7 @@ async function dmEventsPage(account: Account, cursor: string | null): Promise<Dm
     expansions: DM_EXPANSIONS,
     'user.fields': USER_FIELDS,
     'media.fields': 'url,preview_image_url',
-    max_results: 100,
+    max_results: cursor ? 100 : DM_HEAD_EVENTS,
     ...(cursor ? { pagination_token: cursor } : {}),
   });
   const r = await httpJson({ url, provider: 'x', headers: auth(account.token) });
@@ -108,6 +113,26 @@ async function dmConvoPage(account: Account, convoId: string, cursor: string | n
   if (r.status !== 200 && r.status !== 201) throw httpError('X messages', r.data, r.status);
   return readPage(r.data);
 }
+
+/** First read on a channel with no saved position: just enough to seed it. */
+const MENTIONS_FIRST_READ = 20;
+/** Pages per sweep when a lot arrived since the last one. */
+const MENTIONS_MAX_PAGES = 3;
+
+const commentOf = (c: any, users: Map<string, any>, meId: string): NormalizedComment => {
+  const u = users.get(String(c.author_id));
+  const refs = Array.isArray(c?.referenced_tweets) ? c.referenced_tweets : [];
+  const replied = refs.find((ref: any) => ref?.type === 'replied_to');
+  return {
+    externalId: String(c.id),
+    parentExternalId: replied?.id ? String(replied.id) : null,
+    authorName: u?.username ? `@${u.username}` : 'X user',
+    authorAvatar: u?.profile_image_url ?? null,
+    body: typeof c.text === 'string' ? c.text : '',
+    createdAt: c?.created_at ?? new Date().toISOString(),
+    isOwn: String(c.author_id) === meId,
+  };
+};
 
 const eventIdOf = (e: XEvent): string => String(e?.id ?? '');
 const convoIdOf = (e: XEvent): string => String(e?.dm_conversation_id ?? e?.conversation_id ?? '');
@@ -247,23 +272,55 @@ export const x: InboxAdapter = {
       // The root tweet comes back with its own thread; replies we posted are
       // kept but flagged as ours so the UI can render them as "You".
       .filter((c: any) => String(c.id) !== postId)
-      .map((c: any): NormalizedComment => {
-        const u = users.get(String(c.author_id));
-        return {
-          externalId: String(c.id),
-          parentExternalId: ((): string | null => {
-            const refs = Array.isArray(c?.referenced_tweets) ? c.referenced_tweets : [];
-            const replied = refs.find((ref: any) => ref?.type === 'replied_to');
-            return replied?.id ? String(replied.id) : null;
-          })(),
-          authorName: u?.username ? `@${u.username}` : 'X user',
-          authorAvatar: u?.profile_image_url ?? null,
-          body: typeof c.text === 'string' ? c.text : '',
-          createdAt: c?.created_at ?? new Date().toISOString(),
-          isOwn: String(c.author_id) === account.externalId,
-        };
-      });
+      .map((c: any) => commentOf(c, users, account.externalId));
     return { items, cursor: r.data?.meta?.next_token ?? null };
+  },
+
+  /**
+   * Replies since the last sweep, from the account's mentions timeline (a
+   * reply always mentions the account it answers). One read per sweep, and
+   * X only bills the posts it returns, so a quiet account costs nothing.
+   * The per-thread search (listComments) read up to 20 threads every sweep
+   * and billed every reply each time, new or not.
+   */
+  async listNewReplies(account, sinceId) {
+    const meId = account.externalId;
+    const items: NewReply[] = [];
+    let newestId: string | null = null;
+    let cursor: string | null = null;
+    for (let page = 0; page < (sinceId ? MENTIONS_MAX_PAGES : 1); page++) {
+      const r: { status: number; data: any } = await httpJson({
+        provider: 'x',
+        url: withParams(`${X}/users/${encodeURIComponent(meId)}/mentions`, {
+          max_results: sinceId ? 100 : MENTIONS_FIRST_READ,
+          'tweet.fields': 'created_at,conversation_id,in_reply_to_user_id,referenced_tweets,author_id',
+          expansions: 'author_id',
+          'user.fields': USER_FIELDS,
+          since_id: sinceId ?? undefined,
+          pagination_token: cursor ?? undefined,
+        }),
+        headers: auth(account.token),
+      });
+      if (r.status === 403) {
+        throw httpError('X comments', { error: { message: 'X refused the replies read (403) — this app needs read access on the X API tier. Check the X dashboard.' } }, r.status);
+      }
+      if (r.status !== 200 && r.status !== 201) throw httpError('X comments', r.data, r.status);
+      if (page === 0) newestId = r.data?.meta?.newest_id ? String(r.data.meta.newest_id) : null;
+      const users = new Map<string, any>((r.data?.includes?.users ?? []).map((u: any) => [String(u.id), u]));
+      for (const t of Array.isArray(r.data?.data) ? r.data.data : []) {
+        const postId = String(t?.conversation_id ?? '');
+        if (!postId || String(t.id) === postId) continue; // a fresh post mentioning us, not a reply
+        const c = commentOf(t, users, meId);
+        items.push({
+          ...c,
+          postId,
+          directToRoot: String(t?.in_reply_to_user_id ?? '') === meId && c.parentExternalId === postId,
+        });
+      }
+      cursor = r.data?.meta?.next_token ?? null;
+      if (!cursor) break;
+    }
+    return { items, newestId };
   },
 
   async replyToComment(account, commentId, content): Promise<SendResult> {

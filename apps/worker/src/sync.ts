@@ -16,13 +16,15 @@ import { restPatch } from './rest';
 import { adapterFor } from './adapters';
 import { facebookCommentExtras } from './adapters/facebook';
 import { instagramCommentExtras } from './adapters/instagram';
-import type { Account, NormalizedComment, OwnPost } from './adapters/types';
+import type { Account, InboxAdapter, NormalizedComment, OwnPost } from './adapters/types';
 import { ensureToken as ensureXToken } from './x';
 import { ensureToken as ensureYtToken } from './youtube';
 import { ensureToken as ensureThreadsToken } from './threads';
 import { debug, info, warn } from './logger';
 import { reconnectMessage } from './channelAuth';
 import { autoReplySendAllowed } from './autoReply';
+import { threadNeedsRead } from './cadence';
+import { budgetSpent, inBackoff } from './usage';
 
 /* ----------------------------- channel loading ---------------------------- */
 
@@ -36,6 +38,8 @@ interface DbChannel {
   display_name?: string | null;
   status?: string;
   metadata: Record<string, any> | null;
+  api_backoff_until?: string | null;
+  comments_cursor?: string | null;
   channel_tokens:
     | { access_token_secret_id: string | null; refresh_token_secret_id: string | null; expires_at: string | null }
     | { access_token_secret_id: string | null; refresh_token_secret_id: string | null; expires_at: string | null }[]
@@ -47,7 +51,7 @@ const UNIFIED_PROVIDERS = ['facebook', 'instagram', 'mastodon', 'x', 'bluesky', 
 async function loadChannel(channelId: string): Promise<DbChannel | null> {
   const rows = await rest<DbChannel[]>(
     `/rest/v1/connected_channels?id=eq.${encodeURIComponent(channelId)}` +
-      `&select=id,workspace_id,provider,external_id,instance_url,handle,display_name,metadata,channel_tokens(access_token_secret_id,refresh_token_secret_id,expires_at)`,
+      `&select=id,workspace_id,provider,external_id,instance_url,handle,display_name,status,metadata,api_backoff_until,comments_cursor,channel_tokens(access_token_secret_id,refresh_token_secret_id,expires_at)`,
   );
   return rows?.[0] ?? null;
 }
@@ -176,6 +180,10 @@ export async function handleSyncInbox(job: Job): Promise<void> {
   const c = await loadChannel(channelId);
   if (!c) { debug(`channel ${channelId} gone`); return; }
   if (c.status && c.status !== 'connected') return;
+  if (inBackoff(c.api_backoff_until)) {
+    debug(`sync_inbox channel ${channelId}: ${c.provider} API backoff until ${c.api_backoff_until}`);
+    return;
+  }
   if (!UNIFIED_PROVIDERS.includes(c.provider)) {
     throw new Error(
       `Unified Inbox for ${c.provider} is coming in the next release.`,
@@ -258,6 +266,9 @@ export async function handleSyncInbox(job: Job): Promise<void> {
   debug(`sync_inbox channel ${channelId}: ${inserted.length} new, ${known?.length ?? 0} tracked`);
 
   for (const conv of incoming) {
+    // A usage header said the window is nearly full: stop reading, the
+    // sweep after the backoff picks up where this one stopped.
+    if (budgetSpent()) break;
     const row = byExternal.get(conv.externalId);
     if (!row) continue;
     // Skip unchanged conversations: the newest message is the same one we
@@ -426,6 +437,142 @@ async function cachePostContext(
   }
 }
 
+/** Platforms whose post-list comment count includes replies to comments, so
+ *  an unchanged count means an unchanged thread. Bluesky and Mastodon count
+ *  direct replies only and Threads only says "has replies"; those fall back
+ *  to an age-based cadence (cadence.ts). */
+const COUNT_COVERS_REPLIES = new Set(['facebook', 'instagram', 'youtube']);
+
+interface ThreadRow {
+  external_id: string;
+  comment_count: number | null;
+  comments_synced_at: string | null;
+  posted_at: string | null;
+}
+
+const quoteIn = (ids: string[]): string => ids.map((id) => `"${encodeURIComponent(id)}"`).join(',');
+
+/** What the last read of each thread saw (p123 columns on comment_posts). */
+async function threadRows(channelId: string, ids: string[]): Promise<Map<string, ThreadRow>> {
+  const out = new Map<string, ThreadRow>();
+  for (let i = 0; i < ids.length; i += 50) {
+    const rows = await rest<ThreadRow[]>(
+      `/rest/v1/comment_posts?channel_id=eq.${encodeURIComponent(channelId)}` +
+        `&external_id=in.(${quoteIn(ids.slice(i, i + 50))})` +
+        `&select=external_id,comment_count,comments_synced_at,posted_at`,
+    ).catch(() => [] as ThreadRow[]);
+    for (const r of rows ?? []) out.set(String(r.external_id), r);
+  }
+  return out;
+}
+
+/** Remember what a thread read saw, so the next sweep can skip it. */
+async function markThreadsRead(
+  c: DbChannel,
+  rows: { external_id: string; comment_count: number | null }[],
+): Promise<void> {
+  if (!rows.length) return;
+  const now = new Date().toISOString();
+  try {
+    await rest('/rest/v1/comment_posts?on_conflict=channel_id,external_id', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal,resolution=merge-duplicates' },
+      body: JSON.stringify(rows.map((r) => ({
+        workspace_id: c.workspace_id,
+        channel_id: c.id,
+        platform: c.provider,
+        external_id: r.external_id,
+        comment_count: r.comment_count,
+        comments_synced_at: now,
+      }))),
+    });
+  } catch (e: any) {
+    warn(`sync_comments channel ${c.id}: thread state write failed (${String(e?.message ?? e).slice(0, 120)})`);
+  }
+}
+
+/** Store one thread's comments; returns how many were genuinely new. */
+async function storeComments(c: DbChannel, remoteId: string, rows: NormalizedComment[]): Promise<number> {
+  if (!rows.length) return 0;
+  // Unique (platform, external_id): duplicates are live comments, the
+  // returned list is exactly the genuinely-new ones. Our own replies are
+  // stored too (is_own), so the thread reads like the platform thread.
+  const newRows = await restInsert<any>('comments',
+    rows.map((cm) => ({
+      workspace_id: c.workspace_id,
+      channel_id: c.id,
+      platform: c.provider,
+      external_post_id: remoteId,
+      external_id: cm.externalId,
+      parent_external_id: cm.parentExternalId,
+      author_name: cm.authorName,
+      author_avatar: cm.authorAvatar,
+      body: cm.body,
+      created_at: cm.createdAt,
+      is_own: !!cm.isOwn,
+      status: cm.isOwn ? 'replied' : 'new',
+    })), { onConflict: 'platform,external_id' });
+
+  await refreshAvatars('comments', 'author_avatar', c.provider,
+    rows.map((cm) => ({ externalId: cm.externalId, avatar: cm.authorAvatar })));
+
+  // Badges replace the old per-comment bell, so nothing is inserted into
+  // notifications here; community_unseen() counts these rows directly.
+  return newRows.length;
+}
+
+/**
+ * X: one mentions read since the last sweep instead of a search per thread.
+ * Keeps replies in threads we know (posts Sosial published, threads already
+ * in the inbox) and direct replies to our own root posts; anything else in
+ * the mentions timeline is someone else's conversation.
+ */
+async function syncNewReplies(c: DbChannel, adapter: InboxAdapter, account: Account): Promise<void> {
+  const res = await adapter.listNewReplies!(account, c.comments_cursor ?? null);
+  if (res.items.length) {
+    const [targets, threads] = await Promise.all([
+      rest<CommentTarget[]>(
+        `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(c.id)}&status=eq.sent&remote_id=not.is.null` +
+          `&select=remote_id,remote_url,post_id&order=sent_at.desc.nullslast&limit=500`,
+      ).catch(() => [] as CommentTarget[]),
+      rest<{ external_id: string }[]>(
+        `/rest/v1/comment_posts?channel_id=eq.${encodeURIComponent(c.id)}&select=external_id&limit=5000`,
+      ).catch(() => [] as { external_id: string }[]),
+    ]);
+    // A Sosial thread is saved as "id1,id2,..."; each part is its own post.
+    const targetById = new Map<string, CommentTarget>();
+    for (const t of targets ?? []) {
+      for (const part of String(t.remote_id ?? '').split(',')) {
+        if (part.trim()) targetById.set(part.trim(), { ...t, remote_id: part.trim() });
+      }
+    }
+    const cached = new Set((threads ?? []).map((r) => String(r.external_id)));
+    const byPost = new Map<string, NormalizedComment[]>();
+    for (const r of res.items) {
+      if (!r.directToRoot && !targetById.has(r.postId) && !cached.has(r.postId)) continue;
+      const list = byPost.get(r.postId) ?? [];
+      list.push(r);
+      byPost.set(r.postId, list);
+    }
+    // Context for threads the inbox hasn't seen yet; known ones keep theirs.
+    const unseen = [...byPost.keys()].filter((id) => !cached.has(id));
+    if (unseen.length) {
+      await cachePostContext(
+        c,
+        unseen.map((id) => targetById.get(id) ?? { remote_id: id, remote_url: `https://x.com/i/status/${id}` }),
+        new Map(),
+      );
+    }
+    let added = 0;
+    for (const [postId, rows] of byPost) added += await storeComments(c, postId, rows);
+    await markThreadsRead(c, [...byPost.keys()].map((id) => ({ external_id: id, comment_count: null })));
+    debug(`sync_comments channel ${c.id}: ${res.items.length} mentions, ${byPost.size} threads, ${added} new`);
+  }
+  if (res.newestId && res.newestId !== c.comments_cursor) {
+    await restPatch('connected_channels', c.id, { comments_cursor: res.newestId });
+  }
+}
+
 export async function handleSyncComments(job: Job): Promise<void> {
   const channelId = String(job.payload?.channel_id ?? '');
   if (!channelId) throw new Error(`job ${job.id}: missing channel_id`);
@@ -434,6 +581,10 @@ export async function handleSyncComments(job: Job): Promise<void> {
   const c = await loadChannel(channelId);
   if (!c) { debug(`channel ${channelId} gone`); return; }
   if (c.status && c.status !== 'connected') return;
+  if (inBackoff(c.api_backoff_until)) {
+    debug(`sync_comments channel ${channelId}: ${c.provider} API backoff until ${c.api_backoff_until}`);
+    return;
+  }
   if (!UNIFIED_PROVIDERS.includes(c.provider)) {
     throw new Error(
       `Unified comments for ${c.provider} are coming in the next release.`,
@@ -445,36 +596,60 @@ export async function handleSyncComments(job: Job): Promise<void> {
   if (!adapter.capabilities().comments) {
     throw new Error(`Unified comments for ${c.provider} are not supported yet.`);
   }
+  if (adapter.listNewReplies) return syncNewReplies(c, adapter, account);
 
-  // Comment sources = published posts (remote ids). Phase 1 covers the
-  // newest 20 posts per sweep; older threads resync on demand.
-  const targets = await rest<CommentTarget[]>(
+  // Comment sources = the newest posts Sosial published, plus (when the
+  // platform lets us enumerate the account timeline) any own post that has
+  // replies - comments on posts published outside Sosial belong in the same
+  // inbox.
+  const targets = await rest<(CommentTarget & { sent_at?: string | null })[]>(
     `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(c.id)}&provider=eq.${encodeURIComponent(c.provider)}` +
-      `&status=eq.sent&remote_id=not.is.null&select=remote_id,remote_url,post_id&limit=${COMMENTS_POSTS_PER_SWEEP}`,
+      `&status=eq.sent&remote_id=not.is.null&select=remote_id,remote_url,post_id,sent_at` +
+      `&order=sent_at.desc.nullslast&limit=${COMMENTS_POSTS_PER_SWEEP}`,
   );
 
-  // Threads to read: posts Sosial published, plus (when the platform lets us
-  // enumerate the account timeline) any own post that already has replies -
-  // comments on posts published outside Sosial belong in the same inbox.
   const remoteIds = new Set<string>();
   const fromPlatform = new Map<string, OwnPost>();
+  const counts = new Map<string, number>();
+  const postedAt = new Map<string, string>();
   for (const t of targets ?? []) {
     const id = String(t.remote_id ?? '');
-    if (id) remoteIds.add(id);
+    if (!id) continue;
+    remoteIds.add(id);
+    if (t.sent_at) postedAt.set(id, t.sent_at);
   }
   if (adapter.listOwnPosts) {
     try {
       const own = await adapter.listOwnPosts(account, COMMENTS_POSTS_PER_SWEEP);
       for (const p of own) {
         fromPlatform.set(p.externalId, p);
+        counts.set(p.externalId, p.commentCount);
+        if (p.postedAt) postedAt.set(p.externalId, p.postedAt);
         if (p.commentCount > 0) remoteIds.add(p.externalId);
       }
-      debug(`sync_comments channel ${channelId}: ${own.length} own posts, ${remoteIds.size} threads`);
     } catch (e: any) {
       warn(`sync_comments channel ${channelId}: own posts unavailable (${String(e?.message ?? e).slice(0, 120)})`);
     }
   }
   if (!remoteIds.size) { debug(`sync_comments channel ${channelId}: no posts`); return; }
+
+  // Read only threads that can have changed: the count moved, or (where the
+  // count can't tell) the post is due by age. Every sweep used to read every
+  // thread, which used up Instagram's hourly calls and YouTube's daily quota.
+  const stored = await threadRows(c.id, [...remoteIds]);
+  const covers = COUNT_COVERS_REPLIES.has(c.provider);
+  const due = [...remoteIds].filter((id) => {
+    const row = stored.get(id);
+    return threadNeedsRead({
+      count: counts.has(id) ? counts.get(id)! : null,
+      storedCount: row?.comment_count ?? null,
+      syncedAt: row?.comments_synced_at ?? null,
+      postedAt: postedAt.get(id) ?? row?.posted_at ?? null,
+      countCoversReplies: covers,
+    });
+  });
+  debug(`sync_comments channel ${channelId}: ${remoteIds.size} threads, ${due.length} to read`);
+  if (!due.length) return;
 
   // What each thread is about, cached before the per-thread reads so a
   // comment failure still leaves the strip drawable. Posts published outside
@@ -486,13 +661,17 @@ export async function handleSyncComments(job: Job): Promise<void> {
   }
   await cachePostContext(
     c,
-    [...remoteIds].map((id) => targetByRemote.get(id) ?? { remote_id: id }),
+    due.map((id) => targetByRemote.get(id) ?? { remote_id: id }),
     fromPlatform,
   );
 
   let failed = 0;
   let firstError: unknown = null;
-  for (const remoteId of remoteIds) {
+  const read: { external_id: string; comment_count: number | null }[] = [];
+  for (const remoteId of due) {
+    // A usage header said the window is nearly full: stop here. The rest
+    // stays due and is read after the backoff.
+    if (budgetSpent()) break;
     let flat: NormalizedComment[];
     try {
       let page = await adapter.listComments(account, remoteId, null);
@@ -509,44 +688,17 @@ export async function handleSyncComments(job: Job): Promise<void> {
       warn(`sync_comments channel ${channelId}: post ${remoteId} unreadable (${String(e?.message ?? e).slice(0, 120)})`);
       continue;
     }
-    const rows: NormalizedComment[] = flat.map((cm) => ({
-      ...cm,
-      externalId: cm.externalId,
-      parentExternalId: cm.parentExternalId,
-      body: cm.body,
-    }));
-    if (!rows.length) continue;
-
-    // Unique (platform, external_id): duplicates are live comments, the
-    // returned list is exactly the genuinely-new ones. Our own replies are
-    // stored too (is_own), so the thread reads like the platform thread.
-    const newRows = await restInsert<any>('comments',
-      rows.map((cm) => ({
-        workspace_id: c.workspace_id,
-        channel_id: c.id,
-        platform: c.provider,
-        external_post_id: remoteId,
-        external_id: cm.externalId,
-        parent_external_id: cm.parentExternalId,
-        author_name: cm.authorName,
-        author_avatar: cm.authorAvatar,
-        body: cm.body,
-        created_at: cm.createdAt,
-        is_own: !!cm.isOwn,
-        status: cm.isOwn ? 'replied' : 'new',
-      })), { onConflict: 'platform,external_id' });
-
-    await refreshAvatars('comments', 'author_avatar', c.provider,
-      rows.map((cm) => ({ externalId: cm.externalId, avatar: cm.authorAvatar })));
-
-    // Badges replace the old per-comment bell, so nothing is inserted into
-    // notifications here; community_unseen() counts these rows directly.
-    void newRows;
-    debug(`sync_comments channel ${channelId} post ${remoteId}: ${rows.length} seen, ${newRows.length} new`);
+    const added = await storeComments(c, remoteId, flat);
+    read.push({
+      external_id: remoteId,
+      comment_count: counts.has(remoteId) ? counts.get(remoteId)! : stored.get(remoteId)?.comment_count ?? null,
+    });
+    debug(`sync_comments channel ${channelId} post ${remoteId}: ${flat.length} seen, ${added} new`);
   }
+  await markThreadsRead(c, read);
 
   // Nothing readable at all is an auth/permission failure, not a dead post.
-  if (failed && failed === remoteIds.size) throw firstError;
+  if (failed && failed === due.length) throw firstError;
 }
 
 

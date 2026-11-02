@@ -51,7 +51,10 @@ import {
   handleModerateComment,
 } from './sync';
 import { handleAutoReply } from './autoReply';
-import { info, debug } from './logger';
+import { RateLimited } from './adapters/http';
+import { restPatch } from './rest';
+import { runTracked } from './usage';
+import { info, debug, warn } from './logger';
 
 function notPorted(kind: string): Error {
   return new Error(`job kind '${kind}' not ported yet, see apps/worker/README.md`);
@@ -355,19 +358,47 @@ async function handleSendInvite(job: Job): Promise<void> {
   debug(`invite ${inviteId} resent to ${inv.email}`);
 }
 
+/**
+ * Background reads (analytics, comment and DM sweeps) run with usage
+ * tracking (usage.ts). When a platform says a window is nearly full or
+ * answers 429, the channel's background reads pause until it resets
+ * (api_backoff_until, which the schedulers also skip), and a rate-limited
+ * job completes instead of retrying: a retry only spends more of the same
+ * window. Publishing and user replies are never tracked or held.
+ */
+async function tracked(job: Job, run: (job: Job) => Promise<void>): Promise<void> {
+  const channelId = String(job.payload?.channel_id ?? '');
+  const { tracker, error } = await runTracked(() => run(job));
+  if (channelId && tracker.until !== null) {
+    const until = new Date(tracker.until).toISOString();
+    info(`${job.kind} channel ${channelId}: ${tracker.reason}, background reads paused until ${until}`);
+    try {
+      await restPatch('connected_channels', channelId, { api_backoff_until: until });
+    } catch (e: any) {
+      warn(`${job.kind} channel ${channelId}: could not save API backoff (${String(e?.message ?? e).slice(0, 120)})`);
+    }
+  }
+  if (error === undefined) return;
+  if (tracker.limited || error instanceof RateLimited) {
+    debug(`${job.kind} channel ${channelId}: rate limited, not retrying (job ${job.id})`);
+    return;
+  }
+  throw error;
+}
+
 export async function dispatch(job: Job): Promise<void> {
   switch (job.kind) {
     case 'publish_target': return handlePublishTarget(job);
     case 'refresh_token': return handleRefreshToken(job);
     case 'meta_subscribe': return handleMetaSubscribe(job);
-    case 'snapshot_analytics': return handleSnapshotAnalytics(job);
+    case 'snapshot_analytics': return tracked(job, handleSnapshotAnalytics);
     case 'cleanup_media': return handleCleanupMedia(job);
     case 'send_invite': return handleSendInvite(job);
     case 'sync_avatars': return handleSyncAvatars(job);
     case 'send_push': return handleSendPush(job);
     case 'delete_post_target': return handleDeletePostTarget(job);
-    case 'sync_inbox': return handleSyncInbox(job);
-    case 'sync_comments': return handleSyncComments(job);
+    case 'sync_inbox': return tracked(job, handleSyncInbox);
+    case 'sync_comments': return tracked(job, handleSyncComments);
     case 'send_message': return handleSendMessage(job);
     case 'reply_comment': return handleReplyComment(job);
     case 'moderate_comment': return handleModerateComment(job);

@@ -42,6 +42,8 @@ export interface ChannelRow {
   instance_url: string | null;
   metadata: Record<string, any> | null;
   status?: string;
+  /** Background reads wait until then (usage.ts). */
+  api_backoff_until?: string | null;
   channel_tokens: TokenRow | TokenRow[] | null;
 }
 

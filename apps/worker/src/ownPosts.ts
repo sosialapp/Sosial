@@ -8,9 +8,11 @@
  * Sosial published is matched on its saved remote_id and keeps post_target_id,
  * so analytics counts it once (through post_stats) and only adds the rest.
  *
- * Runs with every full analytics snapshot (daily + on-demand, at most hourly
- * per channel). Never throws: a provider that refuses just leaves the
- * previous rows in place.
+ * Runs with every full analytics tick (analytics_interval_minutes, p123).
+ * Most providers return the numbers with the list, one call for all posts;
+ * Threads and Pinterest pay a call per post, so posts not due by age
+ * (cadence.ts) keep their last numbers. Never throws: a provider that
+ * refuses just leaves the previous rows in place.
  *
  * X is left out on purpose: reading an account's own timeline is billed per
  * read on X's API. LinkedIn and Google Business have no per-post list here.
@@ -19,6 +21,8 @@ import { rest } from './db';
 import { pinContentApi, pinContentToken } from './pinterest';
 import { info, warn } from './logger';
 import type { ChannelRow, TokenRow } from './avatars';
+import { statsDue } from './cadence';
+import { budgetSpent, inBackoff } from './usage';
 import {
   DIRECT_REPLY_COUNTS,
   FB_GRAPH,
@@ -58,9 +62,55 @@ interface OwnPost {
   clicks: number;
   views: number | null;
   note?: string | null;
+  /** Numbers carried over from the last read (not due yet): keep its time. */
+  fetchedAt?: string | null;
 }
 
-const text = (v: unknown, max = 280): string | null => {
+/** The last snapshot of a post, for providers that pay a call per post. */
+interface PrevRow {
+  external_id: string;
+  posted_at: string | null;
+  fetched_at: string | null;
+  likes: number;
+  comments: number;
+  shares: number;
+  saves: number;
+  clicks: number;
+  views: number | null;
+  note: string | null;
+}
+
+type Reader = (c: ChannelRow, t: TokenRow, prev: Map<string, PrevRow>) => Promise<OwnPost[]>;
+
+async function prevRows(channelId: string): Promise<Map<string, PrevRow>> {
+  const rows = await rest<PrevRow[]>(
+    `/rest/v1/channel_posts?channel_id=eq.${encodeURIComponent(channelId)}` +
+      `&select=external_id,posted_at,fetched_at,likes,comments,shares,saves,clicks,views,note&order=posted_at.desc.nullslast&limit=200`,
+  ).catch(() => [] as PrevRow[]);
+  return new Map((rows ?? []).map((r) => [String(r.external_id), r]));
+}
+
+/**
+ * Per-post numbers that are not due yet (cadence.ts) come from the last
+ * snapshot instead of another platform call; null means "read it now".
+ */
+function carried(prev: Map<string, PrevRow>, id: string, postedAt: string | null): Pick<OwnPost, 'likes' | 'comments' | 'shares' | 'saves' | 'clicks' | 'views' | 'note' | 'fetchedAt'> | null {
+  const old = prev.get(id);
+  if (!old) return null;
+  if (statsDue(postedAt ?? old.posted_at, old.fetched_at) && !budgetSpent()) return null;
+  return {
+    likes: old.likes,
+    comments: old.comments,
+    shares: old.shares,
+    saves: old.saves,
+    clicks: old.clicks,
+    views: old.views,
+    note: old.note,
+    fetchedAt: old.fetched_at,
+  };
+}
+
+const text =(v: unknown, max = 280): string | null => {
   const s = typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '';
   return s ? s.slice(0, max) : null;
 };
@@ -147,7 +197,7 @@ async function instagramPosts(c: ChannelRow, t: TokenRow): Promise<OwnPost[]> {
   }));
 }
 
-async function threadsPosts(c: ChannelRow, t: TokenRow): Promise<OwnPost[]> {
+async function threadsPosts(c: ChannelRow, t: TokenRow, prev: Map<string, PrevRow>): Promise<OwnPost[]> {
   const tok = await accessToken(c, t);
   const fields = 'id,text,permalink,timestamp,media_type,media_url,thumbnail_url';
   const j = await jget(
@@ -157,15 +207,25 @@ async function threadsPosts(c: ChannelRow, t: TokenRow): Promise<OwnPost[]> {
   if (j?.error) throw new Error(j.error.message ?? 'threads posts read failed');
   const out: OwnPost[] = [];
   for (const p of Array.isArray(j?.data) ? j.data : []) {
-    // Numbers live on the per-post insights edge, same read as stats.ts.
-    const s = await statsFor(c, t, String(p.id)).catch(() => null);
-    out.push({
+    const base = {
       externalId: String(p.id),
       url: p?.permalink ?? null,
       body: text(p?.text),
       thumbnail: p?.thumbnail_url ?? p?.media_url ?? null,
       mediaKind: kind(p?.media_type),
       postedAt: iso(p?.timestamp),
+    };
+    // Numbers live on the per-post insights edge (one call per post), so
+    // posts that are not due keep their last numbers.
+    const kept = carried(prev, base.externalId, base.postedAt);
+    if (kept) {
+      out.push({ ...base, ...kept });
+      continue;
+    }
+    if (budgetSpent()) continue;
+    const s = await statsFor(c, t, String(p.id)).catch(() => null);
+    out.push({
+      ...base,
       likes: s?.likes ?? 0,
       comments: s?.comments ?? 0,
       shares: s?.shares ?? 0,
@@ -329,22 +389,32 @@ async function tiktokPosts(c: ChannelRow, t: TokenRow): Promise<OwnPost[]> {
   return out;
 }
 
-async function pinterestPosts(c: ChannelRow, t: TokenRow): Promise<OwnPost[]> {
+async function pinterestPosts(c: ChannelRow, t: TokenRow, prev: Map<string, PrevRow>): Promise<OwnPost[]> {
   const token = pinContentToken(await accessToken(c, t));
   const j = await jget(`${pinContentApi()}/pins?page_size=${PIN_LIMIT}`, { Authorization: `Bearer ${token}` });
   if (!Array.isArray(j?.items)) throw new Error(j?.message ?? 'pinterest pins read failed');
   const out: OwnPost[] = [];
   for (const p of j.items) {
-    // Same 30-day pin analytics read as stats.ts (saves, clicks, impressions).
-    const s = await statsFor(c, t, String(p.id)).catch(() => null);
     const images = p?.media?.images ?? {};
-    out.push({
+    const base = {
       externalId: String(p.id),
       url: p?.id ? `https://www.pinterest.com/pin/${p.id}/` : null,
       body: text(p?.title || p?.description),
       thumbnail: images['400x300']?.url ?? images['150x150']?.url ?? null,
       mediaKind: kind(p?.media?.media_type) ?? 'image',
       postedAt: iso(p?.created_at),
+    };
+    // One analytics call per pin: pins that are not due keep their numbers.
+    const kept = carried(prev, base.externalId, base.postedAt);
+    if (kept) {
+      out.push({ ...base, ...kept });
+      continue;
+    }
+    if (budgetSpent()) continue;
+    // Same 30-day pin analytics read as stats.ts (saves, clicks, impressions).
+    const s = await statsFor(c, t, String(p.id)).catch(() => null);
+    out.push({
+      ...base,
       likes: 0,
       comments: 0,
       shares: 0,
@@ -357,7 +427,7 @@ async function pinterestPosts(c: ChannelRow, t: TokenRow): Promise<OwnPost[]> {
   return out;
 }
 
-const READERS: Record<string, (c: ChannelRow, t: TokenRow) => Promise<OwnPost[]>> = {
+const READERS: Record<string, Reader> = {
   facebook: facebookPosts,
   instagram: instagramPosts,
   threads: threadsPosts,
@@ -454,10 +524,12 @@ export async function snapshotOwnPosts(
     if (!got) return { saved: 0, skipped: 'channel gone', fresh };
     const { c, t } = got;
     if (c.status !== 'connected') return { saved: 0, skipped: `channel ${c.status}`, fresh };
+    if (inBackoff(c.api_backoff_until)) return { saved: 0, skipped: `API backoff until ${c.api_backoff_until}`, fresh };
     const read = READERS[c.provider];
     if (!read) return { saved: 0, skipped: `${c.provider} has no own-posts read`, fresh };
 
-    const [posts, targets, own] = await Promise.all([read(c, t), sosialTargets(c.id), ownRepliesByPost(c)]);
+    const prev = c.provider === 'threads' || c.provider === 'pinterest' ? await prevRows(c.id) : new Map<string, PrevRow>();
+    const [posts, targets, own] = await Promise.all([read(c, t, prev), sosialTargets(c.id), ownRepliesByPost(c)]);
     if (!posts.length) return { saved: 0, skipped: 'no posts', fresh };
     const byTime = c.provider === 'tiktok' ? await pairByTime(c.id, posts, targets) : new Map<string, SosialTarget>();
 
@@ -484,13 +556,14 @@ export async function snapshotOwnPosts(
         clicks: p.clicks,
         views: p.views,
         note: p.note ?? null,
-        fetched_at: now,
+        fetched_at: p.fetchedAt ?? now,
+        carried: !!p.fetchedAt,
       };
     });
     await rest('/rest/v1/channel_posts?on_conflict=channel_id,external_id', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(rows.map(({ post_id: _postId, ...row }) => row)),
+      body: JSON.stringify(rows.map(({ post_id: _postId, carried: _carried, ...row }) => row)),
     });
 
     // Posts Sosial published: this list reaches the latest 50 in one call,
@@ -501,6 +574,12 @@ export async function snapshotOwnPosts(
     let refreshed = 0;
     for (const r of rows) {
       if (!r.post_target_id || !r.post_id) continue;
+      // Not due yet: its post_stats row already holds these numbers, and the
+      // per-post pass must not spend a call on it either.
+      if (r.carried) {
+        fresh.add(r.post_target_id);
+        continue;
+      }
       try {
         await writeStats({
           post_target_id: r.post_target_id,

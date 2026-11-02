@@ -1,5 +1,7 @@
 /** Shared HTTP helper for adapters: bounded retries with exponential
  *  backoff on 429/5xx and a per-provider rate budget (QPS governor). */
+import { isBackground, noteResponse } from '../usage';
+
 const QPS: Record<string, number> = {
   facebook: 5,
   instagram: 5,
@@ -78,9 +80,12 @@ export async function httpJson<T = any>(opts: HttpOpts, attempts = 3): Promise<{
       data = { raw: text.slice(0, 200) };
     }
     last = { status: r.status, data };
+    noteResponse(r.status, r.headers, data);
     if (r.status === 429) {
       const ra = Number(r.headers.get('retry-after') ?? 60);
-      if (i === attempts - 1) throw new RateLimited(ra);
+      // A background sweep never waits out a 429: retrying spends more of
+      // the same window. The job parks the channel instead (dispatch.ts).
+      if (isBackground() || i === attempts - 1) throw new RateLimited(ra);
       // Cap the park: a provider can ask for an hour, but a job holding the
       // loop that long starves every other channel's sync.
       await new Promise((r2) => setTimeout(r2, Math.min(ra, 30) * 1000));
