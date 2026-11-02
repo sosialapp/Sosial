@@ -218,7 +218,7 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
 /** Outer wrapper honouring per-block width % + alignment (width math inside
  *  keeps using the full content width so text scale stays predictable).
  *  Mirrors web blocks.tsx BlockView, keep in sync. */
-export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean; cell?: number; unit?: number }) {
+export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean; cell?: number; unit?: number; nodeRef?: (node: any) => void }) {
   const { block, width } = props;
   const st = block.style;
   const k = width / 340;
@@ -231,7 +231,11 @@ export default function ContentBlockView(props: { block: ContentBlock; width: nu
   const inner = <ContentBlockInner {...props} zoom={zoom} cell={props.cell ?? pct} boxPad={boxed ? 20 * k : 0} />;
   const boxedBody = boxed ? <View style={boxed}>{inner}</View> : inner;
   // Placed blocks get a wrapper; a fixed-card image keeps growing inside it.
-  const body = place ? <View style={[place, props.fill && block.type === 'image' ? { flexGrow: 1 } : null]}>{boxedBody}</View> : boxedBody;
+  // A nodeRef (canvas move mode) forces that wrapper so the placed node can be
+  // measured, including an otherwise unplaced block.
+  const body = place || props.nodeRef
+    ? <View ref={props.nodeRef} style={[place, props.fill && block.type === 'image' ? { flexGrow: 1 } : null]}>{boxedBody}</View>
+    : boxedBody;
   // Inside a multi-block row the row wrapper owns the width.
   if (props.cell != null) return body;
   const align = st?.align ?? 'left';

@@ -87,7 +87,6 @@ export default function CommentReportCard({
   const t = useMessages();
 
   const replied = rows.filter((r) => r.status === 'replied').length;
-  const handled = rows.filter((r) => r.status === 'resolved' || r.status === 'ignored').length;
   const waiting = rows.filter((r) => r.status === 'new').length;
   const moderated = rows.filter((r) => r.status === 'hidden' || r.status === 'deleted').length;
 
@@ -138,7 +137,6 @@ export default function CommentReportCard({
   const tiles = [
     { key: 'crTotal', value: String(rows.length) },
     { key: 'crReplied', value: String(replied) },
-    { key: 'crHandled', value: String(handled) },
     { key: 'crWaiting', value: String(waiting) },
     { key: 'crModerated', value: String(moderated) },
     { key: 'crRate', value: pct(replied, rows.length) },
@@ -178,7 +176,7 @@ export default function CommentReportCard({
           <p className="mt-4 rounded-2xl bg-paper-dim px-4 py-6 text-center text-sm text-muted">{t('crEmpty')}</p>
         ) : (
           // Per account: who, then the three numbers that matter. The full
-          // breakdown (replied, handled, moderated) is in the tiles above and
+          // breakdown (replied, waiting, moderated) is in the tiles above and
           // the CSV. Same rows as the mobile CommentReport.
           <ul className="mt-4 divide-y divide-line-soft">
             {groupRows.map((g) => (

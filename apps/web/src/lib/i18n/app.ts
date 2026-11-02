@@ -1003,7 +1003,6 @@ const en: Record<string, string> = {
   crSub: 'Comments received {range}, by account.',
   crTotal: 'Comments',
   crReplied: 'Replied',
-  crHandled: 'Resolved or ignored',
   crWaiting: 'Waiting',
   crModerated: 'Hidden or deleted',
   crRate: 'Reply rate',

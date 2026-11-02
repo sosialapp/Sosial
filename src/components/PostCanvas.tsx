@@ -1,11 +1,11 @@
-import React, { forwardRef, memo } from 'react';
+import React, { forwardRef, memo, useCallback, useEffect, useRef } from 'react';
 import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
 import ViewShot, { ViewShotRef } from 'react-native-view-shot';
 import { PostPage } from '../types';
 import { SOCIAL_META } from '../constants';
 import { F } from '../utils/fonts';
 import { contrastRatio } from '../utils/color';
-import { blockRows, PART_Z, placeStyle, rowFractions, socialIconColors } from '../utils/blockLayout';
+import { BlockGeom, blockRows, PART_Z, placeOf, placeStyle, rowFractions, socialIconColors } from '../utils/blockLayout';
 import PatternBackground from './PatternBackground';
 import ContentBlockView from './ContentBlockView';
 import SocialCardChrome from './SocialCardChrome';
@@ -33,9 +33,13 @@ interface Props {
   ratio: number;
   scale?: number;
   watermark?: boolean;
+  /** id of the block being moved on canvas (move mode), if any */
+  moveId?: string;
+  /** measured geometry of that block, so the drag can stay inside the card */
+  onMoveGeom?: (geom: BlockGeom | null) => void;
 }
 
-function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Ref<ViewShotRef>) {
+function PostCanvasInner({ page, ratio, scale, watermark, moveId, onMoveGeom }: Props, ref: React.Ref<ViewShotRef>) {
   const H = CANVAS_W * ratio;
   const visibleSocials = page.socials.filter((s) => s.visible);
   const hasTitle = page.title.position !== 'none' && page.title.text.trim().length > 0;
@@ -43,6 +47,52 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   const titleOnBottom = hasTitle && page.title.position === 'bottom';
   const s = scale ?? CANVAS_SCALE;
   const pad = (v: number) => v * s;
+
+  // Canvas move mode: measure the dragged block against the card body so the
+  // gesture can clamp it inside (the card clips anything outside). Mirrors the
+  // web CanvasEditLayer's geo measurement; keep in sync.
+  const bodyNodeRef = useRef<any>(null);
+  const blockNodeRef = useRef<any>(null);
+  const fitRef = useRef(1);
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  const setBodyNode = useCallback((n: any) => { bodyNodeRef.current = n; }, []);
+  const setBlockNode = useCallback((n: any) => { blockNodeRef.current = n; }, []);
+  const onFit = useCallback((r: number) => { fitRef.current = r; }, []);
+  useEffect(() => {
+    if (!moveId) {
+      onMoveGeom?.(null);
+      return;
+    }
+    let alive = true;
+    let tries = 0;
+    const attempt = () => {
+      if (!alive) return;
+      tries += 1;
+      const retry = () => { if (alive && tries < 8) setTimeout(attempt, 120); };
+      const node = blockNodeRef.current;
+      const body = bodyNodeRef.current;
+      if (!node || !body || typeof node.measureInWindow !== 'function') return retry();
+      node.measureInWindow((bx: number, by: number, bw: number, bh: number) => {
+        if (!alive) return;
+        if (bw <= 0 || bh <= 0) return retry();
+        body.measureInWindow((cx: number, cy: number, cw: number, ch: number) => {
+          if (!alive) return;
+          if (cw <= 0 || ch <= 0) return retry();
+          const p = placeOf(pageRef.current, { kind: 'block', id: moveId });
+          onMoveGeom?.({
+            rect: { x: bx - cx, y: by - cy, w: bw, h: bh },
+            box: { x: 0, y: 0, w: cw, h: ch },
+            fit: fitRef.current || 1,
+            at: { dx: p.dx, dy: p.dy },
+          });
+        });
+      });
+    };
+    // let AutoFit settle before the first measurement
+    const t = setTimeout(attempt, 60);
+    return () => { alive = false; clearTimeout(t); };
+  }, [moveId, onMoveGeom, s]);
 
   const socialPos = page.pfp.socialPos ?? 'below';
   const badgeBg = page.pfp.badgeBg ?? true;
@@ -115,7 +165,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
       const first = page.blocks[row[0]];
       const space = first.style?.spaceAbove ? pad(Math.min(60, Math.max(0, first.style.spaceAbove))) : 0;
       if (row.length === 1) {
-        const view = <ContentBlockView key={first.id} block={first} width={bw} font={font} zoom={zoom} fill={fill} unit={s} />;
+        const view = <ContentBlockView key={first.id} block={first} width={bw} font={font} zoom={zoom} fill={fill} unit={s} nodeRef={first.id === moveId ? setBlockNode : undefined} />;
         // Unwrapped when possible: fixed-card images grow via flexGrow,
         // which needs the block to be a direct child of the card column.
         return space ? <View key={first.id} style={{ marginTop: space, flexGrow: fill && first.type === 'image' ? 1 : 0, zIndex: first.style?.z }}>{view}</View> : view;
@@ -137,7 +187,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
         >
           {members.map((b, j) => (
             <View key={b.id} style={{ width: avail * fr[j], flexShrink: 0, zIndex: b.style?.z }}>
-              <ContentBlockView block={b} width={bw} font={font} zoom={zoom} cell={(avail * fr[j]) / bw} unit={s} />
+              <ContentBlockView block={b} width={bw} font={font} zoom={zoom} cell={(avail * fr[j]) / bw} unit={s} nodeRef={b.id === moveId ? setBlockNode : undefined} />
             </View>
           ))}
         </View>
@@ -273,7 +323,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
         >
           {page.fullCardTitle && hasTitle ? titleBlock : null}
           {fcAvatar}
-          <SocialCardChrome page={page} pad={pad} watermark={watermark} fit={!!fcExtras} maxH={fcExtras ? undefined : H * s}>
+          <SocialCardChrome page={page} pad={pad} watermark={watermark} fit={!!fcExtras} maxH={fcExtras ? undefined : H * s} bodyRef={setBodyNode} onFit={onFit}>
             {blocks}
           </SocialCardChrome>
           {fcSocials}
@@ -301,13 +351,13 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
                      and in a plain wrapper it would ignore the height and hug
                      its content instead. */
                   <View style={{ height: Math.min(pad(page.cardH), cardMax), flexDirection: 'column' }}>
-                    <SocialCardChrome page={page} pad={pad} watermark={watermark}>
+                    <SocialCardChrome page={page} pad={pad} watermark={watermark} bodyRef={setBodyNode} onFit={onFit}>
                       {blocks}
                     </SocialCardChrome>
                   </View>
                 ) : (
                   /* auto height, hugs content, capped so it can never spill off the canvas */
-                  <SocialCardChrome page={page} pad={pad} fit maxH={cardMax} watermark={watermark}>
+                  <SocialCardChrome page={page} pad={pad} fit maxH={cardMax} watermark={watermark} bodyRef={setBodyNode} onFit={onFit}>
                     {blocks}
                   </SocialCardChrome>
                 )}
@@ -322,7 +372,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
               {titleOnTop ? titleBlock : null}
               {/* auto: the card hugs its content (capped so it can't spill),
                   like the cardAuto branch above */}
-              <SocialCardChrome page={page} pad={pad} fit maxH={cardMax} watermark={watermark}>
+              <SocialCardChrome page={page} pad={pad} fit maxH={cardMax} watermark={watermark} bodyRef={setBodyNode} onFit={onFit}>
                 {blocks}
               </SocialCardChrome>
               {titleOnBottom ? titleBlock : null}
