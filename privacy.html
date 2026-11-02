@@ -20,7 +20,7 @@
 <main>
   <img src="bolt.png" alt="Sosial" width="56">
   <h1>Privacy Policy</h1>
-  <p class="meta">Effective: October 27, 2026 · Sosial (“we”, “the app”), operated by EGATE WORLDWIDE</p>
+  <p class="meta">Effective: November 2, 2026 · Sosial (“we”, “the app”), operated by EGATE WORLDWIDE</p>
 
   <h2>What Sosial does</h2>
   <p>Sosial lets you compose, schedule and publish posts to social accounts you
@@ -43,6 +43,10 @@
     publish while the app is closed.</li>
     <li><strong>Inbox data:</strong> messages and comments read for channels
     where you use the inbox, described below.</li>
+    <li><strong>Results:</strong> follower counts, and the reactions, comments,
+    shares, saves, clicks and views each platform reports for posts published
+    through Sosial. Only your audience's actions are counted; your own replies
+    and likes are excluded.</li>
     <li><strong>Notifications:</strong> an Expo push token per device where you
     enabled notifications, with the device platform.</li>
     <li><strong>Billing:</strong> Stripe on the web and, where offered, the app
@@ -59,38 +63,48 @@
   LinkedIn and Google Business Profile are in preview and not connectable yet,
   so no data is collected for them.</p>
   <ul>
-    <li><strong>X:</strong> read your profile, publish and read posts, upload
-    media, and read and answer direct messages. A refresh token keeps scheduled
+    <li><strong>X:</strong> read your profile and follower count, publish and
+    read posts, upload media, read the likes, replies, reposts, quotes,
+    bookmarks and views on published posts, and read and answer direct
+    messages. A refresh token keeps scheduled
     posts publishing. X requires a paid plan because its posting API is metered.</li>
-    <li><strong>Instagram:</strong> read your Business or Creator profile,
-    publish the photos, videos and reels you schedule, read comments, and answer
-    direct messages. We deliberately do not request insights access.</li>
-    <li><strong>TikTok:</strong> read your basic profile and video statistics,
+    <li><strong>Instagram:</strong> read your Business or Creator profile and
+    follower count, publish the photos, videos and reels you schedule, read the
+    like and comment counts on those posts, read comments, and answer direct
+    messages. We deliberately do not request insights access.</li>
+    <li><strong>TikTok:</strong> read your basic profile, follower count and video statistics,
     upload and publish the videos and photos you schedule, and list posted
     videos to confirm delivery.</li>
-    <li><strong>Facebook:</strong> list the Pages you manage, read the posts
-    published on them and the comment count of each, publish scheduled posts,
+    <li><strong>Facebook:</strong> list the Pages you manage and their follower
+    counts, read the posts published on them and the reactions, comments and
+    shares on each, publish scheduled posts,
     photos and videos, read the comments on those posts, and read and answer
     Messenger conversations for those Pages. Personal timelines are never
     touched.</li>
-    <li><strong>Threads:</strong> read your profile, publish scheduled posts,
+    <li><strong>Threads:</strong> read your profile and follower count, publish scheduled posts,
     read replies, and read post statistics for content published through
     Sosial.</li>
-    <li><strong>Bluesky:</strong> publish scheduled posts and upload their
-    images and video, read and answer direct messages, and read comments, using
+    <li><strong>Bluesky:</strong> read your profile and follower count, publish
+    scheduled posts and upload their images and video, read the likes, replies,
+    reposts and quotes on them, read and answer direct messages, and read
+    comments, using
     a short-lived session minted from your app password.</li>
     <li><strong>Mastodon:</strong> read and write access on the instance you
-    choose, verify the account, publish scheduled posts, upload media, and read
-    and answer direct messages and comments. Your instance address is stored so
+    choose, verify the account and read its follower count, publish scheduled
+    posts, upload media, read the favourites, replies and boosts on them, and
+    read and answer direct messages and comments. Your instance address is stored so
     publishing reaches the right server.</li>
     <li><strong>LinkedIn (preview):</strong> once production access is approved,
     identify you via OpenID, publish posts as you, read your own posts and their
-    statistics, and do the same for a Company Page you administer.</li>
+    statistics, and do the same for a Company Page you administer, including its
+    follower count.</li>
     <li><strong>YouTube:</strong> upload videos to your channel, read the channel
-    and video list to confirm delivery and show status, and read and manage
-    comments on uploads published through Sosial.</li>
-    <li><strong>Pinterest:</strong> read your account, and read and write boards
-    and Pins, publishing scheduled Pins to the boards you choose.</li>
+    and video list to confirm delivery and show status, read your subscriber
+    count and the views, likes and comments on uploads published through Sosial,
+    and read and manage comments on those uploads.</li>
+    <li><strong>Pinterest:</strong> read your account and follower count, read and
+    write boards and Pins, publish scheduled Pins to the boards you choose, and
+    read the impressions, saves and clicks on those Pins.</li>
     <li><strong>WordPress:</strong> connect a self-hosted or WordPress.com site
     with an application password, and publish scheduled posts as drafts or live.</li>
     <li><strong>Dev.to:</strong> publish scheduled articles and upload their
@@ -106,7 +120,8 @@
     <li><strong>VK:</strong> publish scheduled posts and media to your VK profile
     or community.</li>
     <li><strong>Google Business Profile (preview):</strong> once Google approves
-    API access, publish scheduled posts to a location you manage.</li>
+    API access, publish scheduled posts to a location you manage and read its
+    profile clicks and photo views.</li>
   </ul>
   <p>Some platforms gate features behind their own review — Meta for advanced
   Page and Instagram permissions, Google for Business Profile, LinkedIn for

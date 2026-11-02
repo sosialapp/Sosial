@@ -1,6 +1,6 @@
 # Privacy Policy — Sosial
 
-**Effective: October 27, 2026.** Operated by EGATE WORLDWIDE.
+**Effective: November 2, 2026.** Operated by EGATE WORLDWIDE.
 
 Sosial is a scheduling and publishing service for social media. You connect
 accounts, compose and schedule posts, and Sosial publishes them through each
@@ -18,6 +18,9 @@ platform's official API. This is the short version of
   password. Encrypted before storage; decrypted only when a request needs them.
 - **Inbox:** messages and comments, only for the channels where you use the
   inbox.
+- **Results:** follower counts, and the reactions, comments, shares, saves,
+  clicks and views each platform reports for posts published through Sosial.
+  Only your audience's actions count; your own replies and likes are excluded.
 - **Notifications:** an Expo push token per device where you enabled them.
 - **Billing:** a customer and subscription reference from Stripe or the app
   store. Never your card number.

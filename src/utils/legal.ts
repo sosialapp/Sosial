@@ -7,7 +7,7 @@
  * (apps/web/src/content/legal.ts). Keep the facts in step with those.
  */
 
-export const LEGAL_UPDATED = '27 October 2026';
+export const LEGAL_UPDATED = '2 November 2026';
 
 export const TERMS_TEXT =
   'Sosial is a tool for planning, writing and publishing social media posts, run by EGATE WORLDWIDE. You connect your social accounts, write and schedule posts, and Sosial publishes them for you through each platform’s official API. By creating an account or a workspace, you agree to these terms.\n\n' +
@@ -30,7 +30,7 @@ export interface LegalSection {
 export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: 'What we collect',
-    body: 'Your email address and a password (stored encrypted), or the account you signed in with. Your workspace: posts, captions, schedules, media, templates, approvals and your team’s roles. For each connected channel, its name, handle and the key that lets us publish for you. The messages and comments we load for channels where you use the inbox. A push token for each device where you turned notifications on. The Notion pages you import from, and any API keys you create. Stripe or the app store handles payments, so we only keep a subscription reference and never see your card number.',
+    body: 'Your email address and a password (stored encrypted), or the account you signed in with. Your workspace: posts, captions, schedules, media, templates, approvals and your team’s roles. For each connected channel, its name, handle and the key that lets us publish for you. The messages and comments we load for channels where you use the inbox. Your results: follower counts, and the reactions, comments, shares, saves, clicks and views each platform reports on posts you published through Sosial, counting only what your audience did, never your own replies or likes. A push token for each device where you turned notifications on. The Notion pages you import from, and any API keys you create. Stripe or the app store handles payments, so we only keep a subscription reference and never see your card number.',
   },
   {
     title: 'Your connected social accounts',
