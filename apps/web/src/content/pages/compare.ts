@@ -57,8 +57,6 @@ const en = {
       a: 'Social listening and ad buying. Those live in the suites. Sosial does compose, preview, schedule, approve and publish across your networks, with an AI writer, analytics and one inbox for comments and messages.',
     },
   ],
-  ctaTitle: 'Writing and shipping posts is the whole job here.',
-  ctaBody: 'Compose once, preview every network, schedule the week and let the queue publish it. Start on the free plan, no card needed.',
 };
 
 export type CompareCopy = typeof en;
@@ -99,8 +97,6 @@ const es: CompareCopy = {
     { q: '¿Por qué no publicar a mano?', a: 'Puedes. Publicar a mano funciona hasta que la semana se complica, y entonces la cola es lo primero que se resiente. Un calendario que llenas una vez gana a cinco apps que recuerdas a medianoche.' },
     { q: '¿Qué no hace Sosial?', a: 'Escucha social y compra de anuncios. Eso está en las suites. Sosial redacta, previsualiza, programa, aprueba y publica en tus redes, con un redactor con IA, analíticas y una bandeja única para comentarios y mensajes.' },
   ],
-  ctaTitle: 'Escribir y publicar es todo el trabajo aquí.',
-  ctaBody: 'Redacta una vez, previsualiza cada red, programa la semana y deja que la cola publique. Empieza con el plan gratuito, sin tarjeta.',
 };
 
 const fr: CompareCopy = {
@@ -139,8 +135,6 @@ const fr: CompareCopy = {
     { q: 'Pourquoi ne pas publier à la main ?', a: 'Vous pouvez. Cela marche jusqu’à ce que la semaine s’emballe, et la file est alors la première à déraper. Un calendrier rempli une fois vaut mieux que cinq applis auxquelles on pense à minuit.' },
     { q: 'Que ne fait pas Sosial ?', a: 'L’écoute sociale et l’achat publicitaire, qui relèvent des suites. Sosial rédige, prévisualise, planifie, fait valider et publie sur vos réseaux, avec un rédacteur IA, des statistiques et une boîte de réception unique pour les commentaires et messages.' },
   ],
-  ctaTitle: 'Écrire et publier, c’est tout le travail ici.',
-  ctaBody: 'Rédigez une fois, prévisualisez chaque réseau, planifiez la semaine et laissez la file publier. Commencez avec l’offre gratuite, sans carte bancaire.',
 };
 
 const de: CompareCopy = {
@@ -179,8 +173,6 @@ const de: CompareCopy = {
     { q: 'Warum nicht von Hand posten?', a: 'Kannst du. Das klappt, bis die Woche voll wird, und dann rutscht die Warteschlange als Erstes. Ein Kalender, den du einmal füllst, schlägt fünf Apps, an die du um Mitternacht denkst.' },
     { q: 'Was macht Sosial nicht?', a: 'Social Listening und Anzeigenkauf. Das gehört in die Suiten. Sosial schreibt, zeigt Vorschauen, plant, gibt frei und veröffentlicht in deinen Netzwerken, mit KI-Texter, Analysen und einem Posteingang für Kommentare und Nachrichten.' },
   ],
-  ctaTitle: 'Beiträge schreiben und veröffentlichen ist hier die ganze Aufgabe.',
-  ctaBody: 'Einmal schreiben, jedes Netzwerk voransehen, die Woche planen und die Warteschlange veröffentlichen lassen. Starte mit dem Gratis-Plan, ohne Karte.',
 };
 
 const ja: CompareCopy = {
@@ -219,8 +211,6 @@ const ja: CompareCopy = {
     { q: '手動で投稿すればいいのでは？', a: 'もちろん可能です。ただ、忙しくなると真っ先に予定が崩れます。一度埋めればよいカレンダーは、深夜に思い出す5つのアプリに勝ります。' },
     { q: 'Sosialにできないことは？', a: 'ソーシャルリスニングと広告出稿です。これらはスイートの領域です。Sosialは、作成、プレビュー、予約、承認、公開をすべてのネットワークで行い、AIライター、分析、コメントとメッセージの受信箱も備えています。' },
   ],
-  ctaTitle: '投稿を書いて届けること、それがすべて。',
-  ctaBody: '一度書いて、すべてのネットワークをプレビューし、1週間分を予約してキューに任せましょう。無料プランから、カード不要で始められます。',
 };
 
 const ko: CompareCopy = {
@@ -259,8 +249,6 @@ const ko: CompareCopy = {
     { q: '직접 게시하면 안 되나요?', a: '할 수 있어요. 바빠지기 전까지는요. 바빠지면 일정이 가장 먼저 무너집니다. 한 번 채우는 캘린더가 자정에 떠올리는 앱 다섯 개보다 낫습니다.' },
     { q: 'Sosial이 하지 않는 일은?', a: '소셜 리스닝과 광고 구매입니다. 그건 스위트의 영역이에요. Sosial은 모든 네트워크에서 작성, 미리 보기, 예약, 승인, 게시를 하고, AI 작성 도우미, 분석, 댓글과 메시지를 위한 받은편지함을 제공합니다.' },
   ],
-  ctaTitle: '게시물을 쓰고 내보내는 것, 그게 전부입니다.',
-  ctaBody: '한 번 쓰고, 모든 네트워크를 미리 보고, 한 주를 예약한 뒤 대기열에 맡기세요. 카드 없이 무료 요금제로 시작하세요.',
 };
 
 const zh: CompareCopy = {
@@ -298,8 +286,6 @@ const zh: CompareCopy = {
     { q: '为什么不手动发帖？', a: '当然可以。在一周忙起来之前都行，忙起来后排期最先出问题。填一次就能用的日历，胜过半夜才想起来的五个应用。' },
     { q: 'Sosial 不做什么？', a: '社交聆听和广告投放，这些属于套件。Sosial 负责在你的各个网络上撰写、预览、排期、审批和发布，并提供 AI 写作助手、数据分析，以及统一管理评论和私信的收件箱。' },
   ],
-  ctaTitle: '在这里，写帖子和发帖子就是全部工作。',
-  ctaBody: '写一次，预览每个网络，排好整周，让队列发布。从免费计划开始，无需绑卡。',
 };
 
 export const compareCopy: Record<Locale, CompareCopy> = { en, es, fr, de, ja, ko, zh };

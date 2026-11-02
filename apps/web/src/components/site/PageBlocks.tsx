@@ -3,12 +3,14 @@ import type { ReactNode } from 'react';
 import { CheckIcon } from '@/components/StatusIcons';
 import { FaqJsonLd } from '@/components/site/JsonLd';
 import { siteI18n } from '@/lib/i18n/server';
+import HeroGrid from '@/components/site/HeroGrid';
 
 /**
  * Shared building blocks for feature and audience pages. Server components.
  * Deliberately quiet: type, hairlines and whitespace carry the layout, and
  * the product itself (live app previews passed in as `visual`) is the only
- * picture. No glows, gradients or decorative tiles.
+ * picture. No glows, gradients or decorative tiles; the only ornament is the
+ * hero grid every page hero shares with the landing page (HeroGrid).
  */
 
 export async function PageHero({
@@ -33,15 +35,17 @@ export async function PageHero({
   const { t } = await siteI18n();
   const primary = primaryCta ?? { href: '/login', label: t('heroCta') };
   return (
-    <section className="border-b border-line">
-      <div className="mx-auto max-w-[1200px] px-4 pt-14 pb-12 sm:pt-20 md:pt-24 md:pb-16">
-        <p className="text-sm font-bold text-muted">{eyebrow}</p>
-        <h1 className="mt-3 max-w-3xl font-display text-[2.5rem] font-extrabold leading-[1.04] tracking-tight text-balance sm:text-5xl md:text-[3.5rem]">
+    <section className="relative overflow-clip border-b border-line [touch-action:pan-y]">
+      {/* Same interactive grid as the landing hero. */}
+      <HeroGrid />
+      <div className="relative z-[2] mx-auto max-w-[1200px] px-4 pt-14 pb-12 sm:pt-20 md:pt-24 md:pb-16">
+        <p data-grid-avoid className="text-sm font-bold text-muted">{eyebrow}</p>
+        <h1 data-grid-avoid className="mt-3 max-w-3xl font-display text-[2.5rem] font-extrabold leading-[1.04] tracking-tight text-balance sm:text-5xl md:text-[3.5rem]">
           {title}
         </h1>
-        <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">{lede}</p>
-        {meta ? <p className="mt-3 text-xs font-bold text-faint">{meta}</p> : null}
-        <div className="mt-8 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap">
+        <p data-grid-avoid className="mt-5 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">{lede}</p>
+        {meta ? <p data-grid-avoid className="mt-3 text-xs font-bold text-faint">{meta}</p> : null}
+        <div data-grid-avoid className="mt-8 flex w-fit max-w-full flex-col gap-2.5 sm:flex-row sm:flex-wrap">
           <Link href={primary.href} className="btn btn-primary btn-lg justify-center">
             {primary.label}
           </Link>

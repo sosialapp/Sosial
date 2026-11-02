@@ -7,7 +7,7 @@ import {
 import Reveal from '@/components/anim/Reveal';
 import { BRAND_NAMES, BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { FaqList } from '@/components/site/PageBlocks';
-import { CtaCard, Hero, IconGrid, Section, SectionHead } from '@/components/site/Marketing';
+import { Hero, IconGrid, Section, SectionHead } from '@/components/site/Marketing';
 import PageCms from '@/components/site/PageCms';
 import { docsUrl } from '@/lib/site';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
@@ -104,7 +104,6 @@ export default async function TransparencyPage() {
 
       <FaqList items={c.faq} />
 
-      <CtaCard title={c.ctaTitle} body={c.ctaBody} secondary={prices} />
     </>
   );
 }

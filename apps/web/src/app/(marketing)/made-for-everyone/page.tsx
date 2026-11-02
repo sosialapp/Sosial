@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import Reveal from '@/components/anim/Reveal';
 import { FaqList } from '@/components/site/PageBlocks';
-import { CheckList, CtaCard, Hero, IconGrid, Section, SectionHead, Stats } from '@/components/site/Marketing';
+import { CheckList, Hero, IconGrid, Section, SectionHead, Stats } from '@/components/site/Marketing';
 import PageCms from '@/components/site/PageCms';
 import { formatPageDate, sitePageMeta } from '@/lib/sitePages';
 
@@ -85,7 +85,6 @@ export default async function MadeForEveryonePage() {
 
       <FaqList items={c.faq} />
 
-      <CtaCard title={c.ctaTitle} body={c.ctaBody} />
     </>
   );
 }

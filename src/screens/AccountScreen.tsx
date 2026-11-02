@@ -15,6 +15,7 @@ import { replayTours } from '../components/Tour';
 import { loadMetaState, connectedChannelIds } from '../utils/metaStore';
 import { loadCloudChannels, syncCloudChannels } from '../utils/cloudChannels';
 import { registerPushToken, registerPushTokenFull, pushDiagnostics, type PushDiag } from '../utils/pushTokens';
+import { PAID_PLANS_OPEN } from '../utils/plans';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -550,6 +551,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
   const teamMo = yearly ? '$25' : '$29';
   const businessMo = yearly ? '$66' : '$79';
 
+  /** While sales are closed (PAID_PLANS_OPEN in utils/plans) a paid plan's
+   *  button keeps its label but is greyed out and does nothing. */
+  const closed = <A extends { label: string; ghost?: boolean; onPress: () => void }>(a: A) =>
+    PAID_PLANS_OPEN ? a : { ...a, disabled: true, onPress: () => {} };
+
   /** Plan switching works today as a local flag; real Play Billing replaces the confirm. */
   const choosePlan = (target: 'free' | 'pro' | 'team', label: string) => {
     if (plan === target) return;
@@ -958,11 +964,11 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: tr('uMediaLibraryAndContent') },
                 { text: tr('uWatermarkYouControlTurn') },
               ]}
-              action={plan === 'pro' ? undefined : {
+              action={plan === 'pro' ? undefined : closed({
                 label: (plan === 'free' ? tr('pbChoose') : tr('pbSwitchTo')).replace('{plan}', 'Solo'),
                 ghost: plan === 'team',
                 onPress: () => choosePlan('pro', 'Solo'),
-              }}
+              })}
             />
 
             <PlanCard
@@ -979,10 +985,10 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
                 { text: tr('u5TeamMembersAnd') },
                 { text: tr('uApprovalWorkflowsAndRoles') },
               ]}
-              action={plan === 'team' ? undefined : {
+              action={plan === 'team' ? undefined : closed({
                 label: tr('pbChoose').replace('{plan}', 'Team'),
                 onPress: () => choosePlan('team', 'Team'),
-              }}
+              })}
             />
 
             <PlanCard
@@ -997,7 +1003,7 @@ export default function AccountScreen({ email, team, plan, notifPosts, notifComm
               features={[
                 { text: tr('uUnlimitedTeamMembers6') },
               ]}
-              action={{ label: tr('uBusinessActivatesWithPlay'), ghost: true, onPress: () => Alert.alert('Business', tr('uBusinessPurchasesActivateWi')) }}
+              action={closed({ label: tr('uBusinessActivatesWithPlay'), ghost: true, onPress: () => Alert.alert('Business', tr('uBusinessPurchasesActivateWi')) })}
             />
           </View>
         ) : null}
@@ -1081,7 +1087,7 @@ function PlanCard({ name, blurb, tone, current, featured, price, sub, quota, als
   quota: [string, string];
   also?: string;
   features: { text: string; off?: boolean }[];
-  action?: { label: string; ghost?: boolean; onPress: () => void };
+  action?: { label: string; ghost?: boolean; disabled?: boolean; onPress: () => void };
 }) {
   const { C } = useTheme();
   const s = makeS(C);
@@ -1121,9 +1127,14 @@ function PlanCard({ name, blurb, tone, current, featured, price, sub, quota, als
         {action ? (
           <View style={{ marginTop: 16 }}>
             {action.ghost ? (
-              <GhostBtn label={action.label} onPress={action.onPress} />
+              <GhostBtn label={action.label} onPress={action.onPress} disabled={action.disabled} />
             ) : (
-              <TouchableOpacity onPress={action.onPress} style={s.save} activeOpacity={0.85}>
+              <TouchableOpacity
+                onPress={action.onPress}
+                disabled={action.disabled}
+                style={[s.save, action.disabled && { opacity: 0.5 }]}
+                activeOpacity={0.85}
+              >
                 <Text style={s.saveT}>{action.label}</Text>
               </TouchableOpacity>
             )}

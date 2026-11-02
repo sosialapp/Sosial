@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
-import { GridPulse } from '@/components/ui/grid-pulse';
-import { BRAND_PATHS, type BrandProvider } from '@/components/BrandIcon';
+import HeroGrid from '@/components/site/HeroGrid';
 import { useMessages } from '@/lib/i18n/client';
 
 const AuthModal = dynamic(() => import('@/components/site/AuthModal'));
@@ -16,22 +15,6 @@ const AuthModal = dynamic(() => import('@/components/site/AuthModal'));
  * carry channel marks. No stock.
  */
 
-const HERO_LOGOS: BrandProvider[] = [
-  'x',
-  'instagram',
-  'tiktok',
-  'facebook',
-  'threads',
-  'youtube',
-  'linkedin',
-  'bluesky',
-  'mastodon',
-  'pinterest',
-  'telegram',
-  'discord',
-  'vk',
-];
-
 const btn =
   'inline-flex items-center justify-center gap-2.5 rounded-full border-2 border-ink font-display text-base font-semibold px-6 py-3.5 leading-none transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_0_-2px_rgba(28,26,20,0.18)]';
 
@@ -41,12 +24,7 @@ export default function Hero() {
 
   return (
     <section className="relative overflow-clip [touch-action:pan-y]">
-      <GridPulse
-        cell={26}
-        logos={HERO_LOGOS.map((p) => BRAND_PATHS[p])}
-        logoChance={0.22}
-        ambient={3}
-      />
+      <HeroGrid />
 
       <div className="relative z-[2] mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-6 px-4 py-8 sm:gap-10 sm:py-10 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[0.85fr_1.15fr]">
         <div className="text-center lg:text-left">

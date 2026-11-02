@@ -84,8 +84,6 @@ const en = {
       a: 'Flows are keyboard-operable, contrast is checked in both themes, and alt text is part of the compose flow because several networks treat it as required.',
     },
   ],
-  ctaTitle: 'Start free. Stay free as long as it fits.',
-  ctaBody: 'No card, no trial clock. Connect three channels and schedule your first month today.',
 };
 
 export type MadeForEveryoneCopy = typeof en;
@@ -135,8 +133,6 @@ const es: MadeForEveryoneCopy = {
     { q: '¿Necesito un ordenador?', a: 'No. Las apps de iOS y Android incluyen todo para redactar, programar y aprobar. La cola funciona en la nube, así que ningún dispositivo tiene que quedarse abierto.' },
     { q: '¿Se puede usar con teclado o lector de pantalla?', a: 'Los flujos se pueden usar con teclado, el contraste se comprueba en ambos temas y el texto alternativo forma parte de la redacción porque varias redes lo consideran obligatorio.' },
   ],
-  ctaTitle: 'Empieza gratis. Sigue gratis mientras te sirva.',
-  ctaBody: 'Sin tarjeta, sin periodo de prueba. Conecta tres canales y programa tu primer mes hoy.',
 };
 
 const fr: MadeForEveryoneCopy = {
@@ -184,8 +180,6 @@ const fr: MadeForEveryoneCopy = {
     { q: 'Ai-je besoin d’un ordinateur ?', a: 'Non. Les applis iOS et Android permettent de rédiger, planifier et valider entièrement. La file tourne dans le cloud : aucun appareil ne doit rester ouvert.' },
     { q: 'Est-il utilisable au clavier ou avec un lecteur d’écran ?', a: 'Les parcours sont utilisables au clavier, le contraste est vérifié dans les deux thèmes, et le texte alternatif fait partie de la rédaction car plusieurs réseaux l’exigent.' },
   ],
-  ctaTitle: 'Commencez gratuitement. Restez-y tant que ça vous convient.',
-  ctaBody: 'Sans carte, sans période d’essai. Connectez trois canaux et planifiez votre premier mois dès aujourd’hui.',
 };
 
 const de: MadeForEveryoneCopy = {
@@ -233,8 +227,6 @@ const de: MadeForEveryoneCopy = {
     { q: 'Brauche ich einen Computer?', a: 'Nein. Die Apps für iOS und Android können vollständig schreiben, planen und freigeben. Die Warteschlange läuft in der Cloud, also muss kein Gerät an bleiben.' },
     { q: 'Ist es mit Tastatur oder Screenreader nutzbar?', a: 'Die Abläufe sind per Tastatur bedienbar, der Kontrast ist in beiden Themes geprüft, und Alternativtext gehört zum Schreiben dazu, weil mehrere Netzwerke ihn verlangen.' },
   ],
-  ctaTitle: 'Gratis starten. Gratis bleiben, solange es passt.',
-  ctaBody: 'Keine Karte, keine Testphase. Verbinde drei Kanäle und plane noch heute deinen ersten Monat.',
 };
 
 const ja: MadeForEveryoneCopy = {
@@ -282,8 +274,6 @@ const ja: MadeForEveryoneCopy = {
     { q: 'パソコンは必要ですか？', a: 'いいえ。iOSとAndroidのアプリで、作成・予約・承認のすべてができます。キューはクラウドで動くため、端末を開いたままにする必要はありません。' },
     { q: 'キーボードやスクリーンリーダーで使えますか？', a: 'すべての操作がキーボードで行え、両方のテーマでコントラストを確認しています。いくつかのネットワークで必須のため、代替テキストも作成画面に組み込まれています。' },
   ],
-  ctaTitle: '無料で始めて、合う限り無料のまま。',
-  ctaBody: 'カード不要、試用期間なし。3つのチャネルを接続して、今日から最初の1か月を予約しましょう。',
 };
 
 const ko: MadeForEveryoneCopy = {
@@ -331,8 +321,6 @@ const ko: MadeForEveryoneCopy = {
     { q: '컴퓨터가 있어야 하나요?', a: '아니요. iOS와 Android 앱에서 작성, 예약, 승인을 모두 할 수 있어요. 대기열은 클라우드에서 돌아가니 기기를 켜 둘 필요가 없습니다.' },
     { q: '키보드나 스크린 리더로 쓸 수 있나요?', a: '모든 흐름을 키보드로 쓸 수 있고, 두 테마 모두에서 대비를 확인했으며, 여러 네트워크에서 필수이기 때문에 대체 텍스트도 작성 과정에 들어 있습니다.' },
   ],
-  ctaTitle: '무료로 시작하고, 맞는 동안은 계속 무료로.',
-  ctaBody: '카드도, 체험 기간도 없습니다. 채널 3개를 연결하고 오늘 첫 달을 예약하세요.',
 };
 
 const zh: MadeForEveryoneCopy = {
@@ -379,8 +367,6 @@ const zh: MadeForEveryoneCopy = {
     { q: '需要电脑吗？', a: '不需要。iOS 和 Android 应用可以完成全部撰写、排期和审批。队列在云端运行，不需要任何设备一直开着。' },
     { q: '能用键盘或读屏软件操作吗？', a: '所有流程都能用键盘操作，两种主题都检查过对比度，替代文本也是撰写流程的一部分，因为好几个网络要求必须填写。' },
   ],
-  ctaTitle: '免费开始，合适就一直免费。',
-  ctaBody: '无需绑卡，没有试用期。连接三个渠道，今天就排好第一个月。',
 };
 
 export const madeForEveryoneCopy: Record<Locale, MadeForEveryoneCopy> = { en, es, fr, de, ja, ko, zh };

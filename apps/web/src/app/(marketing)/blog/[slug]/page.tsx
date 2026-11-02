@@ -6,7 +6,7 @@ import SafeImg from '@/components/SafeImg';
 import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import { allArticles, article, relatedArticles } from '@/lib/blog';
 import { formatPostDate } from '@/content/types';
-import { ArticleCard, BackLink, CtaBand, RailCard, ReadingLayout, TagChip } from '@/components/site/ResourceKit';
+import { ArticleCard, BackLink, RailCard, ReadingLayout, TagChip } from '@/components/site/ResourceKit';
 import { ShareLinks } from '@/components/site/ArticleAside';
 
 /** ISR so publishes go live without a rebuild (new slugs render on demand). */
@@ -104,13 +104,6 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
           </div>
         </ReadingLayout>
 
-        <div className="mx-auto max-w-[1200px] px-4 pt-10 pb-16 md:pb-20">
-          <CtaBand
-            eyebrow="Put it to work"
-            title="Schedule this week in one sitting."
-            body="Draft with the AI writer, adapt to all ten channels and let the queue publish on time."
-          />
-        </div>
       </article>
 
       {related.length > 0 && (

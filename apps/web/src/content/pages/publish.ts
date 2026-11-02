@@ -85,8 +85,6 @@ const en = {
       a: 'The worker ships every channel inside about a minute of the scheduled time, and each result lands back in the queue.',
     },
   ],
-  ctaTitle: 'Fill the calendar once. Let it run all week.',
-  ctaBody: 'Connect your channels, schedule the week in one sitting, and let the queue publish while you work on something else.',
 };
 
 export type PublishCopy = typeof en;
@@ -174,8 +172,6 @@ const es: PublishCopy = {
       a: 'El servicio publica cada canal en torno a un minuto de la hora programada, y cada resultado vuelve a la cola.',
     },
   ],
-  ctaTitle: 'Llena el calendario una vez. Deja que funcione toda la semana.',
-  ctaBody: 'Conecta tus canales, programa la semana de una sentada y deja que la cola publique mientras te dedicas a otra cosa.',
 };
 
 const fr: PublishCopy = {
@@ -261,8 +257,6 @@ const fr: PublishCopy = {
       a: 'Le service publie chaque canal environ une minute après l’heure prévue, et chaque résultat revient dans la file.',
     },
   ],
-  ctaTitle: 'Remplissez le calendrier une fois. Laissez-le tourner toute la semaine.',
-  ctaBody: 'Connectez vos canaux, planifiez la semaine en une seule fois et laissez la file publier pendant que vous faites autre chose.',
 };
 
 const de: PublishCopy = {
@@ -348,8 +342,6 @@ const de: PublishCopy = {
       a: 'Der Dienst bedient jeden Kanal etwa eine Minute nach dem geplanten Zeitpunkt, und jedes Ergebnis landet wieder in der Warteschlange.',
     },
   ],
-  ctaTitle: 'Einmal den Kalender füllen. Die ganze Woche laufen lassen.',
-  ctaBody: 'Verbinde deine Kanäle, plane die Woche in einem Rutsch und lass die Warteschlange veröffentlichen, während du an etwas anderem arbeitest.',
 };
 
 const ja: PublishCopy = {
@@ -435,8 +427,6 @@ const ja: PublishCopy = {
       a: '予約時刻から約1分以内にすべてのチャネルへ公開し、それぞれの結果がキューに戻ります。',
     },
   ],
-  ctaTitle: 'カレンダーを一度埋めたら、あとは1週間おまかせ。',
-  ctaBody: 'チャネルを接続して1週間分をまとめて予約。あとはキューに公開を任せて、ほかの仕事に集中しましょう。',
 };
 
 const ko: PublishCopy = {
@@ -522,8 +512,6 @@ const ko: PublishCopy = {
       a: '예약 시간 약 1분 안에 모든 채널에 게시하고, 각 결과가 대기열로 돌아옵니다.',
     },
   ],
-  ctaTitle: '캘린더는 한 번만 채우세요. 일주일 내내 알아서 돌아갑니다.',
-  ctaBody: '채널을 연결하고 한 번에 일주일을 예약하세요. 다른 일을 하는 동안 대기열이 게시합니다.',
 };
 
 const zh: PublishCopy = {
@@ -600,8 +588,6 @@ const zh: PublishCopy = {
       a: '服务会在排期时间约一分钟内发布到每个渠道，每个结果都会回到队列。',
     },
   ],
-  ctaTitle: '日历填一次，整周自动运行。',
-  ctaBody: '连接你的渠道，一次排好整周内容，让队列在你忙别的事时自动发布。',
 };
 
 export const publishCopy: Record<Locale, PublishCopy> = { en, es, fr, de, ja, ko, zh };

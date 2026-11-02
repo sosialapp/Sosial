@@ -42,7 +42,7 @@ const en = {
   heroHl: 'everyone who posts',
   heroSub: 'Creators, founders, marketers, agencies, affiliate marketers and everyone in between.',
   heroCta: 'Start scheduling free',
-  // Shared marketing blocks (Hero, CtaCard, IconGrid, FaqList).
+  // Shared marketing blocks (Hero, IconGrid, FaqList).
   siteSeePricing: 'See pricing',
   siteLearnMore: 'Learn more',
   siteFaq: 'FAQ',
@@ -272,7 +272,7 @@ const es: Record<string, string> = {
   heroHl: 'todos los que publican',
   heroSub: 'Creadores, fundadores, marketers, agencias, afiliados y todos los demás.',
   heroCta: 'Empieza a programar gratis',
-  // Shared marketing blocks (Hero, CtaCard, IconGrid, FaqList).
+  // Shared marketing blocks (Hero, IconGrid, FaqList).
   siteSeePricing: 'Ver precios',
   siteLearnMore: 'Más información',
   siteFaq: 'Preguntas frecuentes',
@@ -492,7 +492,7 @@ const fr: Record<string, string> = {
   heroHl: 'tous ceux qui publient',
   heroSub: 'Créateurs, fondateurs, marketeurs, agences, affiliés et tous les autres.',
   heroCta: 'Commencer à planifier gratuitement',
-  // Shared marketing blocks (Hero, CtaCard, IconGrid, FaqList).
+  // Shared marketing blocks (Hero, IconGrid, FaqList).
   siteSeePricing: 'Voir les tarifs',
   siteLearnMore: 'En savoir plus',
   siteFaq: 'FAQ',
@@ -711,7 +711,7 @@ const de: Record<string, string> = {
   heroHl: 'alle, die posten',
   heroSub: 'Creator, Gründer, Marketer, Agenturen, Affiliate-Marketer und alle dazwischen.',
   heroCta: 'Kostenlos planen starten',
-  // Shared marketing blocks (Hero, CtaCard, IconGrid, FaqList).
+  // Shared marketing blocks (Hero, IconGrid, FaqList).
   siteSeePricing: 'Preise ansehen',
   siteLearnMore: 'Mehr erfahren',
   siteFaq: 'FAQ',
@@ -931,7 +931,7 @@ const ja: Record<string, string> = {
   heroHl: 'すべての人のために',
   heroSub: 'クリエイター、創業者、マーケター、代理店、アフィリエイター、その他すべての方。',
   heroCta: '無料で予約を始める',
-  // Shared marketing blocks (Hero, CtaCard, IconGrid, FaqList).
+  // Shared marketing blocks (Hero, IconGrid, FaqList).
   siteSeePricing: '料金を見る',
   siteLearnMore: '詳しく見る',
   siteFaq: 'よくある質問',
@@ -1151,7 +1151,7 @@ const ko: Record<string, string> = {
   heroHl: '모든 분을 위해',
   heroSub: '크리에이터, 창업자, 마케터, 에이전시, 애필리에이트 등 모든 분들.',
   heroCta: '무료로 예약 시작',
-  // Shared marketing blocks (Hero, CtaCard, IconGrid, FaqList).
+  // Shared marketing blocks (Hero, IconGrid, FaqList).
   siteSeePricing: '요금 보기',
   siteLearnMore: '자세히 보기',
   siteFaq: '자주 묻는 질문',
@@ -1371,7 +1371,7 @@ const zh: Record<string, string> = {
   heroHl: '发帖的人而生',
   heroSub: '创作者、创始人、营销人、代理商、联盟营销等所有角色。',
   heroCta: '免费开始排期',
-  // Shared marketing blocks (Hero, CtaCard, IconGrid, FaqList).
+  // Shared marketing blocks (Hero, IconGrid, FaqList).
   siteSeePricing: '查看价格',
   siteLearnMore: '了解更多',
   siteFaq: '常见问题',

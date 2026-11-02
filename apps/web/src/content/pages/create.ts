@@ -72,8 +72,6 @@ const en = {
       a: 'Save any caption or full design as a template and reuse it any time. Your own saved templates from posts that performed are always there.',
     },
   ],
-  ctaTitle: 'One idea in. Every channel covered.',
-  ctaBody: 'Write the post once, check every preview, and schedule it to all your networks from the same screen.',
 };
 
 export type CreateCopy = typeof en;
@@ -148,8 +146,6 @@ const es: CreateCopy = {
       a: 'Guarda cualquier texto o diseño completo como plantilla y reutilízalo cuando quieras. Tus plantillas de publicaciones que funcionaron siempre están ahí.',
     },
   ],
-  ctaTitle: 'Una idea dentro. Todos los canales cubiertos.',
-  ctaBody: 'Escribe la publicación una vez, revisa cada vista previa y prográmala en todas tus redes desde la misma pantalla.',
 };
 
 const fr: CreateCopy = {
@@ -222,8 +218,6 @@ const fr: CreateCopy = {
       a: 'Enregistrez n’importe quelle légende ou visuel complet comme modèle et réutilisez-le quand vous voulez. Vos modèles issus des publications qui ont marché sont toujours là.',
     },
   ],
-  ctaTitle: 'Une idée au départ. Tous les canaux couverts.',
-  ctaBody: 'Écrivez la publication une fois, vérifiez chaque aperçu et planifiez-la sur tous vos réseaux depuis le même écran.',
 };
 
 const de: CreateCopy = {
@@ -296,8 +290,6 @@ const de: CreateCopy = {
       a: 'Speichere jeden Text oder jedes komplette Design als Vorlage und nutze es jederzeit wieder. Deine Vorlagen aus erfolgreichen Beiträgen sind immer da.',
     },
   ],
-  ctaTitle: 'Eine Idee rein. Jeder Kanal abgedeckt.',
-  ctaBody: 'Schreib den Beitrag einmal, prüf jede Vorschau und plane ihn auf all deinen Netzwerken vom selben Bildschirm aus.',
 };
 
 const ja: CreateCopy = {
@@ -370,8 +362,6 @@ const ja: CreateCopy = {
       a: 'どのキャプションやデザインもテンプレートとして保存し、いつでも再利用できます。成果の出た投稿から作ったテンプレートはいつでも使えます。',
     },
   ],
-  ctaTitle: 'アイデアは1つ。すべてのチャネルをカバー。',
-  ctaBody: '投稿は一度書くだけ。すべてのプレビューを確認して、同じ画面からすべてのネットワークに予約しましょう。',
 };
 
 const ko: CreateCopy = {
@@ -444,8 +434,6 @@ const ko: CreateCopy = {
       a: '어떤 캡션이나 디자인이든 템플릿으로 저장해 언제든 다시 쓸 수 있어요. 성과가 좋았던 게시물로 만든 템플릿은 항상 그 자리에 있습니다.',
     },
   ],
-  ctaTitle: '아이디어 하나로 모든 채널을.',
-  ctaBody: '게시물은 한 번만 쓰고, 모든 미리 보기를 확인한 뒤 같은 화면에서 모든 네트워크에 예약하세요.',
 };
 
 const zh: CreateCopy = {
@@ -495,8 +483,6 @@ const zh: CreateCopy = {
       a: '任何文案或完整设计都可以存为模板并随时复用。你从表现好的帖子中保存的模板始终都在。',
     },
   ],
-  ctaTitle: '一个想法，覆盖所有渠道。',
-  ctaBody: '帖子只写一次，检查每个预览，然后在同一个界面排期到所有网络。',
 };
 
 export const createCopy: Record<Locale, CreateCopy> = { en, es, fr, de, ja, ko, zh };

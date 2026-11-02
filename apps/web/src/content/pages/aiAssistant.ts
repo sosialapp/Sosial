@@ -74,8 +74,6 @@ const en = {
       a: 'Yes. Generate once, then adapt per channel with each network’s limits and conventions respected.',
     },
   ],
-  ctaTitle: 'Your ideas, written up and fact-checked.',
-  ctaBody: 'Bring the rough thought. The assistant does the first draft and the research; you keep the final say on every word.',
 };
 
 export type AiAssistantCopy = typeof en;
@@ -128,8 +126,6 @@ const es: AiAssistantCopy = {
     { q: '¿Qué pasa cuando los datos no son seguros?', a: 'El redactor lo dice: las dudas se señalan y las fuentes se enlazan para que puedas verificar antes de publicar.' },
     { q: '¿Puede adaptar una idea a los diez canales?', a: 'Sí. Genera una vez y adapta a cada canal respetando los límites y costumbres de cada red.' },
   ],
-  ctaTitle: 'Tus ideas, redactadas y verificadas.',
-  ctaBody: 'Trae la idea a medias. El asistente hace el primer borrador y la investigación; tú tienes la última palabra sobre cada frase.',
 };
 
 const fr: AiAssistantCopy = {
@@ -180,8 +176,6 @@ const fr: AiAssistantCopy = {
     { q: 'Que se passe-t-il quand les faits sont incertains ?', a: 'Le rédacteur le dit : les incertitudes sont signalées et les sources liées, pour vérifier avant de publier.' },
     { q: 'Peut-il adapter une idée aux dix canaux ?', a: 'Oui. Générez une fois, puis adaptez à chaque canal en respectant les limites et usages de chaque réseau.' },
   ],
-  ctaTitle: 'Vos idées, rédigées et vérifiées.',
-  ctaBody: 'Apportez l’idée brute. L’assistant fait le premier jet et la recherche ; vous gardez le dernier mot sur chaque phrase.',
 };
 
 const de: AiAssistantCopy = {
@@ -232,8 +226,6 @@ const de: AiAssistantCopy = {
     { q: 'Was passiert, wenn Fakten unsicher sind?', a: 'Der Texter sagt es: Unsicherheiten werden markiert und Quellen verlinkt, damit du vor dem Posten prüfen kannst.' },
     { q: 'Kann er eine Idee für alle zehn Kanäle anpassen?', a: 'Ja. Einmal generieren, dann pro Kanal anpassen, mit Rücksicht auf die Limits und Gepflogenheiten jedes Netzwerks.' },
   ],
-  ctaTitle: 'Deine Ideen, ausformuliert und geprüft.',
-  ctaBody: 'Bring den groben Gedanken mit. Der Assistent macht den ersten Entwurf und die Recherche; das letzte Wort hast du.',
 };
 
 const ja: AiAssistantCopy = {
@@ -284,8 +276,6 @@ const ja: AiAssistantCopy = {
     { q: '事実が不確かな場合はどうなりますか？', a: 'ライターがそう伝えます。不確かな点には印が付き、出典がリンクされるので、投稿前に確認できます。' },
     { q: '1つのアイデアを10チャネルすべてに合わせられますか？', a: 'はい。一度生成したら、各ネットワークの制限や慣習に合わせてチャネルごとに調整できます。' },
   ],
-  ctaTitle: 'あなたのアイデアを、文章にしてファクトチェック。',
-  ctaBody: '大まかな考えを持ってきてください。最初の下書きと調査はアシスタントが行い、すべての言葉の最終判断はあなたが下します。',
 };
 
 const ko: AiAssistantCopy = {
@@ -336,8 +326,6 @@ const ko: AiAssistantCopy = {
     { q: '사실이 불확실하면 어떻게 되나요?', a: '작성 도우미가 알려 줍니다. 불확실한 점은 표시되고 출처가 연결되어 있어 게시 전에 확인할 수 있어요.' },
     { q: '아이디어 하나를 10개 채널 모두에 맞출 수 있나요?', a: '네. 한 번 생성한 뒤 각 네트워크의 제한과 관례에 맞춰 채널별로 조정하세요.' },
   ],
-  ctaTitle: '내 아이디어를 글로, 사실 확인까지.',
-  ctaBody: '대략적인 생각만 가져오세요. 첫 초안과 리서치는 어시스턴트가 하고, 모든 단어의 최종 결정은 내가 합니다.',
 };
 
 const zh: AiAssistantCopy = {
@@ -387,8 +375,6 @@ const zh: AiAssistantCopy = {
     { q: '事实不确定时会怎样？', a: '写作助手会直接说明：不确定之处会被标出并附上来源链接，你可以在发布前核实。' },
     { q: '能把一个想法适配到全部十个渠道吗？', a: '可以。生成一次，再按各网络的限制和惯例逐个渠道调整。' },
   ],
-  ctaTitle: '你的想法，写好并核实。',
-  ctaBody: '带上粗略的想法。助手完成初稿和调研，每个字的最终决定权都在你手里。',
 };
 
 export const aiAssistantCopy: Record<Locale, AiAssistantCopy> = { en, es, fr, de, ja, ko, zh };

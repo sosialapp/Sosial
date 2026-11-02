@@ -5,7 +5,7 @@ import {
   CheckCircle2, Languages, Layers, Lightbulb, ListOrdered, Palette, PenLine, RefreshCw, Search, ShieldCheck, Sparkles, Wand2, Workflow,
 } from 'lucide-react';
 import { FaqList } from '@/components/site/PageBlocks';
-import { CtaCard, Hero, IconGrid, Section, SectionHead, Split, Steps } from '@/components/site/Marketing';
+import { Hero, IconGrid, Section, SectionHead, Split, Steps } from '@/components/site/Marketing';
 import PageCms from '@/components/site/PageCms';
 import AppPreview from '@/components/site/app-preview/AppPreview';
 import { aiAssistantCopy } from '@/content/pages/aiAssistant';
@@ -84,7 +84,6 @@ export default async function AiAssistantPage() {
 
       <FaqList items={c.faq} />
 
-      <CtaCard title={c.ctaTitle} body={c.ctaBody} secondary={composer} />
     </>
   );
 }
