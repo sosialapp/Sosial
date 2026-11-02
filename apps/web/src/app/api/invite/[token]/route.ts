@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient, WORKSPACE_COOKIE } from '@/lib/supabase/server';
+import { publicOrigin } from '@/lib/site';
 
 export const runtime = 'nodejs';
 
@@ -14,7 +15,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export async function GET(req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const origin = new URL(req.url).origin;
+  const origin = publicOrigin(req);
   const fail = (msg: string) =>
     NextResponse.redirect(`${origin}/invite/${token}?err=${encodeURIComponent(msg)}`);
 

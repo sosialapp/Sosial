@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { channelManageError } from '@/lib/channelAccess';
 import { redirectUri } from '@/lib/oauth';
 import { FLOW_COOKIE, b64e, cookieOpts, type FlowState } from '@/lib/oauthServer';
+import { publicOrigin } from '@/lib/site';
 
 /**
  * Username like "alice" lands on mastodon.social; a full server like
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
   const denied = await channelManageError(sb, workspaceId);
   if (denied) return NextResponse.json({ error: denied }, { status: 403 });
 
-  const origin = new URL(req.url).origin;
+  const origin = publicOrigin(req);
   const redir = redirectUri(origin);
   const base = `https://${instance}`;
   let clientId = '';

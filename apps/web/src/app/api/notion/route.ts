@@ -1,6 +1,7 @@
 import { getWorkspaceContext, createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { getConnection, readToken } from '@/lib/notion';
+import { publicOrigin } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
     body: {
       workspace_id: ctx.workspace.id,
       code,
-      redirect_uri: `${new URL(req.url).origin}/auth.html`,
+      redirect_uri: `${publicOrigin(req)}/auth.html`,
     },
   });
   const payload = (data ?? {}) as { error?: string };

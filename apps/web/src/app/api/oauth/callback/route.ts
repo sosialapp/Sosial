@@ -12,6 +12,7 @@ import {
   type FlowState,
   type PickState,
 } from '@/lib/oauthServer';
+import { publicOrigin } from '@/lib/site';
 
 interface ExchangePayload {
   error?: string;
@@ -56,7 +57,7 @@ async function edgeDetail(err: unknown): Promise<string | null> {
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  const origin = publicOrigin(req);
   const incomingState = url.searchParams.get('state');
 
   // Media-source picker landing (state `cloud:<provider>:<nonce>` from the
