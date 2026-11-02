@@ -28,6 +28,9 @@ PIN_CLIENT_SECRET=
 # true while the Pinterest app has Trial access: pins and boards use the API
 # sandbox (visible only to you). Also set it in the Supabase functions .env.
 PIN_SANDBOX=
+# Sandbox access token from the Pinterest developer portal (the sandbox rejects
+# OAuth tokens). Needed when PIN_SANDBOX=true; also in the Supabase functions .env.
+PIN_SANDBOX_TOKEN=
 DROPBOX_APP_KEY=
 DROPBOX_APP_SECRET=
 CANVA_CLIENT_ID=

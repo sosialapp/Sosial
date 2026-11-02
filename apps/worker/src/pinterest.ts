@@ -18,10 +18,24 @@ import { info } from './logger';
  * stay on production either way. Mirrored by the pin-boards edge function
  * and EXPO_PUBLIC_PIN_SANDBOX on mobile.
  */
+export function pinSandbox(): boolean {
+  return /^(1|true|yes|on)$/i.test(env('PIN_SANDBOX').trim());
+}
+
 export function pinContentApi(): string {
-  return /^(1|true|yes|on)$/i.test(env('PIN_SANDBOX').trim())
-    ? 'https://api-sandbox.pinterest.com/v5'
-    : 'https://api.pinterest.com/v5';
+  return pinSandbox() ? 'https://api-sandbox.pinterest.com/v5' : 'https://api.pinterest.com/v5';
+}
+
+/**
+ * Token for those calls. The sandbox does not accept the OAuth (production)
+ * token Sosial gets when you connect ("Authentication failed."); it takes a
+ * sandbox token generated in the Pinterest developer portal. PIN_SANDBOX_TOKEN
+ * is that token, for one account (yours), which is all Trial access allows.
+ * Outside sandbox mode the channel's OAuth token is used as before.
+ */
+export function pinContentToken(oauthToken: string): string {
+  const sandboxToken = env('PIN_SANDBOX_TOKEN').trim();
+  return pinSandbox() && sandboxToken ? sandboxToken : oauthToken;
 }
 const PIN_TOKEN_ENDPOINT = 'https://api.pinterest.com/v5/oauth/token';
 const PIN_SCOPES = 'boards:read,boards:write,pins:read,pins:write,user_accounts:read';
@@ -240,7 +254,7 @@ export async function publishPinterestTarget(bundle: Bundle): Promise<{ remoteId
   const b = bundle as Bundle;
   const boardId = String(b.channel.metadata?.pinBoardId ?? '').trim();
   if (!boardId) throw new Error('Pick a Pinterest board in Connect first.');
-  const token = await ensureToken(b);
+  const token = pinContentToken(await ensureToken(b));
 
   const caption = (b.target.caption ?? b.post.body ?? '').trim();
   const firstLine = caption.split('\n')[0];
