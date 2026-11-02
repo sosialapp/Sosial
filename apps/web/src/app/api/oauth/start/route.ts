@@ -6,6 +6,7 @@ import { FLOW_COOKIE, b64e, cookieOpts, type FlowState } from '@/lib/oauthServer
 import { channelManageError } from '@/lib/channelAccess';
 import { getEntitlement } from '@/lib/billing/entitlement';
 import { PLANS, canConnectProvider } from '@/lib/billing/plans';
+import { publicOrigin } from '@/lib/site';
 
 /** X's verifier alphabet (43–128 chars), plain base64url can contain `_`,
  *  which X rejects, so draw from the allowed set like the mobile app. */
@@ -25,7 +26,7 @@ function newVerifier(): string {
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  const origin = publicOrigin(req);
   const back = (msg: string) =>
     NextResponse.redirect(`${origin}/channels?error=${encodeURIComponent(msg)}`);
 
