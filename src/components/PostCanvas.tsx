@@ -5,7 +5,7 @@ import { PostPage } from '../types';
 import { SOCIAL_META } from '../constants';
 import { F } from '../utils/fonts';
 import { contrastRatio } from '../utils/color';
-import { blockRows, rowFractions } from '../utils/blockLayout';
+import { blockRows, PART_Z, placeStyle, rowFractions, socialIconColors } from '../utils/blockLayout';
 import PatternBackground from './PatternBackground';
 import ContentBlockView from './ContentBlockView';
 import SocialCardChrome from './SocialCardChrome';
@@ -115,27 +115,29 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
       const first = page.blocks[row[0]];
       const space = first.style?.spaceAbove ? pad(Math.min(60, Math.max(0, first.style.spaceAbove))) : 0;
       if (row.length === 1) {
-        const view = <ContentBlockView key={first.id} block={first} width={bw} font={font} zoom={zoom} fill={fill} />;
+        const view = <ContentBlockView key={first.id} block={first} width={bw} font={font} zoom={zoom} fill={fill} unit={s} />;
         // Unwrapped when possible: fixed-card images grow via flexGrow,
         // which needs the block to be a direct child of the card column.
-        return space ? <View key={first.id} style={{ marginTop: space, flexGrow: fill && first.type === 'image' ? 1 : 0 }}>{view}</View> : view;
+        return space ? <View key={first.id} style={{ marginTop: space, flexGrow: fill && first.type === 'image' ? 1 : 0, zIndex: first.style?.z }}>{view}</View> : view;
       }
       const members = row.map((i) => page.blocks[i]);
       const fr = rowFractions(members);
       const gap = pad(10);
+      // RN stacks siblings only, so a row carries its top member's layer.
+      const rowZ = Math.max(...members.map((b) => b.style?.z ?? 0)) || undefined;
       const avail = bw - gap * (row.length - 1);
       const align = first.style?.align ?? 'left';
       return (
         <View
           key={first.id}
           style={{
-            flexDirection: 'row', alignItems: 'flex-start', gap, marginTop: space || undefined,
+            flexDirection: 'row', alignItems: 'flex-start', gap, marginTop: space || undefined, zIndex: rowZ,
             justifyContent: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
           }}
         >
           {members.map((b, j) => (
-            <View key={b.id} style={{ width: avail * fr[j], flexShrink: 0 }}>
-              <ContentBlockView block={b} width={bw} font={font} zoom={zoom} cell={(avail * fr[j]) / bw} />
+            <View key={b.id} style={{ width: avail * fr[j], flexShrink: 0, zIndex: b.style?.z }}>
+              <ContentBlockView block={b} width={bw} font={font} zoom={zoom} cell={(avail * fr[j]) / bw} unit={s} />
             </View>
           ))}
         </View>
@@ -144,7 +146,7 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
   );
 
   const titleBlock = (
-    <View style={{ gap: pad(4) }}>
+    <View style={[{ gap: pad(4), zIndex: PART_Z }, placeStyle(page.title.place, s)]}>
       <Text style={{ ...F(page.title.font, page.title.bold, page.title.italic), fontSize: page.title.size * s, color: page.title.color, textAlign: page.title.align, lineHeight: page.title.size * s * 1.28, letterSpacing: -0.4, textShadowColor: '#00000022', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
         {page.title.text}
       </Text>
@@ -166,6 +168,8 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
         alignItems: dir === 'column' || dir === 'column-reverse' ? crossAlign(align) : 'center',
         justifyContent: dir === 'column' || dir === 'column-reverse' ? 'flex-start' : crossAlign(align),
         gap: pad(socialGap),
+        zIndex: PART_Z,
+        ...placeStyle(page.pfp.place, s),
       }}
     >
       {!photoOff ? (
@@ -194,11 +198,11 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
           {visibleSocials.map((sl) => {
             const brand = SOCIAL_META[sl.platform]?.bg ?? '#111111';
             const clash = contrastRatio(brand, badgeSurface) < 3;
-            const inverted = !iconOutline && clash;
-            const glyphColor = iconOutline ? (clash ? ringColor : brand) : (inverted ? brand : '#fff');
+            const ic = socialIconColors(page.pfp.iconColor, iconOutline, brand, clash, ringColor);
+            const glyphColor = ic.glyph;
             return (
               <View key={sl.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: badgeBg ? '#111111E8' : 'transparent', borderRadius: pad(8), paddingHorizontal: pad(6), paddingVertical: pad(4), borderWidth: badgeBg ? pad(1) : 0, borderColor: '#FFFFFF2E' }}>
-                <View style={{ width: pad(iconSize), height: pad(iconSize), borderRadius: pad(iconSize / 2), backgroundColor: iconOutline ? 'transparent' : (inverted ? '#FFFFFF' : brand), alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: pad(iconSize), height: pad(iconSize), borderRadius: pad(iconSize / 2), backgroundColor: ic.disc, alignItems: 'center', justifyContent: 'center' }}>
                   <SocialGlyph platform={sl.platform} size={pad(iconSize * 0.6)} color={glyphColor} />
                 </View>
                 {sl.handle ? (
@@ -242,10 +246,11 @@ function PostCanvasInner({ page, ratio, scale, watermark }: Props, ref: React.Re
             const brand = SOCIAL_META[sl.platform]?.bg ?? '#111111';
             const iconSize = pad(page.pfp.iconSize ?? 17);
             const clash = contrastRatio(brand, fullBg) < 3;
+            const ic = socialIconColors(page.pfp.iconColor, false, brand, false, '#FFFFFF');
             return (
               <View key={sl.id} style={{ flexDirection: 'row', alignItems: 'center', gap: pad(3), borderRadius: pad(8), paddingHorizontal: pad(6), paddingVertical: pad(4), backgroundColor: clash ? '#111111E8' : 'transparent' }}>
-                <View style={{ width: iconSize, height: iconSize, borderRadius: iconSize / 2, backgroundColor: brand, alignItems: 'center', justifyContent: 'center', borderWidth: clash ? pad(1) : 0, borderColor: '#FFFFFF55' }}>
-                  <SocialGlyph platform={sl.platform} size={iconSize * 0.62} color="#FFFFFF" />
+                <View style={{ width: iconSize, height: iconSize, borderRadius: iconSize / 2, backgroundColor: ic.disc, alignItems: 'center', justifyContent: 'center', borderWidth: clash ? pad(1) : 0, borderColor: '#FFFFFF55' }}>
+                  <SocialGlyph platform={sl.platform} size={iconSize * 0.62} color={ic.glyph} />
                 </View>
                 {sl.handle ? (
                   <Text style={{ ...F(sl.font, sl.bold, sl.italic), color: fcInk, fontSize: pad(page.pfp.handleSize ?? 8.5) }}>{sl.handle}</Text>

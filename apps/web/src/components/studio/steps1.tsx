@@ -14,6 +14,7 @@ import {
   FONT_STACKS,
   PALETTE,
   POST_SIZES,
+  layerPlace,
   newBlock,
   parseChartLine,
   uid,
@@ -32,7 +33,7 @@ import {
 import { providerMeta } from '@/lib/providers';
 import { BrandIcon } from '@/components/BrandIcon';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
-import { Field, Seg, Stepper, Swatches, SwitchRow, Toggle } from './controls';
+import { Field, PlacementControls, Seg, Stepper, Swatches, SwitchRow, Toggle } from './controls';
 
 export interface StepApi {
   page: PostPage;
@@ -308,6 +309,12 @@ export function TitleStep({ page, patchTitle, patchPage }: Pick<StepApi, 'page' 
         <Field label="Headline size" hint={`${t.size}pt`}>
           <Stepper value={t.size} onChange={(v) => patchTitle({ size: v })} step={2} min={16} max={52} format={(v) => `${v}pt`} />
         </Field>
+        <PlacementControls
+          value={t.place ?? {}}
+          onChange={(patch) => patchTitle({ place: { ...t.place, ...patch } })}
+          onLayer={(w) => patchPage({ title: layerPlace(page, { kind: 'title' }, w).title })}
+          hint="Drag the title on the canvas to move it."
+        />
       </div>
       <div className="card space-y-3 p-4">
         <Section no="04" title="Caption" hint="Copied into the composer when you post." />
@@ -394,6 +401,12 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
         <Field label="Card handle" hint="Overrides the @handle shown in the card header (Facebook, X, Bluesky…). Leave empty to use your first badge's handle.">
           <EmojiInput value={p.customHandle ?? ''} onChange={(v) => patchPfp({ customHandle: v })} placeholder="@yourhandle" className="field" />
         </Field>
+        <PlacementControls
+          value={p.place ?? {}}
+          onChange={(patch) => patchPfp({ place: { ...p.place, ...patch } })}
+          onLayer={(w) => patchPage({ pfp: layerPlace(page, { kind: 'pfp' }, w).pfp })}
+          hint="Moves the photo and badges together. Drag them on the canvas."
+        />
       </div>
       <div className={`space-y-3 ${p.socialsHidden ? 'pointer-events-none' : ''}`} style={{ opacity: p.socialsHidden ? 0.45 : 1 }} aria-disabled={!!p.socialsHidden}>
         <Section no="02" title="Badges" hint="Centered next to your photo on the export." />
@@ -491,6 +504,13 @@ export function PhotoSocialsStep({ page, patchPfp, patchPage }: Pick<StepApi, 'p
             <SwitchRow title="Badge background" sub="Dark pill behind the icons" on={p.badgeBg ?? true} onPress={() => patchPfp({ badgeBg: !(p.badgeBg ?? true) })} />
             <Field label="Icon style">
               <Seg options={[{ value: 'filled', label: 'Filled' }, { value: 'outline', label: 'Outline' }]} value={p.iconOutline ? 'outline' : 'filled'} onChange={(v) => patchPfp({ iconOutline: v === 'outline' })} />
+            </Field>
+            <Field label="Icon colour" hint={p.iconOutline ? 'Logo and ring' : 'Icon disc'}>
+              <Seg
+                options={[{ value: 'brand', label: 'Brand' }, { value: 'black', label: 'Black' }, { value: 'white', label: 'White' }]}
+                value={p.iconColor ?? 'brand'}
+                onChange={(v) => patchPfp({ iconColor: v === 'brand' ? undefined : (v as 'black' | 'white') })}
+              />
             </Field>
             <Field label="Layout">
               <Seg options={[{ value: '1', label: 'Single row' }, { value: '2', label: 'Double row' }]} value={String(p.badgeRows)} onChange={(v) => patchPfp({ badgeRows: Number(v) as 1 | 2 })} />

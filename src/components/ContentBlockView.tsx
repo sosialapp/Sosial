@@ -5,6 +5,7 @@ import { ContentBlock, FontId } from '../types';
 import { F } from '../utils/fonts';
 import { DATA } from '../theme';
 import { cropLayout, isCropV2, type ImageCrop } from '../utils/crop';
+import { placeStyle } from '../utils/blockLayout';
 
 /** v2 crop: measures its frame (fixed-card images grow, so the height isn't
  *  known up front) and lays the photo out in exact px, like web blocks.tsx. */
@@ -217,16 +218,20 @@ export function ChartBlock({ block, w, font, zoom = 1 }: { block: ContentBlock; 
 /** Outer wrapper honouring per-block width % + alignment (width math inside
  *  keeps using the full content width so text scale stays predictable).
  *  Mirrors web blocks.tsx BlockView, keep in sync. */
-export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean; cell?: number }) {
+export default function ContentBlockView(props: { block: ContentBlock; width: number; font?: FontId; zoom?: number; fill?: boolean; cell?: number; unit?: number }) {
   const { block, width } = props;
   const st = block.style;
   const k = width / 340;
+  // Free placement is in canvas design units (unit = canvas px per unit).
+  const place = placeStyle(st, props.unit ?? k);
   const zoom = (props.zoom ?? 1) * (st?.scale != null ? Math.min(2.5, Math.max(0.5, st.scale)) : 1);
   // Box fill: padded, rounded panel behind the block.
   const boxed = st?.boxBg ? { backgroundColor: st.boxBg, borderRadius: 10 * k, padding: 10 * k } : null;
   const pct = st?.width != null ? Math.min(1, Math.max(0.2, st.width)) : 1;
   const inner = <ContentBlockInner {...props} zoom={zoom} cell={props.cell ?? pct} boxPad={boxed ? 20 * k : 0} />;
-  const body = boxed ? <View style={boxed}>{inner}</View> : inner;
+  const boxedBody = boxed ? <View style={boxed}>{inner}</View> : inner;
+  // Placed blocks get a wrapper; a fixed-card image keeps growing inside it.
+  const body = place ? <View style={[place, props.fill && block.type === 'image' ? { flexGrow: 1 } : null]}>{boxedBody}</View> : boxedBody;
   // Inside a multi-block row the row wrapper owns the width.
   if (props.cell != null) return body;
   const align = st?.align ?? 'left';
@@ -236,6 +241,7 @@ export default function ContentBlockView(props: { block: ContentBlock; width: nu
       style={{
         width: `${pct * 100}%` as any,
         alignSelf: align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start',
+        zIndex: place?.zIndex,
       }}
     >
       {body}

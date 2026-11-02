@@ -16,6 +16,9 @@ import { useFocusScrollPanel, FocusScrollBridge } from '../components/FocusScrol
 import { saveProjectPreset } from '../utils/presets';
 import { saveProject } from './HomeScreen';
 import { loadAccount } from '../utils/account';
+import { CanvasMoveProvider } from '../components/CanvasMove';
+import { patchPlace, placeOf, type PlaceTarget } from '../utils/blockLayout';
+import type { Placement } from '../types';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const GAP = 18;
@@ -32,8 +35,11 @@ const STEPS: { id: EditorStep; label: string }[] = [
 export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: () => void; onHome: () => void; onPosts: () => void }) {
   const { C } = useTheme();
   const s = makeS(C);
-  const { post, page, pageIndex, setPageIndex, duplicatePage, deletePage, setPageOrder, sizeRatio } = usePost();
+  const { post, page, pageIndex, setPageIndex, duplicatePage, deletePage, setPageOrder, sizeRatio, patchPage } = usePost();
   const [step, setStep] = useState<EditorStep>('background');
+  // Canvas move mode: a panel picks the element, a drag on the preview moves it.
+  const [moveTarget, setMoveTarget] = useState<PlaceTarget | null>(null);
+  useEffect(() => setMoveTarget(null), [step, pageIndex]);
   const [plan, setPlan] = useState<'free' | 'pro' | 'team'>('free');
   useEffect(() => { loadAccount().then((a) => setPlan(a.plan)); }, []);
   const [expanded, setExpanded] = useState(false);
@@ -51,6 +57,13 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
   orderCommitR.current = setPageOrder;
   const postR = useRef(post);
   postR.current = post;
+  const pageR = useRef(page);
+  pageR.current = page;
+  const patchPageR = useRef(patchPage);
+  patchPageR.current = patchPage;
+  const moveTargetR = useRef(moveTarget);
+  moveTargetR.current = moveTarget;
+  const moveStartR = useRef<Placement>({});
 
   const beginPreviewDrag = (id: string) => {
     const p = postR.current;
@@ -113,6 +126,34 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
     }),
   ).current;
 
+  // Free move on the preview. Offsets are design units (canvas is 340 wide),
+  // snapping back to the layout spot near 0; mirrors the web canvas layer.
+  const movePan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !!moveTargetR.current,
+      onMoveShouldSetPanResponder: () => !!moveTargetR.current,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        const t = moveTargetR.current;
+        const pg = pageR.current;
+        moveStartR.current = t && pg ? placeOf(pg, t) : {};
+      },
+      onPanResponderMove: (_, g) => {
+        const t = moveTargetR.current;
+        const pg = pageR.current;
+        if (!t || !pg) return;
+        const u = stageScaleR.current || 1;
+        const at = (v0: number | undefined, d: number, lim: number) => {
+          const v = Math.max(-lim, Math.min(lim, (v0 ?? 0) + d / u));
+          return Math.abs(v) < 3 ? undefined : Math.round(v * 2) / 2;
+        };
+        const p0 = moveStartR.current;
+        const next = patchPlace(pg, t, { dx: at(p0.dx, g.dx, CANVAS_W), dy: at(p0.dy, g.dy, CANVAS_W * sizeRatioR.current) });
+        patchPageR.current({ title: next.title, pfp: next.pfp, blocks: next.blocks });
+      },
+    }),
+  ).current;
+
   // preview scale: identical math in both modes, only the available height differs,
   // so Minimize and Maximize render the exact same canvas at different sizes
   const stageMaxH = expanded ? SCREEN_H * 0.82 : SCREEN_H * 0.34;
@@ -120,6 +161,10 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
   const stageW = CANVAS_W * stageScale;
   const stageWR = useRef(stageW);
   stageWR.current = stageW;
+  const stageScaleR = useRef(stageScale);
+  stageScaleR.current = stageScale;
+  const sizeRatioR = useRef(sizeRatio);
+  sizeRatioR.current = sizeRatio;
   const SNAP = stageW + GAP;
   const multi = (post?.pages.length ?? 0) > 1;
 
@@ -171,7 +216,10 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
     if (idx >= 0 && idx < post.pages.length && idx !== pageIndex) setPageIndex(idx);
   };
 
+  const moveCtx = { target: moveTarget, start: setMoveTarget, stop: () => setMoveTarget(null) };
+
   return (
+    <CanvasMoveProvider value={moveCtx}>
     <View style={s.screen}>
       <StatusBar barStyle="dark-content" />
       {/* top bar */}
@@ -191,7 +239,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
 
       {/* preview stage, swipeable pager */}
       <View style={[s.stage, expanded && { flex: 1 }]}>
-        {multi ? (
+        {multi && !moveTarget ? (
           <ScrollView
             ref={pagerRef}
             horizontal
@@ -232,7 +280,10 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
             ))}
           </ScrollView>
         ) : (
-          <PostCanvas page={page} ratio={sizeRatio} scale={stageScale} watermark={wmFor(page)} />
+          <View>
+            <PostCanvas page={page} ratio={sizeRatio} scale={stageScale} watermark={wmFor(page)} />
+            {moveTarget ? <View {...movePan.panHandlers} style={s.moveLayer} /> : null}
+          </View>
         )}
 
         {/* page dots + counter */}
@@ -252,6 +303,14 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
           </View>
           {multi ? <Text style={s.counter}>{pageIndex + 1} / {post.pages.length}</Text> : null}
         </View>
+        {moveTarget ? (
+          <View style={s.stageActions}>
+            <Text style={s.moveHint}>Drag on the preview to move it</Text>
+            <TouchableOpacity onPress={() => setMoveTarget(null)} style={[s.chip, s.chipOn]} activeOpacity={0.7}>
+              <Text style={[s.chipT, { color: C.onInk }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
         <View style={s.stageActions}>
           <TouchableOpacity onPress={duplicatePage} style={s.chip} activeOpacity={0.7}>
             <Text style={s.chipT}>Duplicate page</Text>
@@ -265,6 +324,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
             <Text style={[s.chipT, { fontWeight: '700' }]}>{expanded ? 'Minimize' : 'Maximize'}</Text>
           </TouchableOpacity>
         </View>
+        )}
       </View>
 
       {/* sheet, the aware scrollview below owns keyboard insets, so this
@@ -321,6 +381,7 @@ export default function EditorScreen({ onExport, onHome, onPosts }: { onExport: 
         </View>
       </KeyboardAvoidingView>
     </View>
+    </CanvasMoveProvider>
   );
 }
 
@@ -343,6 +404,9 @@ const makeS = (C: Palette) => StyleSheet.create({
   stageActions: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 6 },
   chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: R.lg, backgroundColor: C.card, borderWidth: 1, borderColor: C.lineSoft },
   chipT: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.accentInk },
+  chipOn: { backgroundColor: C.accent, borderColor: C.accent },
+  moveLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderWidth: 2, borderStyle: 'dashed', borderColor: C.accent, borderRadius: 14 },
+  moveHint: { alignSelf: 'center', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.muted },
 
   sheet: { flex: 1, backgroundColor: C.paper, borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl, paddingTop: 6 },
   tabsWrap: { borderBottomWidth: 1, borderBottomColor: C.lineSoft, paddingBottom: 0 },

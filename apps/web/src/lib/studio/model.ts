@@ -4,6 +4,7 @@
  * design width is 340 (matches mobile CANVAS_W, so all sizing math ports).
  */
 
+import type { CSSProperties } from 'react';
 import type { ImageCrop } from './crop';
 
 export type PostSizeId = 'square' | 'portrait' | 'story' | 'landscape' | 'a4';
@@ -60,6 +61,21 @@ export interface BackgroundStyle {
 
 export type TitlePosition = 'top' | 'bottom' | 'none';
 
+/** Free placement on top of the auto-flow layout (canvas editing). Every
+ *  field is optional: absent = where the layout puts it, upright, opaque. */
+export interface Placement {
+  /** Offset from the layout spot, design units (the canvas is 340 wide). */
+  dx?: number;
+  dy?: number;
+  /** Degrees, -180..180. */
+  rotate?: number;
+  /** 0.1-1. */
+  opacity?: number;
+  /** Stacking among siblings, higher draws on top (blocks: inside the card;
+   *  title / profile row: against the card, which sits at 0). */
+  z?: number;
+}
+
 export interface PostTitle {
   text: string;
   position: TitlePosition;
@@ -72,6 +88,7 @@ export interface PostTitle {
   subtitle?: string;
   subtitleSize?: number;
   subtitleColor?: string;
+  place?: Placement;
 }
 
 export type FontId =
@@ -118,13 +135,19 @@ export interface PfpStyle {
   handleSize: number;
   iconSize: number;
   iconOutline: boolean;
+  /** Social icon colour: the network's own colour (default), black or white. */
+  iconColor?: SocialIconColor;
   socialGap: number;
   align: 'left' | 'center' | 'right';
   borderW: number;
   username?: string;
   /** Overrides the handle shown in the card header (FB/X/Bluesky/…). */
   customHandle?: string;
+  /** Placement of the whole profile + socials row. */
+  place?: Placement;
 }
+
+export type SocialIconColor = 'brand' | 'black' | 'white';
 
 export type SocialPlatform =
   | 'instagram' | 'tiktok' | 'threads' | 'x' | 'facebook' | 'youtube'
@@ -149,7 +172,7 @@ export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar
 
 /** Per-block presentation overrides. Every field is optional, absent means
  *  "use the block type's default", so old designs keep rendering as-is. */
-export interface BlockStyle {
+export interface BlockStyle extends Placement {
   /** fraction of the content width the block occupies (0.2–1) */
   width?: number;
   align?: 'left' | 'center' | 'right';
@@ -494,4 +517,89 @@ export function newBlock(type: BlockType): ContentBlock {
   if (type === 'free') return { id: uid('b'), type, heading: '', items: ['Write anything here…'] };
   if (type === 'image') return { id: uid('b'), type, heading: '', items: [], imageH: 140 };
   return { id: uid('b'), type: 'bullets', heading: 'Points', items: ['Point one', 'Point two'] };
+}
+
+/* ------------------------------- placement -------------------------------- */
+
+const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** True when the element sits somewhere other than its layout spot. */
+export const isPlaced = (p?: Placement) => !!(p && (p.dx || p.dy || p.rotate || (p.opacity != null && p.opacity < 1) || p.z));
+
+/** CSS for a placement; k = canvas px per design unit. Mobile placeStyle
+ *  (src/utils/blockLayout.ts) mirrors this, keep in sync. */
+export function placeCss(p: Placement | undefined, k: number): CSSProperties | undefined {
+  if (!p) return undefined;
+  const out: CSSProperties = {};
+  const t: string[] = [];
+  if (p.dx || p.dy) t.push(`translate(${(p.dx ?? 0) * k}px, ${(p.dy ?? 0) * k}px)`);
+  if (p.rotate) t.push(`rotate(${clampN(p.rotate, -180, 180)}deg)`);
+  if (t.length) out.transform = t.join(' ');
+  if (p.opacity != null && p.opacity < 1) out.opacity = clampN(p.opacity, 0.1, 1);
+  if (p.z) {
+    out.position = 'relative';
+    out.zIndex = p.z;
+  }
+  return out;
+}
+
+/** Patch that clears the move and rotation (opacity and layer stay). */
+export const RESET_PLACE: Placement = { dx: undefined, dy: undefined, rotate: undefined };
+
+/** What the canvas can place: one block, the title, or the profile row. */
+export type PlaceTarget = { kind: 'block'; id: string } | { kind: 'title' } | { kind: 'pfp' };
+
+export function placeOf(pg: PostPage, t: PlaceTarget): Placement {
+  if (t.kind === 'block') return pg.blocks.find((b) => b.id === t.id)?.style ?? {};
+  return (t.kind === 'title' ? pg.title.place : pg.pfp.place) ?? {};
+}
+
+export function patchPlace(pg: PostPage, t: PlaceTarget, patch: Placement): PostPage {
+  if (t.kind === 'block') return { ...pg, blocks: pg.blocks.map((b) => (b.id === t.id ? withStyle(b, patch) : b)) };
+  if (t.kind === 'title') return { ...pg, title: { ...pg.title, place: { ...(pg.title.place ?? {}), ...patch } } };
+  return { ...pg, pfp: { ...pg.pfp, place: { ...(pg.pfp.place ?? {}), ...patch } } };
+}
+
+/** Default layer of the title and profile row: above the card (0), so a
+ *  moved title slides over the card, not under it. */
+export const PART_Z = 1;
+
+/** z that puts an element in front of / behind every sibling. */
+export function layerZ(others: (number | undefined)[], where: 'front' | 'back'): number {
+  const zs = others.map((z) => z ?? 0);
+  return where === 'front' ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
+}
+
+/** Bring an element to the front, or send it to the back: a block among
+ *  the card's blocks, the title / profile row against each other and the
+ *  card (which counts as 0). */
+export function layerPlace(pg: PostPage, t: PlaceTarget, where: 'front' | 'back'): PostPage {
+  const others =
+    t.kind === 'block'
+      ? pg.blocks.filter((b) => b.id !== t.id).map((b) => b.style?.z)
+      : [(t.kind === 'title' ? pg.pfp.place?.z : pg.title.place?.z) ?? PART_Z];
+  return patchPlace(pg, t, { z: layerZ(others, where) });
+}
+
+/**
+ * Disc / glyph / ring colours for one social icon. Brand keeps the old look
+ * (white glyph on the brand disc, flipped when the brand clashes with the
+ * surface); black and white paint the outline or the disc in that colour.
+ */
+export function socialIconColors(
+  mode: SocialIconColor | undefined,
+  outline: boolean,
+  brand: string,
+  clash: boolean,
+  ring: string,
+): { disc: string; glyph: string; border: string } {
+  if (mode === 'black' || mode === 'white') {
+    const c = mode === 'black' ? '#111111' : '#FFFFFF';
+    if (outline) return { disc: 'transparent', glyph: c, border: c };
+    return mode === 'black'
+      ? { disc: c, glyph: '#FFFFFF', border: 'transparent' }
+      : { disc: c, glyph: brand, border: 'transparent' };
+  }
+  if (outline) return { disc: 'transparent', glyph: clash ? ring : brand, border: clash ? ring : brand };
+  return clash ? { disc: '#FFFFFF', glyph: brand, border: 'transparent' } : { disc: brand, glyph: '#FFFFFF', border: 'transparent' };
 }

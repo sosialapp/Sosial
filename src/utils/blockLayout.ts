@@ -1,5 +1,6 @@
+import type { ViewStyle } from 'react-native';
 import { uid } from '../constants';
-import { BlockStyle, ContentBlock } from '../types';
+import { BlockStyle, ContentBlock, Placement, PostPage, SocialIconColor } from '../types';
 
 /**
  * Block row layout: a row starts at the first block and at every block that
@@ -80,4 +81,80 @@ export function imageFrameAspect(b: ContentBlock, blocks: ContentBlock[]): numbe
   }
   const w = 282 * cell - (b.style?.boxBg ? 20 : 0);
   return Math.max(20, w) / Math.max(60, b.imageH ?? 140);
+}
+
+/* ------------------------------- placement -------------------------------- */
+// Mirrors the placement helpers in web apps/web/src/lib/studio/model.ts.
+
+const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** View style for a placement; s = canvas px per design unit. */
+export function placeStyle(p: Placement | undefined, s: number): ViewStyle | undefined {
+  if (!p) return undefined;
+  const t = [
+    ...(p.dx ? [{ translateX: p.dx * s }] : []),
+    ...(p.dy ? [{ translateY: p.dy * s }] : []),
+    ...(p.rotate ? [{ rotate: `${clampN(p.rotate, -180, 180)}deg` }] : []),
+  ];
+  const out: ViewStyle = {
+    ...(t.length ? { transform: t } : null),
+    ...(p.opacity != null && p.opacity < 1 ? { opacity: clampN(p.opacity, 0.1, 1) } : null),
+    ...(p.z ? { zIndex: p.z } : null),
+  };
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** Patch that clears the move and rotation (opacity and layer stay). */
+export const RESET_PLACE: Placement = { dx: undefined, dy: undefined, rotate: undefined };
+
+/** What the canvas can place: one block, the title, or the profile row. */
+export type PlaceTarget = { kind: 'block'; id: string } | { kind: 'title' } | { kind: 'pfp' };
+
+export function placeOf(pg: PostPage, t: PlaceTarget): Placement {
+  if (t.kind === 'block') return pg.blocks.find((b) => b.id === t.id)?.style ?? {};
+  return (t.kind === 'title' ? pg.title.place : pg.pfp.place) ?? {};
+}
+
+export function patchPlace(pg: PostPage, t: PlaceTarget, patch: Placement): PostPage {
+  if (t.kind === 'block') return { ...pg, blocks: pg.blocks.map((b) => (b.id === t.id ? withStyle(b, patch) : b)) };
+  if (t.kind === 'title') return { ...pg, title: { ...pg.title, place: { ...(pg.title.place ?? {}), ...patch } } };
+  return { ...pg, pfp: { ...pg.pfp, place: { ...(pg.pfp.place ?? {}), ...patch } } };
+}
+
+/** Default layer of the title and profile row: above the card (0). */
+export const PART_Z = 1;
+
+/** z that puts an element in front of / behind every sibling. */
+export function layerZ(others: (number | undefined)[], where: 'front' | 'back'): number {
+  const zs = others.map((z) => z ?? 0);
+  return where === 'front' ? Math.max(0, ...zs) + 1 : Math.min(0, ...zs) - 1;
+}
+
+/** Bring an element to the front, or send it to the back: a block among the
+ *  card's blocks, the title / profile row against each other and the card. */
+export function layerPlace(pg: PostPage, t: PlaceTarget, where: 'front' | 'back'): PostPage {
+  const others =
+    t.kind === 'block'
+      ? pg.blocks.filter((b) => b.id !== t.id).map((b) => b.style?.z)
+      : [(t.kind === 'title' ? pg.pfp.place?.z : pg.title.place?.z) ?? PART_Z];
+  return patchPlace(pg, t, { z: layerZ(others, where) });
+}
+
+/** Disc / glyph / ring colours for one social icon (see web socialIconColors). */
+export function socialIconColors(
+  mode: SocialIconColor | undefined,
+  outline: boolean,
+  brand: string,
+  clash: boolean,
+  ring: string,
+): { disc: string; glyph: string; border: string } {
+  if (mode === 'black' || mode === 'white') {
+    const c = mode === 'black' ? '#111111' : '#FFFFFF';
+    if (outline) return { disc: 'transparent', glyph: c, border: c };
+    return mode === 'black'
+      ? { disc: c, glyph: '#FFFFFF', border: 'transparent' }
+      : { disc: c, glyph: brand, border: 'transparent' };
+  }
+  if (outline) return { disc: 'transparent', glyph: clash ? ring : brand, border: clash ? ring : brand };
+  return clash ? { disc: '#FFFFFF', glyph: brand, border: 'transparent' } : { disc: brand, glyph: '#FFFFFF', border: 'transparent' };
 }

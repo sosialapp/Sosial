@@ -8,6 +8,8 @@ import { SOCIAL_META, uid, PALETTE } from '../constants';
 import { FONTS } from '../utils/fonts';
 import { useTheme, Palette, R } from '../theme';
 import { Txt, PillToggle, Seg, Field, Stepper, PrimaryBtn, GhostBtn, SocialGlyph, Swatches, Section } from './ui';
+import { PlacementControls } from './CanvasMove';
+import { layerPlace } from '../utils/blockLayout';
 
 const ALL_PLATFORMS: SocialPlatform[] = ['instagram', 'tiktok', 'threads', 'facebook', 'youtube', 'linkedin', 'x', 'bluesky', 'mastodon', 'pinterest'];
 
@@ -46,7 +48,7 @@ function DraftTxt({ value, placeholder, onCommit }: {
 export default function PhotoSocialsEditor() {
   const { C } = useTheme();
   const st = makeSt(C);
-  const { page, patchPfp, setSocials } = usePost();
+  const { page, patchPfp, patchPage, setSocials } = usePost();
   if (!page) return null;
   const p = page.pfp;
 
@@ -136,6 +138,12 @@ export default function PhotoSocialsEditor() {
         <Field label="Card handle" hint="Overrides the @handle in the card header. Empty = first badge handle.">
           <DraftTxt value={p.customHandle ?? ''} onCommit={(v) => patchPfp({ customHandle: v })} placeholder="@yourhandle" />
         </Field>
+        <PlacementControls
+          target={{ kind: 'pfp' }}
+          value={p.place ?? {}}
+          onChange={(patch) => patchPfp({ place: { ...p.place, ...patch } })}
+          onLayer={(w) => patchPage({ pfp: layerPlace(page, { kind: 'pfp' }, w).pfp })}
+        />
       </View>
 
       <View style={{ gap: 12, opacity: p.socialsHidden ? 0.45 : 1 }} pointerEvents={p.socialsHidden ? 'none' : 'auto'}>
@@ -254,6 +262,13 @@ export default function PhotoSocialsEditor() {
             </View>
             <Field label="Icon style">
               <Seg options={[{ value: 'filled', label: 'Filled' }, { value: 'outline', label: 'Outline' }]} value={p.iconOutline ? 'outline' : 'filled'} onChange={(v) => patchPfp({ iconOutline: v === 'outline' })} />
+            </Field>
+            <Field label="Icon colour" hint={p.iconOutline ? 'Logo' : 'Icon disc'}>
+              <Seg
+                options={[{ value: 'brand', label: 'Brand' }, { value: 'black', label: 'Black' }, { value: 'white', label: 'White' }]}
+                value={p.iconColor ?? 'brand'}
+                onChange={(v) => patchPfp({ iconColor: v === 'brand' ? undefined : (v as 'black' | 'white') })}
+              />
             </Field>
             <Field label="Layout">
               <Seg options={[{ value: '1', label: 'Single row' }, { value: '2', label: 'Double row' }]} value={String(p.badgeRows)} onChange={(v) => patchPfp({ badgeRows: Number(v) as 1 | 2 })} />

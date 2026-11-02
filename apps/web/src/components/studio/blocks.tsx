@@ -7,6 +7,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { BrandIcon } from '@/components/BrandIcon';
 import {
   DATA,
+  placeCss,
   type CardStyle,
   type ContentBlock,
   type FontId,
@@ -128,10 +129,12 @@ export function ChromeIcon({ name, size, color }: { name: string; size: number; 
 
 /** Outer wrapper honouring per-block width % + alignment (width math inside
  *  keeps using the full content width so text scale stays predictable). */
-export function BlockView(props: { block: ContentBlock; width: number; font: FontId; zoom?: number; cell?: number }) {
+export function BlockView(props: { block: ContentBlock; width: number; font: FontId; zoom?: number; cell?: number; unit?: number }) {
   const { block, width } = props;
   const st = block.style;
   const k = width / 340;
+  // Free placement is in canvas design units (unit = canvas px per unit).
+  const place = placeCss(st, props.unit ?? k);
   const zoom = (props.zoom ?? 1) * (st?.scale != null ? Math.min(2.5, Math.max(0.5, st.scale)) : 1);
   // Box fill: padded, rounded panel behind the block.
   const boxed = st?.boxBg ? { backgroundColor: st.boxBg, borderRadius: 10 * k, padding: 10 * k } : null;
@@ -141,13 +144,14 @@ export function BlockView(props: { block: ContentBlock; width: number; font: Fon
   const inner = <BlockInner {...props} zoom={zoom} cell={props.cell ?? pct} boxPad={boxed ? 20 * k : 0} />;
   const body = boxed ? <div style={boxed}>{inner}</div> : inner;
   // Inside a multi-block row the row wrapper owns the width.
-  if (props.cell != null) return <div data-block-id={block.id}>{body}</div>;
+  if (props.cell != null) return <div data-block-id={block.id} style={place}>{body}</div>;
   const align = st?.align ?? 'left';
-  if (pct >= 1 && align === 'left') return <div data-block-id={block.id}>{body}</div>;
+  if (pct >= 1 && align === 'left') return <div data-block-id={block.id} style={place}>{body}</div>;
   return (
     <div
       data-block-id={block.id}
       style={{
+        ...place,
         width: `${pct * 100}%`,
         marginRight: align === 'left' ? 'auto' : align === 'center' ? 'auto' : 0,
         marginLeft: align === 'right' ? 'auto' : align === 'center' ? 'auto' : 0,
