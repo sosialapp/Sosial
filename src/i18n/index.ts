@@ -726,7 +726,7 @@ const en: Messages = {
   mtCommTabsT: 'Comments and messages',
   mtCommTabsB: 'Comments are replies on your posts, messages are DMs. Both land here within about five minutes of arriving.',
   mtCommFiltersT: 'Filter by account',
-  mtCommFiltersB: 'Show one channel or all of them. Resolved and ignored comments stay listed but leave the open count.',
+  mtCommFiltersB: 'Show one channel or all of them. Answered and hidden comments stay listed but leave the open count.',
   aChartType: 'Chart type',
   aChartLine: 'Line',
   aChartBar: 'Bar',

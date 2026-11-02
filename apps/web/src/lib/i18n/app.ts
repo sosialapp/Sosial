@@ -1028,7 +1028,7 @@ const en: Record<string, string> = {
   tdWeekT: 'Your week at a glance',
   tdWeekB: 'Posts you scheduled show up here. Drag one to another day, or click it to edit.',
   tdInboxT: 'People are talking back',
-  tdInboxB: 'New comments and messages land behind this icon. Reply, then resolve or ignore to clear the badge.',
+  tdInboxB: 'New comments and messages land behind this icon. Open them to clear the badge.',
   tpChannelsT: 'Pick where it goes',
   tpChannelsB: 'One draft, many channels. A grey chip means that channel cannot take this post yet.',
   tpAiT: 'Let AI write the first draft',
@@ -1042,7 +1042,7 @@ const en: Record<string, string> = {
   tcFiltersT: 'Sort the noise',
   tcFiltersB: 'Show every post, or only the ones still waiting for an answer.',
   tcReplyT: 'Reply, then close it',
-  tcReplyB: 'Replying marks the comment answered. Resolve or ignore the ones that need no reply.',
+  tcReplyB: 'Replying marks the comment answered. Hide the ones you do not want the public to see.',
 };
 
 const es: Record<string, string> = {

@@ -5,25 +5,37 @@
  * block to select it, drag it to reorder or drop it beside another block,
  * drag the edge handles to resize width, the corner to scale its content,
  * the bottom handle for image / column height, and the card edge for the
- * fixed card height. Quick, opinionated tweaks, the layout engine stays
- * auto-flow, so nothing can be dragged off-canvas.
+ * fixed card height. The layout engine stays auto-flow; on top of it every
+ * block, the title and the profile row can be moved freely (move grip or
+ * Shift+drag on a block, plain drag on the title / profile), rotated with the
+ * corner knob, faded, aligned and layered. Free moves are a saved offset
+ * from the layout spot, so a template still reflows when its content changes.
  *
  * It renders as a sibling overlay (never inside [data-studio-canvas]) so
  * exports never capture the chrome. Geometry is measured from the canvas
  * DOM via the data-block-id / data-block-row / data-studio-* markers.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, Columns2, Copy, Trash2 } from 'lucide-react';
+import {
+  AlignHorizontalJustifyCenter, AlignHorizontalJustifyEnd, AlignHorizontalJustifyStart, ArrowDown, ArrowUp, BringToFront,
+  Columns2, Copy, Droplet, Move, RotateCcw, RotateCw, SendToBack, Trash2,
+} from 'lucide-react';
 import {
   blockRows,
   detachBlock,
   duplicateBlock,
   hopBlock,
+  layerPlace,
   maxCardHeightDesign,
+  patchPlace,
+  placeOf,
   removeBlock,
+  RESET_PLACE,
   rowFractions,
   withStyle,
   type ContentBlock,
+  type Placement,
+  type PlaceTarget,
   type PostPage,
 } from '@/lib/studio/model';
 
@@ -33,7 +45,10 @@ type R = { x: number; y: number; w: number; h: number };
 interface Geo {
   k: number;
   W: number;
-  blocks: { id: string; r: R }[];
+  H: number;
+  /** fit = AutoFit's scale on the card body (screen px per layout px);
+   *  clip = the card body that clips the block (moves stay inside it). */
+  blocks: { id: string; r: R; fit: number; clip: R | undefined }[];
   rows: { ids: string[]; r: R }[];
   parts: { part: Part; r: R }[];
 }
@@ -43,6 +58,10 @@ type DropTarget =
   | { kind: 'beside'; id: string; where: 'before' | 'after' };
 
 const SNAPS = [0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1];
+/** Free moves snap to the canvas centre lines and the layout spot. */
+const SNAP_PX = 5;
+type Align = 'left' | 'center' | 'right';
+const NEXT_ALIGN: Record<Align, Align> = { left: 'center', center: 'right', right: 'left' };
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const inside = (r: R, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 const isColumns = (b: ContentBlock) => (b.style?.chartVariant ?? (b.type === 'bar' ? 'hbar' : b.type)) === 'vbar';
@@ -117,7 +136,7 @@ export default function CanvasEditLayer({
   const gesture = useRef<
     | null
     | {
-        mode: 'press' | 'move' | 'e' | 'w' | 'se' | 's' | 'card';
+        mode: 'press' | 'move' | 'drag' | 'rotate' | 'e' | 'w' | 'se' | 's' | 'card';
         id: string | null;
         px: number;
         py: number;
@@ -129,11 +148,35 @@ export default function CanvasEditLayer({
         cardH?: number;
         cardSign?: number;
         part?: Part | null;
+        /** Shift held at press: a block drag moves freely instead of reordering. */
+        free?: boolean;
+        target?: PlaceTarget;
+        p0?: Placement;
+        fit?: number;
+        /** Blocks stay inside the card body that clips them. */
+        clip?: R;
+        /** rotate: pointer angle at press, degrees */
+        a0?: number;
       }
   >(null);
+  // Title / profile row selection (blocks use selectedId from the editor).
+  const [selPart, setSelPart] = useState<'title' | 'pfp' | null>(null);
+  const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
+  const [opaOpen, setOpaOpen] = useState(false);
 
   const blocks = page.blocks;
   const selected = blocks.find((b) => b.id === selectedId) ?? null;
+
+  // One selection at a time: picking a block drops the part, and the part
+  // never survives a page flip.
+  useEffect(() => {
+    if (selectedId) setSelPart(null);
+  }, [selectedId]);
+  useEffect(() => {
+    setSelPart(null);
+    setOpaOpen(false);
+  }, [page.id]);
+  useEffect(() => setOpaOpen(false), [selectedId, selPart]);
 
   /* ------------------------------- measuring ------------------------------ */
 
@@ -155,15 +198,28 @@ export default function CanvasEditLayer({
     if (card) parts.push({ part: 'card', r: rel(card) });
     if (title) parts.push({ part: 'title', r: rel(title) });
     if (pfp) parts.push({ part: 'pfp', r: rel(pfp) });
+    // AutoFit scales the card body; the block's parent is never transformed
+    // itself, so its drawn / layout width ratio is that scale.
+    const fitOf = (el: Element) => {
+      const p = el.parentElement;
+      return p && p.offsetWidth ? p.getBoundingClientRect().width / p.offsetWidth : 1;
+    };
+    const clipOf = (el: Element): R | undefined => {
+      for (let p = el.parentElement; p && p !== canvas; p = p.parentElement) {
+        if (getComputedStyle(p).overflow === 'hidden') return rel(p);
+      }
+      return undefined;
+    };
     setGeo({
       k: o.width / 340,
       W: o.width,
+      H: o.height,
       blocks: blocks
         .map((b) => {
           const el = canvas.querySelector(`[data-block-id="${b.id}"]`);
-          return el ? { id: b.id, r: rel(el) } : null;
+          return el ? { id: b.id, r: rel(el), fit: fitOf(el), clip: clipOf(el) } : null;
         })
-        .filter((v): v is { id: string; r: R } => !!v),
+        .filter((v): v is Geo['blocks'][number] => !!v),
       rows: rowsIdx.map((ids, i) => ({ ids: ids.map((j) => blocks[j].id), r: rowEls[i] ? rel(rowEls[i]) : { x: 0, y: 0, w: 0, h: 0 } })),
       parts,
     });
@@ -190,6 +246,15 @@ export default function CanvasEditLayer({
   }, [hostRef, page]);
 
   /* -------------------------------- keyboard ------------------------------ */
+
+  useEffect(() => {
+    if (!selPart) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelPart(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [selPart]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -293,6 +358,38 @@ export default function CanvasEditLayer({
     begin();
   };
 
+  /** Rect + AutoFit scale of a placeable element, as measured now. */
+  const rectOf = (t: PlaceTarget): { r: R; fit: number; clip?: R } | null => {
+    if (t.kind === 'block') {
+      const b = geo.blocks.find((x) => x.id === t.id);
+      return b ? { r: b.r, fit: b.fit, clip: b.clip } : null;
+    }
+    const pr = geo.parts.find((x) => x.part === t.kind)?.r;
+    return pr ? { r: pr, fit: 1 } : null;
+  };
+
+  const startDrag = (t: PlaceTarget) => (e: React.PointerEvent) => {
+    const m = rectOf(t);
+    if (!m) return;
+    e.stopPropagation();
+    e.preventDefault();
+    layerRef.current?.setPointerCapture(e.pointerId);
+    gesture.current = { mode: 'drag', id: null, px: e.clientX, py: e.clientY, r: m.r, fit: m.fit, clip: m.clip, target: t, p0: placeOf(page, t) };
+    begin();
+  };
+
+  const startRotate = (t: PlaceTarget) => (e: React.PointerEvent) => {
+    const m = rectOf(t);
+    if (!m) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const p = local(e);
+    const a0 = (Math.atan2(p.y - (m.r.y + m.r.h / 2), p.x - (m.r.x + m.r.w / 2)) * 180) / Math.PI;
+    layerRef.current?.setPointerCapture(e.pointerId);
+    gesture.current = { mode: 'rotate', id: null, px: e.clientX, py: e.clientY, r: m.r, target: t, p0: placeOf(page, t), a0 };
+    begin();
+  };
+
   const onDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const p = local(e);
@@ -302,6 +399,7 @@ export default function CanvasEditLayer({
       mode: 'press', id, px: e.clientX, py: e.clientY,
       r: id ? geo.blocks.find((b) => b.id === id)!.r : { x: 0, y: 0, w: 0, h: 0 },
       part: id ? null : partAt(p.x, p.y),
+      free: e.shiftKey,
     };
     if (id && id !== selectedId) onSelect(id);
   };
@@ -316,8 +414,68 @@ export default function CanvasEditLayer({
     const dx = e.clientX - g.px;
     const dy = e.clientY - g.py;
     if (g.mode === 'press') {
-      if (!g.id || Math.hypot(dx, dy) < 5) return;
-      g.mode = 'move';
+      if (Math.hypot(dx, dy) < 5) return;
+      // Title / profile row: a drag moves it freely. Blocks reorder, unless
+      // Shift was held (or the move grip used).
+      const t: PlaceTarget | null =
+        g.id && g.free ? { kind: 'block', id: g.id } : !g.id && (g.part === 'title' || g.part === 'pfp') ? { kind: g.part } : null;
+      if (t) {
+        const m = rectOf(t);
+        if (!m) return;
+        if (t.kind !== 'block') {
+          setSelPart(t.kind);
+          onSelect(null);
+        }
+        Object.assign(g, { mode: 'drag', r: m.r, fit: m.fit, clip: m.clip, target: t, p0: placeOf(page, t) });
+        begin();
+      } else {
+        if (!g.id) return;
+        g.mode = 'move';
+      }
+    }
+    if (g.mode === 'drag' && g.target && g.p0) {
+      const u = geo.k * (g.fit ?? 1);
+      const p0x = (g.p0.dx ?? 0) * u;
+      const p0y = (g.p0.dy ?? 0) * u;
+      const cx = g.r.x + g.r.w / 2;
+      const cy = g.r.y + g.r.h / 2;
+      // Bounds: the whole canvas for the title / profile row; for a block,
+      // the card body (outside it the block would be clipped away).
+      const box = g.clip ?? { x: 0, y: 0, w: geo.W, h: geo.H };
+      const fitIn = (d: number, lo: number, len: number, boxLo: number, boxLen: number) =>
+        len <= boxLen ? clamp(d, boxLo - lo, boxLo + boxLen - lo - len) : clamp(d, boxLo - lo - len / 2, boxLo + boxLen - lo - len / 2);
+      let mx = g.clip ? fitIn(dx, g.r.x, g.r.w, box.x, box.w) : clamp(dx, -cx, geo.W - cx);
+      let my = g.clip ? fitIn(dy, g.r.y, g.r.h, box.y, box.h) : clamp(dy, -cy, geo.H - cy);
+      const gd: { v?: number; h?: number } = {};
+      if (Math.abs(cx + mx - geo.W / 2) < SNAP_PX) {
+        mx = geo.W / 2 - cx;
+        gd.v = geo.W / 2;
+      } else if (Math.abs(p0x + mx) < SNAP_PX) mx = -p0x;
+      if (Math.abs(cy + my - geo.H / 2) < SNAP_PX) {
+        my = geo.H / 2 - cy;
+        gd.h = geo.H / 2;
+      } else if (Math.abs(p0y + my) < SNAP_PX) my = -p0y;
+      const nx = Math.round(((p0x + mx) / u) * 2) / 2;
+      const ny = Math.round(((p0y + my) / u) * 2) / 2;
+      const t = g.target;
+      live((pg) => patchPlace(pg, t, { dx: nx || undefined, dy: ny || undefined }));
+      setGuides(gd);
+      setBadge({ x: p.x, y: p.y - 28, text: `${Math.round(nx)}, ${Math.round(ny)}` });
+      return;
+    }
+    if (g.mode === 'rotate' && g.target && g.p0) {
+      const a = (Math.atan2(p.y - (g.r.y + g.r.h / 2), p.x - (g.r.x + g.r.w / 2)) * 180) / Math.PI;
+      let v = (g.p0.rotate ?? 0) + a - (g.a0 ?? 0);
+      v = ((((v + 180) % 360) + 360) % 360) - 180;
+      // Shift = 15 degree steps; otherwise a soft snap to the right angles.
+      const step = e.shiftKey ? 15 : 45;
+      const near = Math.round(v / step) * step;
+      v = e.shiftKey || Math.abs(near - v) < 4 ? near : Math.round(v);
+      if (v === -180) v = 180;
+      const t = g.target;
+      live((pg) => patchPlace(pg, t, { rotate: v || undefined }));
+      setBadge({ x: p.x, y: p.y - 28, text: `${v}°` });
+      return;
     }
     if (g.mode === 'move' && g.id) {
       setGhost({ ...g.r, x: g.r.x + dx, y: g.r.y + dy });
@@ -379,9 +537,11 @@ export default function CanvasEditLayer({
     layerRef.current?.releasePointerCapture?.(e.pointerId);
     setGhost(null);
     setBadge(null);
+    setGuides({});
     if (!g) return;
     if (g.mode === 'press') {
       if (g.id) return; // selected on down
+      setSelPart(g.part === 'title' || g.part === 'pfp' ? g.part : null);
       if (g.part) onPart(g.part);
       onSelect(null);
       return;
@@ -425,6 +585,97 @@ export default function CanvasEditLayer({
   const handle = 'absolute z-10 rounded-full border-2 border-white bg-[#4D7CFE] shadow';
   const showH = selected && (selected.type === 'image' || isColumns(selected));
 
+  /* ------------------------- placement tools (shared) ---------------------- */
+
+  const partR = selPart ? geo.parts.find((p) => p.part === selPart)?.r : undefined;
+  const partTarget: PlaceTarget | null = selPart && partR ? { kind: selPart } : null;
+
+  const alignOf = (t: PlaceTarget): Align =>
+    t.kind === 'block'
+      ? (blocks.find((b) => b.id === t.id)?.style?.align ?? 'left')
+      : t.kind === 'title'
+        ? page.title.align
+        : (page.pfp.align ?? 'left');
+  const setAlign = (t: PlaceTarget, a: Align) =>
+    edit((pg) =>
+      t.kind === 'block'
+        ? { ...pg, blocks: pg.blocks.map((b) => (b.id === t.id ? withStyle(b, { align: a }) : b)) }
+        : t.kind === 'title'
+          ? { ...pg, title: { ...pg.title, align: a } }
+          : { ...pg, pfp: { ...pg.pfp, align: a } },
+    );
+
+  /** Move grip, align, layer, opacity and reset, for any placeable element. */
+  const placeTools = (t: PlaceTarget) => {
+    const pl = placeOf(page, t);
+    const al = alignOf(t);
+    const AlignIcon = al === 'center' ? AlignHorizontalJustifyCenter : al === 'right' ? AlignHorizontalJustifyEnd : AlignHorizontalJustifyStart;
+    const opa = Math.round((pl.opacity ?? 1) * 100);
+    return (
+      <>
+        <span
+          onPointerDown={startDrag(t)}
+          title="Drag to move freely"
+          aria-label="Drag to move freely"
+          className="flex h-7 w-7 cursor-move items-center justify-center rounded-lg text-soft transition hover:bg-paper hover:text-ink"
+        >
+          <Move className="h-3.5 w-3.5" />
+        </span>
+        <ToolBtn label={`Align: ${al} (click for ${NEXT_ALIGN[al]})`} onClick={() => setAlign(t, NEXT_ALIGN[al])}>
+          <AlignIcon className="h-3.5 w-3.5" />
+        </ToolBtn>
+        <ToolBtn label="Bring to front" onClick={() => edit((pg) => layerPlace(pg, t, 'front'))}>
+          <BringToFront className="h-3.5 w-3.5" />
+        </ToolBtn>
+        <ToolBtn label="Send to back" onClick={() => edit((pg) => layerPlace(pg, t, 'back'))}>
+          <SendToBack className="h-3.5 w-3.5" />
+        </ToolBtn>
+        <ToolBtn label={`Opacity ${opa}%`} active={opaOpen || opa < 100} onClick={() => setOpaOpen((v) => !v)}>
+          <Droplet className="h-3.5 w-3.5" />
+        </ToolBtn>
+        {pl.dx || pl.dy || pl.rotate ? (
+          <ToolBtn label="Reset position and rotation" onClick={() => edit((pg) => patchPlace(pg, t, RESET_PLACE))}>
+            <RotateCcw className="h-3.5 w-3.5" />
+          </ToolBtn>
+        ) : null}
+        {opaOpen ? (
+          <div className="absolute left-0 top-full mt-1.5 flex items-center gap-2 rounded-xl border border-line bg-card px-2.5 py-1.5 shadow-lg">
+            <input
+              type="range"
+              min={10}
+              max={100}
+              step={5}
+              value={opa}
+              aria-label="Opacity"
+              onPointerDown={begin}
+              onPointerUp={end}
+              onChange={(e) => {
+                const v = Number(e.target.value) / 100;
+                live((pg) => patchPlace(pg, t, { opacity: v >= 1 ? undefined : v }));
+              }}
+              className="w-28 accent-[#4D7CFE]"
+            />
+            <span className="w-9 text-right text-[11px] font-bold tabular-nums text-soft">{opa}%</span>
+          </div>
+        ) : null}
+      </>
+    );
+  };
+
+  /** Corner knob: drag to rotate (Shift = 15 degree steps). */
+  const rotKnob = (t: PlaceTarget, r: R) => (
+    <span
+      onPointerDown={startRotate(t)}
+      title="Drag to rotate (Shift: 15° steps)"
+      className="absolute z-10 flex h-5 w-5 cursor-grab items-center justify-center rounded-full border border-line bg-card text-soft shadow transition hover:text-[#4D7CFE]"
+      style={{ left: r.x - 22, top: r.y + r.h + 4 }}
+    >
+      <RotateCw className="h-3 w-3" />
+    </span>
+  );
+  const toolbarLeft = (r: R, n: number) => clamp(r.x - 3, -8, geo.W - n * 28 - 4);
+  const toolbarTop = (r: R) => (r.y > 40 ? r.y - 38 : r.y + r.h + 8);
+
   return (
     <div
       ref={layerRef}
@@ -435,7 +686,7 @@ export default function CanvasEditLayer({
       onPointerLeave={() => !gesture.current && setHover(null)}
       className="absolute inset-0 select-none"
       style={{
-        cursor: dragging ? 'grabbing' : hover && hover === selectedId ? 'grab' : hover ? 'pointer' : 'default',
+        cursor: dragging ? 'grabbing' : hover && (hover === selectedId || hover === 'title' || hover === 'pfp') ? 'grab' : hover ? 'pointer' : 'default',
         touchAction: selectedId ? 'none' : 'pan-y',
       }}
     >
@@ -474,10 +725,7 @@ export default function CanvasEditLayer({
               <div
                 onPointerDown={(e) => e.stopPropagation()}
                 className="absolute z-20 flex items-center gap-0.5 rounded-xl border border-line bg-card p-0.5 shadow-lg"
-                style={{
-                  left: clamp(selR.x - 3, -8, geo.W - 150),
-                  top: selR.y > 40 ? selR.y - 38 : selR.y + selR.h + 8,
-                }}
+                style={{ left: toolbarLeft(selR, 11), top: toolbarTop(selR) }}
               >
                 <ToolBtn label="Move up (Alt+↑)" disabled={idx <= 0} onClick={() => edit((pg) => ({ ...pg, blocks: hopBlock(pg.blocks, selected.id, -1) }))}>
                   <ArrowUp className="h-3.5 w-3.5" />
@@ -519,11 +767,40 @@ export default function CanvasEditLayer({
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </ToolBtn>
+                <span className="mx-0.5 h-4 w-px bg-line" aria-hidden="true" />
+                {placeTools({ kind: 'block', id: selected.id })}
               </div>
+              {rotKnob({ kind: 'block', id: selected.id }, selR)}
             </>
           ) : null}
         </>
       ) : null}
+
+      {/* title / profile row selection */}
+      {partTarget && partR ? (
+        <>
+          <span
+            className="pointer-events-none absolute rounded-md border-2 border-[#4D7CFE]"
+            style={{ left: partR.x - 3, top: partR.y - 3, width: partR.w + 6, height: partR.h + 6 }}
+          />
+          {!badge ? (
+            <>
+              <div
+                onPointerDown={(e) => e.stopPropagation()}
+                className="absolute z-20 flex items-center gap-0.5 rounded-xl border border-line bg-card p-0.5 shadow-lg"
+                style={{ left: toolbarLeft(partR, 6), top: toolbarTop(partR) }}
+              >
+                {placeTools(partTarget)}
+              </div>
+              {rotKnob(partTarget, partR)}
+            </>
+          ) : null}
+        </>
+      ) : null}
+
+      {/* snap guides */}
+      {guides.v != null ? <span className="pointer-events-none absolute top-0 bottom-0 z-20 w-px bg-[#EC4899]" style={{ left: guides.v }} /> : null}
+      {guides.h != null ? <span className="pointer-events-none absolute left-0 right-0 z-20 h-px bg-[#EC4899]" style={{ top: guides.h }} /> : null}
 
       {ghost ? (
         <span className="pointer-events-none absolute rounded-md border-2 border-[#4D7CFE] bg-[#4D7CFE1A]" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h }} />

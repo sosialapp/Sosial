@@ -218,6 +218,15 @@ export async function setCommunityCommentStatus(
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Hide (or show again) a comment on the platform itself. Unlike the inbox
+ * states this changes what the public sees, so it goes through the
+ * moderate-comment function and the worker (Facebook and Instagram only).
+ */
+export async function moderateCommunityComment(commentId: string, hide: boolean): Promise<void> {
+  await callEdgeFunction('moderate-comment', { comment_id: commentId, hide });
+}
+
 export async function fetchCommunityUnseen(workspaceOverride?: string): Promise<CommunityUnseen> {
   const workspace = workspaceOverride ?? (await ws());
   if (!workspace) return { comments: 0, messages: 0 };

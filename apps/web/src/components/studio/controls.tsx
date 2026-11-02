@@ -1,5 +1,7 @@
 'use client';
 
+import type { Placement } from '@/lib/studio/model';
+
 /** Small editor controls mirroring mobile ui.tsx (Seg, Stepper, Swatches, toggles). */
 export function Seg<T extends string>({
   options,
@@ -148,6 +150,53 @@ export function Field({
         {hint ? <span className="ml-1.5 font-medium text-faint">{hint}</span> : null}
       </p>
       {children}
+    </div>
+  );
+}
+
+/** Rotation, opacity, layer order and reset for one placeable element (a
+ *  block, the title or the profile row). Moving happens on the canvas.
+ *  Mobile PlacementControls (src/components/ui.tsx) mirrors this. */
+export function PlacementControls({
+  value,
+  onChange,
+  onLayer,
+  hint,
+}: {
+  value: Placement;
+  onChange: (patch: Placement) => void;
+  onLayer: (where: 'front' | 'back') => void;
+  hint?: string;
+}) {
+  const rot = value.rotate ?? 0;
+  const opa = Math.round((value.opacity ?? 1) * 100);
+  const placed = !!(value.dx || value.dy || value.rotate);
+  const pill = 'rounded-full border border-line bg-card px-3.5 py-1.5 text-xs font-bold text-muted transition hover:bg-paper';
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Rotation">
+          <Stepper value={rot} onChange={(v) => onChange({ rotate: v || undefined })} step={5} min={-180} max={180} format={(v) => `${v}°`} />
+        </Field>
+        <Field label="Opacity">
+          <Stepper value={opa} onChange={(v) => onChange({ opacity: v >= 100 ? undefined : v / 100 })} step={10} min={10} max={100} format={(v) => `${v}%`} />
+        </Field>
+      </div>
+      <Field label="Layer" hint={hint}>
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => onLayer('front')} className={pill}>
+            Bring to front
+          </button>
+          <button type="button" onClick={() => onLayer('back')} className={pill}>
+            Send to back
+          </button>
+          {placed ? (
+            <button type="button" onClick={() => onChange({ dx: undefined, dy: undefined, rotate: undefined })} className={pill}>
+              Reset position
+            </button>
+          ) : null}
+        </div>
+      </Field>
     </div>
   );
 }

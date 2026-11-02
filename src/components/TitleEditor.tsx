@@ -6,6 +6,8 @@ import { FontId, TitlePosition } from '../types';
 import { fontFamily } from '../utils/fonts';
 import { useTheme, Palette, R } from '../theme';
 import { Field, Seg, Swatches, Stepper, Txt, Section } from './ui';
+import { PlacementControls } from './CanvasMove';
+import { layerPlace } from '../utils/blockLayout';
 
 const FONT_OPTIONS: { value: FontId; label: string }[] = [
   { value: 'jakarta', label: 'Jakarta' },
@@ -98,6 +100,12 @@ export default function TitleEditor() {
         <Field label="Headline size" hint={`${t.size}pt`}>
           <Stepper value={t.size} onChange={(v) => patchTitle({ size: v })} step={2} min={16} max={52} format={(v) => `${v}pt`} />
         </Field>
+        <PlacementControls
+          target={{ kind: 'title' }}
+          value={t.place ?? {}}
+          onChange={(patch) => patchTitle({ place: { ...t.place, ...patch } })}
+          onLayer={(w) => patchPage({ title: layerPlace(page, { kind: 'title' }, w).title })}
+        />
       </View>
 
       {/* 04 · Caption */}

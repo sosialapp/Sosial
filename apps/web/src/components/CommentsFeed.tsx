@@ -19,7 +19,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Check, CheckCheck, CornerDownRight, ExternalLink, EyeOff, FileText, Inbox, LoaderCircle, MessageCircle, Play, Send, ShieldBan,
+  ArrowLeft, Check, CheckCheck, CircleSlash, CornerDownRight, ExternalLink, EyeOff, FileText, Inbox, LoaderCircle, MessageCircle, Play, Send,
 } from 'lucide-react';
 import SafeImg from '@/components/SafeImg';
 import ChannelAvatar from '@/components/ChannelAvatar';
@@ -350,8 +350,8 @@ export default function CommentsFeed({
   );
 
   /**
-   * Hide (or show again) a comment on the platform itself. Unlike Resolve
-   * and Ignore this changes what the public sees, so it goes through the
+   * Hide (or show again) a comment on the platform itself. Unlike the inbox
+   * states this changes what the public sees, so it goes through the
    * moderate-comment function and the worker; the row flips optimistically.
    */
   const moderate = useCallback(
@@ -605,7 +605,7 @@ export default function CommentsFeed({
           {show === 'open' && groups.length
             ? 'Every comment has an answer from you, or has been marked resolved.'
             : show === 'resolved' || show === 'ignored'
-              ? 'Use Resolve or Ignore under a comment to file it without replying.'
+              ? 'Comments you filed without replying show up here.'
               : 'Publish to your channels, get a comment, and it lands here when the engine sweeps - every 5 minutes or on Refresh.'}
         </PaneEmpty>
       ) : (
@@ -793,7 +793,7 @@ export default function CommentsFeed({
                                 title="Hidden from the public. Click to show it again"
                                 className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink hover:underline disabled:opacity-50"
                               >
-                                <ShieldBan className="h-3 w-3" aria-hidden="true" />
+                                <EyeOff className="h-3 w-3" aria-hidden="true" />
                                 Hidden · Unhide
                               </button>
                             ) : c.status === 'ignored' ? (
@@ -804,7 +804,7 @@ export default function CommentsFeed({
                                 title="Reopen: put it back in the waiting pile"
                                 className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink hover:underline disabled:opacity-50"
                               >
-                                <EyeOff className="h-3 w-3" aria-hidden="true" />
+                                <CircleSlash className="h-3 w-3" aria-hidden="true" />
                                 Ignored
                               </button>
                             ) : (
@@ -821,30 +821,6 @@ export default function CommentsFeed({
                                     Reply
                                   </button>
                                 ) : null}
-                                {done ? null : (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => void setStatus([c.id], 'resolved')}
-                                      disabled={stateBusy}
-                                      title="Handled, no public reply needed"
-                                      className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink disabled:opacity-50"
-                                    >
-                                      <CheckCheck className="h-3 w-3" aria-hidden="true" />
-                                      Resolve
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => void setStatus([c.id], 'ignored')}
-                                      disabled={stateBusy}
-                                      title="No action wanted"
-                                      className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink disabled:opacity-50"
-                                    >
-                                      <EyeOff className="h-3 w-3" aria-hidden="true" />
-                                      Ignore
-                                    </button>
-                                  </>
-                                )}
                                 {HIDE_PROVIDERS.has(c.platform) ? (
                                   <button
                                     type="button"
@@ -853,7 +829,7 @@ export default function CommentsFeed({
                                     title={`Hide it from the public on ${providerMeta(c.platform).label}`}
                                     className="inline-flex items-center gap-0.5 font-bold text-muted transition hover:text-ink disabled:opacity-50"
                                   >
-                                    <ShieldBan className="h-3 w-3" aria-hidden="true" />
+                                    <EyeOff className="h-3 w-3" aria-hidden="true" />
                                     Hide
                                   </button>
                                 ) : null}

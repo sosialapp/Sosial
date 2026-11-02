@@ -9,6 +9,7 @@ import {
   duplicateBlock,
   hopBlock,
   imageFrameAspect,
+  layerPlace,
   maxCardHeightDesign,
   newBlock,
   parseChartLine,
@@ -21,7 +22,7 @@ import {
   type StudioProject,
 } from '@/lib/studio/model';
 import { EmojiInput, EmojiTextarea } from '@/components/Emoji';
-import { Field, Seg, Stepper, Swatches, SwitchRow } from './controls';
+import { Field, PlacementControls, Seg, Stepper, Swatches, SwitchRow } from './controls';
 import { fileToDataUrl } from './steps1';
 import type { StepApi } from './steps1';
 import { MAX_CROP_ZOOM, cropToRect, isCropV2, rectToCrop, type ImageCrop } from '@/lib/studio/crop';
@@ -576,6 +577,12 @@ export function ContentStep({
                       </div>
                     </div>
                   </Field>
+                  <PlacementControls
+                    value={b.style ?? {}}
+                    onChange={(patch) => patchStyle(b, patch)}
+                    onLayer={(w) => patchPage({ blocks: layerPlace(page, { kind: 'block', id: b.id }, w).blocks })}
+                    hint="Shift+drag a block, or use its move grip, to place it freely."
+                  />
                   {/* Row spacing comes from the row's first block. */}
                   {!(idx > 0 && b.style?.beside) ? (
                     <Field label="Space above">

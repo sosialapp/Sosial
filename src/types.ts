@@ -30,6 +30,19 @@ export interface BackgroundStyle {
 export type TitlePosition = 'top' | 'bottom' | 'none';
 export type PfpCorner = 'tl' | 'tr' | 'bl' | 'br';
 
+/** Free placement on top of the auto-flow layout (canvas editing). Every
+ *  field is optional: absent = where the layout puts it, upright, opaque.
+ *  Mirrored from apps/web/src/lib/studio/model.ts, keep in sync. */
+export interface Placement {
+  dx?: number; // offset from the layout spot, design units (canvas is 340 wide)
+  dy?: number;
+  rotate?: number; // degrees, -180..180
+  opacity?: number; // 0.1-1
+  z?: number; // stacking among siblings, higher draws on top (the card is 0)
+}
+
+export type SocialIconColor = 'brand' | 'black' | 'white';
+
 export interface PostTitle {
   text: string;
   position: TitlePosition;
@@ -42,6 +55,7 @@ export interface PostTitle {
   subtitle?: string; // smaller line rendered below the title
   subtitleSize?: number;
   subtitleColor?: string;
+  place?: Placement;
 }
 
 export type FontId = 'inter' | 'jakarta' | 'space-grotesk' | 'playfair' | 'crimson' | 'poppins' | 'mono' | 'anton' | 'system';
@@ -60,11 +74,13 @@ export interface PfpStyle {
   handleSize: number; // social handle text size 6-14
   iconSize: number; // social icon circle size 12-28
   iconOutline: boolean; // outline vs filled circle
+  iconColor?: SocialIconColor; // brand colour (default), black or white
   socialGap: number; // spacing between pfp and badges + between badges 0-16
   align: 'left' | 'center' | 'right';
   borderW: number; // pfp border thickness 0-6
   username?: string; // universal display name under the photo
   customHandle?: string; // overrides the @handle shown in the card header
+  place?: Placement; // placement of the whole profile + socials row
 }
 
 export type SocialPlatform = 'instagram' | 'tiktok' | 'threads' | 'x' | 'facebook' | 'youtube' | 'whatsapp' | 'linkedin' | 'bluesky' | 'mastodon' | 'pinterest';
@@ -84,7 +100,7 @@ export type BlockType = 'bullets' | 'numbered' | 'table' | 'bar' | 'pie' | 'vbar
 /** Per-block presentation overrides. Every field is optional, absent means
  *  "use the block type's default", so old designs keep rendering as-is.
  *  Mirrored from apps/web/src/lib/studio/model.ts, keep in sync. */
-export interface BlockStyle {
+export interface BlockStyle extends Placement {
   width?: number; // fraction of the content width the block occupies (0.2-1)
   align?: 'left' | 'center' | 'right';
   beside?: boolean; // same row as the previous block (side by side); ignored on the first

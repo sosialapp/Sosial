@@ -7,7 +7,10 @@ import { BrandIcon } from '@/components/BrandIcon';
 import { providerMeta } from '@/lib/providers';
 import {
   blockRows,
+  PART_Z,
+  placeCss,
   rowFractions,
+  socialIconColors,
   type CardStyle,
   type FontId,
   type PostPage,
@@ -56,6 +59,8 @@ function AutoFit({ gap, children }: { gap?: number; children: React.ReactNode })
         style={{
           display: 'flex',
           flexDirection: 'column',
+          // Own stacking context: a block sent to the back stays in the card.
+          isolation: 'isolate',
           ...(gap ? { rowGap: gap } : null),
           transformOrigin: 'top left',
           transform: scale < 1 ? `scale(${scale})` : undefined,
@@ -446,7 +451,7 @@ export default function StudioCanvas({
         if (row.length === 1) {
           return (
             <div key={first.id} data-block-row="" style={space ?? undefined}>
-              <BlockView block={first} width={bw} font={font} zoom={zoom} />
+              <BlockView block={first} width={bw} font={font} zoom={zoom} unit={k} />
             </div>
           );
         }
@@ -467,7 +472,7 @@ export default function StudioCanvas({
           >
             {members.map((b, j) => (
               <div key={b.id} style={{ width: `calc((100% - ${gap * (row.length - 1)}px) * ${fr[j]})`, minWidth: 0, flexShrink: 0 }}>
-                <BlockView block={b} width={bw} font={font} zoom={zoom} cell={fr[j] * (1 - (gap * (row.length - 1)) / bw)} />
+                <BlockView block={b} width={bw} font={font} zoom={zoom} unit={k} cell={fr[j] * (1 - (gap * (row.length - 1)) / bw)} />
               </div>
             ))}
           </div>
@@ -498,17 +503,19 @@ export default function StudioCanvas({
             const brand = providerMeta(sl.platform).color;
             const iconSize = (page.pfp.iconSize ?? 17) * k;
             const clash = contrastRatio(brand, page.cardColor ?? '#FFFFFF') < 3;
+            const mode = page.pfp.iconColor ?? 'brand';
+            const ic = socialIconColors(mode, false, brand, false, '#FFFFFF');
             return (
               <span key={sl.id} style={{ display: 'flex', alignItems: 'center', gap: 3 * k, borderRadius: 8 * k, padding: `${4 * k}px ${6 * k}px`, backgroundColor: clash ? '#111111E8' : 'transparent' }}>
                 <span
                   style={{
-                    width: iconSize, height: iconSize, borderRadius: iconSize / 2, backgroundColor: brand,
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#FFFFFF',
+                    width: iconSize, height: iconSize, borderRadius: iconSize / 2, backgroundColor: ic.disc,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: ic.glyph,
                     ...(clash ? { borderWidth: Math.max(1, k), borderStyle: 'solid', borderColor: '#FFFFFF55' } : {}),
                   }}
                 >
                   {sl.platform === 'whatsapp' ? (
-                    <span style={{ ...ff(sl.font, true), fontSize: iconSize * 0.42, color: '#FFFFFF' }}>WA</span>
+                    <span style={{ ...ff(sl.font, true), fontSize: iconSize * 0.42, color: ic.glyph }}>WA</span>
                   ) : (
                     <BrandIcon provider={sl.platform as 'instagram'} mono className="h-[62%] w-[62%]" />
                   )}
@@ -546,7 +553,7 @@ export default function StudioCanvas({
   ) : (
     <div style={{ width: w, height: H, position: 'relative' }}>
       <PatternBackground bg={page.background} width={w} height={H} />
-      <div style={{ position: 'absolute', inset: 0, padding: pad(16), display: 'flex', flexDirection: 'column', gap: pad(10) }}>
+      <div style={{ position: 'absolute', inset: 0, padding: pad(16), display: 'flex', flexDirection: 'column', gap: pad(10), isolation: 'isolate' }}>
         {page.cardH || page.cardAuto ? (
           <>
             {!stickToCard && pfpOnTop ? pfpRow : null}
@@ -667,7 +674,7 @@ function Watermark(props: { font: FontId; size: number; color: string; k: number
 function TitleBlock({ page, k }: { page: PostPage; k: number }) {
   const t = page.title;
   return (
-    <div data-studio-part="title" style={{ display: 'flex', flexDirection: 'column', gap: 4 * k }}>
+    <div data-studio-part="title" style={{ display: 'flex', flexDirection: 'column', gap: 4 * k, position: 'relative', zIndex: PART_Z, ...placeCss(t.place, k) }}>
       <p
         style={{
           ...ff(t.font, t.bold, t.italic), fontSize: t.size * k, color: t.color,
@@ -731,6 +738,9 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
         alignItems: isColumn ? cross : 'center',
         justifyContent: isColumn ? 'flex-start' : cross,
         gap: socialGap * k,
+        position: 'relative',
+        zIndex: PART_Z,
+        ...placeCss(page.pfp.place, k),
       }}
     >
       {!photoOff ? (
@@ -771,8 +781,8 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
           {visibleSocials.map((sl) => {
             const brand = providerMeta(sl.platform).color;
             const clash = contrastRatio(brand, badgeSurface) < 3;
-            const inverted = !iconOutline && clash;
-            const glyphColor = iconOutline ? (clash ? ringColor : brand) : inverted ? brand : '#fff';
+            const ic = socialIconColors(page.pfp.iconColor, iconOutline, brand, clash, ringColor);
+            const glyphColor = ic.glyph;
             return (
               <span
                 key={sl.id}
@@ -786,13 +796,11 @@ function PfpRow({ page, k }: { page: PostPage; k: number }) {
                 <span
                   style={{
                     width: iconSize * k, height: iconSize * k, borderRadius: (iconSize * k) / 2,
-                    backgroundColor: iconOutline ? 'transparent' : inverted ? '#FFFFFF' : brand,
+                    backgroundColor: ic.disc,
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     borderWidth: iconOutline ? Math.max(1, k) : (!badgeBg && surfaceDark ? Math.max(1, k) : 0),
                     borderStyle: 'solid',
-                    borderColor: iconOutline
-                      ? (clash ? ringColor : brand)
-                      : (!badgeBg && surfaceDark ? '#FFFFFF45' : 'transparent'),
+                    borderColor: iconOutline ? ic.border : (!badgeBg && surfaceDark ? '#FFFFFF45' : 'transparent'),
                     color: glyphColor,
                   }}
                 >

@@ -10,7 +10,8 @@ import { Txt, GhostBtn, PrimaryBtn, Section, Field, Swatches, Seg, Stepper, Pill
 import AIGenerateSheet from './AIGenerateSheet';
 import ImageCropModal from './ImageCropModal';
 import { applyGenResult } from '../utils/ai/apply';
-import { duplicateBlock, hopBlock, imageFrameAspect, removeBlock, withStyle } from '../utils/blockLayout';
+import { duplicateBlock, hopBlock, imageFrameAspect, layerPlace, removeBlock, withStyle } from '../utils/blockLayout';
+import { PlacementControls } from './CanvasMove';
 
 /** Saved 'fill' values (short-lived experiment) behave as 'top'. */
 function normCardY(c?: string | null): 'top' | 'middle' | 'bottom' | undefined {
@@ -371,6 +372,12 @@ export default function ContentEditor() {
                     </View>
                   ) : null}
                 </Field>
+                <PlacementControls
+                  target={{ kind: 'block', id: b.id }}
+                  value={b.style ?? {}}
+                  onChange={(patch) => patchStyle(b, patch)}
+                  onLayer={(w) => setBlocks(layerPlace(page, { kind: 'block', id: b.id }, w).blocks)}
+                />
                 {!(idx > 0 && b.style?.beside) ? (
                   <Field label="Space above">
                     <Stepper value={b.style?.spaceAbove ?? 0} onChange={(v) => patchStyle(b, { spaceAbove: v || undefined })} step={4} min={0} max={60} format={(v) => `${v}px`} />

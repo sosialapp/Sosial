@@ -42,7 +42,7 @@ const STEP_TIPS: Record<Step, string> = {
   background: 'Pick a preset, then tune the pattern size and opacity to keep text readable.',
   title: 'Keep titles under 6 words, big text and lots of whitespace win the swipe.',
   photo: 'Square photos crop best; Center focus keeps faces in frame.',
-  content: 'Click a block on the canvas to select it. Drag to reorder or drop it beside another, pull the handles to resize.',
+  content: 'Click a block on the canvas to select it. Drag to reorder or drop it beside another, Shift+drag (or the move grip) to place it freely, pull the handles to resize, the corner knob rotates.',
   pages: 'Hook and takeaway cards stay text-only, put the detail in the middle.',
 };
 const AI_TIP = 'Rough thoughts are enough, a phrase works. Your design stays untouched.';

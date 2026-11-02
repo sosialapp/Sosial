@@ -43,9 +43,13 @@ import {
   replyToCommunityComment,
   sendCommunityMessage,
   setCommunityCommentStatus,
+  moderateCommunityComment,
   subscribeCommunityChanges,
 } from '../utils/community';
 import { tr } from '../i18n';
+
+/** Providers that let the account hide a comment from the public. */
+const HIDE_PROVIDERS = new Set(['facebook', 'instagram']);
 
 function timeAgo(iso: string): string {
   const ts = new Date(iso).getTime();
@@ -167,7 +171,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
   };
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  /** An inbox-state write (resolve / ignore / reopen) is in flight. */
+  /** An inbox-state or hide write is in flight. */
   const [stateBusy, setStateBusy] = useState(false);
   const [openConv, setOpenConv] = useState<CommunityConversation | null>(null);
   const [thread, setThread] = useState<CommunityMessage[] | null>(null);
@@ -436,6 +440,29 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
     }
   };
 
+  /**
+   * Hide (or show again) a comment on the platform itself, applied
+   * optimistically; the worker does the platform call.
+   */
+  const moderate = async (c: CommunityComment, hide: boolean) => {
+    if (stateBusy) return;
+    setStateBusy(true);
+    setErr(null);
+    setComments((prev) => prev.map((x) => (x.id === c.id ? { ...x, status: hide ? 'hidden' : 'new' } : x)));
+    try {
+      await moderateCommunityComment(c.id, hide);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Could not update the comment.');
+      try {
+        mergeComments(await fetchCommunityComments());
+      } catch {
+        /* keep the optimistic list rather than blanking it */
+      }
+    } finally {
+      setStateBusy(false);
+    }
+  };
+
   const openThread = async (c: CommunityConversation) => {
     markSeen('messages', c.id, c.last_message_at ?? new Date().toISOString());
     setOpenConv(c);
@@ -504,7 +531,7 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
         // Resolved and ignored are ours: they leave the "to answer" pile even
         // though nobody replied.
         const handled = (c: CommunityComment) =>
-          c.status === 'replied' || c.status === 'resolved' || c.status === 'ignored' || answered.has(c.external_id);
+          c.status === 'replied' || c.status === 'resolved' || c.status === 'ignored' || c.status === 'hidden' || answered.has(c.external_id);
         const open = list.filter((c) => !c.is_own && !handled(c));
         const resolved = list.filter((c) => !c.is_own && c.status === 'resolved').length;
         const ignored = list.filter((c) => !c.is_own && c.status === 'ignored').length;
@@ -843,6 +870,17 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                             >
                               <Text style={[s.replyLink, { color: C.greenText }]}>✓ Resolved</Text>
                             </TouchableOpacity>
+                          ) : c.status === 'hidden' ? (
+                            <TouchableOpacity
+                              onPress={() => void moderate(c, false)}
+                              hitSlop={8}
+                              disabled={stateBusy || !HIDE_PROVIDERS.has(c.platform)}
+                              accessibilityLabel="Hidden from the public. Tap to show it again"
+                              style={s.inlineAct}
+                            >
+                              <Ionicons name="eye-off-outline" size={12} color={C.muted} />
+                              <Text style={[s.replyLink, { color: C.muted }]}>Hidden · Unhide</Text>
+                            </TouchableOpacity>
                           ) : c.status === 'ignored' ? (
                             <TouchableOpacity
                               onPress={() => void setStatus([c.id], 'new')}
@@ -857,28 +895,19 @@ export default function CommunityScreen({ onConnect, bare }: { onConnect: () => 
                               <TouchableOpacity onPress={() => setReplyFor(c.id)} hitSlop={8}>
                                 <Text style={[s.replyLink, isTarget && { color: C.ink }]}>{tr('mReply')}</Text>
                               </TouchableOpacity>
-                              {done ? (
-                                <Text style={[s.commentT, { color: C.greenText }]}>✓ Answered</Text>
-                              ) : (
-                                <>
-                                  <TouchableOpacity
-                                    onPress={() => void setStatus([c.id], 'resolved')}
-                                    hitSlop={8}
-                                    disabled={stateBusy}
-                                    accessibilityLabel="Mark resolved without replying"
-                                  >
-                                    <Text style={s.commentT}>✓ Resolve</Text>
-                                  </TouchableOpacity>
-                                  <TouchableOpacity
-                                    onPress={() => void setStatus([c.id], 'ignored')}
-                                    hitSlop={8}
-                                    disabled={stateBusy}
-                                    accessibilityLabel="Ignore a comment"
-                                  >
-                                    <Text style={s.commentT}>Ignore</Text>
-                                  </TouchableOpacity>
-                                </>
-                              )}
+                              {HIDE_PROVIDERS.has(c.platform) ? (
+                                <TouchableOpacity
+                                  onPress={() => void moderate(c, true)}
+                                  hitSlop={8}
+                                  disabled={stateBusy}
+                                  accessibilityLabel={`Hide it from the public on ${providerLabel(c.platform)}`}
+                                  style={s.inlineAct}
+                                >
+                                  <Ionicons name="eye-off-outline" size={12} color={C.muted} />
+                                  <Text style={s.commentT}>Hide</Text>
+                                </TouchableOpacity>
+                              ) : null}
+                              {done ? <Text style={[s.commentT, { color: C.greenText }]}>✓ Answered</Text> : null}
                             </>
                           )}
                         </View>
@@ -1140,6 +1169,7 @@ const makeS = (C: Palette) => StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
   miniLogo: { width: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
   replyLink: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: C.accentInk },
+  inlineAct: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   sentPill: { backgroundColor: C.accent, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   sentPillT: { fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 8.5, letterSpacing: 0.4, color: '#0b1220', textTransform: 'uppercase' },
   convRow: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.lineSoft },
