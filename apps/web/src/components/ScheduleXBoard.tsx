@@ -44,7 +44,7 @@ import {
 } from '@/lib/format';
 import { POST_STATUS_META, providerMeta } from '@/lib/providers';
 import { imageThumb, THUMB_WIDTHS } from '@/lib/media';
-import { useMessages } from '@/lib/i18n/client';
+import { useLocale, useMessages } from '@/lib/i18n/client';
 import { fill, type Locale } from '@/lib/i18n/locales';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -727,6 +727,7 @@ export default function ScheduleXBoard({
   variant?: 'page' | 'mini';
 }) {
   const t = useMessages();
+  const locale = useLocale();
   const router = useRouter();
   const [view, setView] = useState<BoardView>(initialView);
   const [anchor, setAnchor] = useState(() => {
@@ -1067,12 +1068,12 @@ export default function ScheduleXBoard({
 
   const title =
     view === 'day'
-      ? anchor.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })
-      : anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      ? anchor.toLocaleDateString(locale, { month: 'long', day: 'numeric', year: 'numeric' })
+      : anchor.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
 
   // Muted period line under the title: the exact span the current view covers.
   const rangeLabel = (() => {
-    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const fmt = (d: Date) => d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
     if (view === 'week') {
       const start = addDays(anchor, -((anchor.getDay() + 6) % 7)); // Monday start
       const end = addDays(start, 6);
@@ -1082,7 +1083,7 @@ export default function ScheduleXBoard({
       const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
       return `${fmt(start)} – ${fmt(addDays(start, 13))}`;
     }
-    if (view === 'day') return anchor.toLocaleDateString(undefined, { weekday: 'long' });
+    if (view === 'day') return anchor.toLocaleDateString(locale, { weekday: 'long' });
     return null;
   })();
 
@@ -1142,7 +1143,7 @@ export default function ScheduleXBoard({
    *  chevrons moves it; clicking it always jumps back to today's period. */
   const pill = (() => {
     const now = new Date();
-    const fmt = (d: Date) => d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    const fmt = (d: Date) => d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
     if (view === 'day') {
       return todayInView('day', dayKey(anchor)) ? t('today') : fmt(anchor);
     }
@@ -1154,7 +1155,7 @@ export default function ScheduleXBoard({
     if (view === 'month') {
       const current =
         anchor.getFullYear() === now.getFullYear() && anchor.getMonth() === now.getMonth();
-      return current ? t('thisMonth') : anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      return current ? t('thisMonth') : anchor.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
     }
     if (view === 'year') {
       return anchor.getFullYear() === now.getFullYear()
@@ -1197,10 +1198,10 @@ export default function ScheduleXBoard({
   );
 
   const dayLabelFor = (d: Date, k: string): string => {
-    const date = d.toLocaleDateString(undefined, { day: 'numeric', month: 'long' });
+    const date = d.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
     if (k === todayKey) return fill(t('calTodayDate'), { date });
     if (k === dayKey(addDays(new Date(), 1))) return fill(t('calTomorrowDate'), { date });
-    return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+    return d.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
   const authorLine = (p: PostWithTargets): { name: string; handle: string | null; provider: string } => {
@@ -1304,7 +1305,7 @@ export default function ScheduleXBoard({
     <div className="grid grid-cols-7 gap-y-0.5 text-center">
       {Array.from({ length: 7 }, (_, wi) => (
         <span key={wi} className="pb-1 text-[10px] font-medium text-faint">
-          {new Date(2023, 0, 2 + wi).toLocaleDateString(undefined, { weekday: 'narrow' })}
+          {new Date(2023, 0, 2 + wi).toLocaleDateString(locale, { weekday: 'narrow' })}
         </span>
       ))}
       {monthMatrix(base)
@@ -1320,7 +1321,7 @@ export default function ScheduleXBoard({
               key={k}
               type="button"
               onClick={() => onPick(d)}
-              aria-label={d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+              aria-label={d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' })}
               aria-pressed={on}
               className={`mx-auto flex h-9 w-9 flex-col items-center justify-center rounded-full text-xs tabular-nums transition ${
                 on
@@ -1504,7 +1505,7 @@ export default function ScheduleXBoard({
   /* ------------------------- dashboard: week overview ------------------------ */
 
   if (variant === 'mini') {
-    const weekLabel = `${weekDays[0].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} – ${weekDays[6].toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+    const weekLabel = `${weekDays[0].toLocaleDateString(locale, { month: 'short', day: 'numeric' })} – ${weekDays[6].toLocaleDateString(locale, { month: 'short', day: 'numeric' })}`;
     return (
       <div>
         <div className="mb-3 flex items-center gap-2">
@@ -1566,7 +1567,7 @@ export default function ScheduleXBoard({
               >
                 <div className="mb-2 flex items-center justify-between px-1">
                   <span className={`text-[11px] font-bold uppercase tracking-wide ${past ? 'text-faint' : 'text-muted'}`}>
-                    {d.toLocaleDateString(undefined, { weekday: 'short' })}
+                    {d.toLocaleDateString(locale, { weekday: 'short' })}
                   </span>
                   <span
                     className={`grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs font-bold tabular-nums ${
@@ -1645,7 +1646,7 @@ export default function ScheduleXBoard({
                 key={wi}
                 className={`py-2 text-center text-[11px] font-bold uppercase tracking-wide ${wi >= 5 ? 'text-faint' : 'text-muted'}`}
               >
-                {d.toLocaleDateString(undefined, { weekday: compact ? 'narrow' : 'short' })}
+                {d.toLocaleDateString(locale, { weekday: compact ? 'narrow' : 'short' })}
               </span>
             );
           })}
@@ -1676,7 +1677,7 @@ export default function ScheduleXBoard({
                   type="button"
                   onClick={() => setSelectedKey(k)}
                   aria-pressed={on}
-                  aria-label={`${d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}${items.length ? `, ${fill(t('calNPosts'), { n: items.length })}` : ''}`}
+                  aria-label={`${d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' })}${items.length ? `, ${fill(t('calNPosts'), { n: items.length })}` : ''}`}
                   className={`relative flex h-14 flex-col items-center gap-1 pt-1 transition ${edges} ${
                     on ? 'bg-accent-soft' : weekend || !inMonth ? 'bg-surface/40' : ''
                   } ${inMonth ? '' : 'opacity-50'}`}
@@ -1805,7 +1806,7 @@ export default function ScheduleXBoard({
                 }`}
               >
                 <span className={`text-[10px] font-bold uppercase ${on ? 'text-bone/70' : 'text-faint'}`}>
-                  {d.toLocaleDateString(undefined, { weekday: 'narrow' })}
+                  {d.toLocaleDateString(locale, { weekday: 'narrow' })}
                 </span>
                 <span className="text-base font-bold tabular-nums">{d.getDate()}</span>
                 <span className={`h-1 w-1 rounded-full ${n ? (on ? 'bg-accent' : 'bg-bolt-deep') : 'bg-transparent'}`} />
@@ -1842,7 +1843,7 @@ export default function ScheduleXBoard({
     <aside className="hidden w-[300px] shrink-0 space-y-4 xl:block">
       <div className="rounded-2xl border border-line bg-card p-3.5">
         <p className="mb-2 px-1 font-display text-sm font-bold tracking-tight">
-          {anchor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+          {anchor.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
         </p>
         {miniMonth(
           anchor,
@@ -2090,7 +2091,7 @@ export default function ScheduleXBoard({
           <>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 12 }, (_, m) => {
-                const name = new Date(anchor.getFullYear(), m, 1).toLocaleDateString(undefined, { month: 'long' });
+                const name = new Date(anchor.getFullYear(), m, 1).toLocaleDateString(locale, { month: 'long' });
                 return (
                 <div
                   key={name}
@@ -2122,7 +2123,7 @@ export default function ScheduleXBoard({
                     {Array.from({ length: 7 }, (_, wi) => (
                       // Monday-first: 2023-01-02 is a Monday.
                       <span key={wi} className="text-[9px] font-medium text-faint">
-                        {new Date(2023, 0, 2 + wi).toLocaleDateString(undefined, { weekday: 'narrow' })}
+                        {new Date(2023, 0, 2 + wi).toLocaleDateString(locale, { weekday: 'narrow' })}
                       </span>
                     ))}
                     {monthMatrix(new Date(anchor.getFullYear(), m, 1))
