@@ -81,6 +81,20 @@ export interface OwnPost {
   mediaKind?: string | null;
 }
 
+/** A reply found by an account-wide read, with the thread it belongs to. */
+export interface NewReply extends NormalizedComment {
+  /** Root post of the conversation (comments.external_post_id). */
+  postId: string;
+  /** A direct reply to a root post the account wrote. */
+  directToRoot: boolean;
+}
+
+export interface NewReplies {
+  items: NewReply[];
+  /** Newest id seen; the next read starts after it. null = nothing new. */
+  newestId: string | null;
+}
+
 export interface SendResult {
   externalId: string;
   sentAt: string;
@@ -109,5 +123,8 @@ export interface InboxAdapter {
    *  enumerate the account timeline. Optional: providers without a cheap
    *  "my posts" read keep the Sosial-published list only. */
   listOwnPosts?(account: Account, limit: number): Promise<OwnPost[]>;
+  /** Replies newer than `sinceId`, account-wide, in one read (X mentions).
+   *  Replaces the per-thread reads where a platform bills every post read. */
+  listNewReplies?(account: Account, sinceId: string | null): Promise<NewReplies>;
   replyToComment(account: Account, commentId: string, content: { text: string }): Promise<SendResult>;
 }

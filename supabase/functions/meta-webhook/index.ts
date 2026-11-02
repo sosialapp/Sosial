@@ -15,6 +15,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const enc = new TextEncoder();
+const WEBHOOK_WINDOW_MS = 15_000;
 
 function text(body: string, status = 200): Response {
   return new Response(body, { status, headers: { "Content-Type": "text/plain" } });
@@ -87,7 +88,12 @@ serve(async (req: Request): Promise<Response> => {
 
   const admin = createClient(supaUrl, serviceKey, { auth: { persistSession: false } });
   const jobs = new Map<string, Record<string, unknown>>();
-  const runAt = new Date().toISOString();
+  // One sweep per channel per 15-second window, run just after the window
+  // closes: a burst of comments or messages (or Meta's retries) costs one
+  // sweep, not one per event. Every event in the window lands before its job
+  // runs, so none is skipped.
+  const bucket = Math.floor(Date.now() / WEBHOOK_WINDOW_MS);
+  const runAt = new Date((bucket + 1) * WEBHOOK_WINDOW_MS + 2_000).toISOString();
 
   // Instagram Login has two ids for one account: the app-scoped id in
   // external_id and the professional id webhook entries carry. Match either,
@@ -111,8 +117,8 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  const queue = (kind: string, channelId: string, eventKey: string) => {
-    const idempotency_key = `wh:${kind}:${channelId}:${eventKey}`;
+  const queue = (kind: string, channelId: string) => {
+    const idempotency_key = `wh:${kind}:${channelId}:${bucket}`;
     jobs.set(idempotency_key, {
       kind,
       payload: { channel_id: channelId },
@@ -142,26 +148,21 @@ serve(async (req: Request): Promise<Response> => {
     for (const m of Array.isArray(entry?.messaging) ? entry.messaging : []) {
       const event = m?.message ?? m?.postback ?? m?.reaction;
       if (!event) continue; // read/delivery receipts need no sync
-      const key = String(
-        event?.mid ?? m?.timestamp ?? `${m?.sender?.id ?? ""}:${Date.now()}`,
-      );
-      for (const id of ids) queue("sync_inbox", id, key);
+      for (const id of ids) queue("sync_inbox", id);
     }
 
     for (const change of Array.isArray(entry?.changes) ? entry.changes : []) {
       const field = String(change?.field ?? "");
       if (field !== "feed" && field !== "comments") continue;
-      const value = change?.value ?? {};
-      const key = String(value?.comment_id ?? value?.id ?? `${entry?.time ?? Date.now()}`);
-      for (const id of ids) queue("sync_comments", id, key);
+      for (const id of ids) queue("sync_comments", id);
     }
   }
 
   if (jobs.size) {
     const { error } = await admin
       .from("job_queue")
-      .upsert([...jobs.values()], { onConflict: "idempotency_key" });
-    // 500 makes Meta retry; per-event idempotency keys keep that safe.
+      .upsert([...jobs.values()], { onConflict: "idempotency_key", ignoreDuplicates: true });
+    // 500 makes Meta retry; the windowed keys keep that safe.
     if (error) return text(`queue failed: ${error.message}`, 500);
   }
 

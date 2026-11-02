@@ -147,7 +147,9 @@ export const facebook: InboxAdapter = {
    *  `full_picture` come from the same read so the inbox can show the post. */
   async listOwnPosts(account, limit) {
     const url = withParams(`${GRAPH}/${account.externalId}/posts`, {
-      fields: 'id,comments.summary(true).limit(0),message,permalink_url,created_time,full_picture',
+      // filter(stream) counts replies too, so the sweep can trust an
+      // unchanged count to mean an unchanged thread.
+      fields: 'id,comments.filter(stream).summary(true).limit(0),message,permalink_url,created_time,full_picture',
       limit: Math.max(1, Math.min(limit, 50)),
     });
     const r = await httpJson({ url, provider: 'facebook', headers: { Authorization: `Bearer ${account.token}` } });

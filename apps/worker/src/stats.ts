@@ -25,6 +25,8 @@ import { ensureToken as ensureLinkedInToken } from './linkedin';
 import { ensureToken as ensurePinterestToken, pinContentApi, pinContentToken } from './pinterest';
 import { ensureToken as ensureYouTubeToken } from './youtube';
 import { ensureToken as ensureGmbToken } from './gmb';
+import { STATS_MAX_AGE, statsDue } from './cadence';
+import { budgetSpent, inBackoff, noteResponse } from './usage';
 export const FB_GRAPH = 'https://graph.facebook.com/v21.0';
 export const IG_GRAPH = 'https://graph.instagram.com';
 export const THREADS_API = 'https://graph.threads.net';
@@ -36,10 +38,8 @@ export const PIN_API = 'https://api.pinterest.com/v5';
 const GMB_BI = 'https://mybusinessbusinessinformation.googleapis.com/v1';
 const GMB_PERF = 'https://businessprofileperformance.googleapis.com/v1';
 
-/** How many recent sent targets one run inspects per channel. */
-const MAX_TARGETS = 30;
-/** Stats window for targets that carry a sent_at. */
-const WINDOW_DAYS = 45;
+/** Most sent targets one run considers per channel; only the due ones are read. */
+const MAX_TARGETS = 100;
 
 /**
  * What the AUDIENCE did to one of our posts. Our own replies, self-likes and
@@ -83,7 +83,7 @@ function threadsMetrics(j: any): Record<string, number | undefined> {
 export async function getChannel(channelId: string): Promise<{ c: ChannelRow; t: TokenRow } | null> {
   const rows = await rest<ChannelRow[]>(
     `/rest/v1/connected_channels?id=eq.${encodeURIComponent(channelId)}` +
-      `&select=id,workspace_id,provider,external_id,instance_url,metadata,status,channel_tokens(access_token_secret_id,refresh_token_secret_id,expires_at)` +
+      `&select=id,workspace_id,provider,external_id,instance_url,metadata,status,api_backoff_until,channel_tokens(access_token_secret_id,refresh_token_secret_id,expires_at)` +
       `&limit=1`,
   );
   const c = rows?.[0];
@@ -136,7 +136,9 @@ export function bskyApi(pdsHost: string): string {
 
 export async function jget(url: string, headers?: Record<string, string>): Promise<any> {
   const r = await fetch(url, { headers: headers ?? {} });
-  return r.json().catch(() => ({}));
+  const j = await r.json().catch(() => ({}));
+  noteResponse(r.status, r.headers, j);
+  return j;
 }
 
 /** A follower count where 0 is data, not "unknown" (num() flattens both to 0,
@@ -290,41 +292,42 @@ export async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Pr
   switch (c.provider) {
     case 'facebook': {
       const tok = encodeURIComponent(await accessToken(c, t));
-      // Videos and reels are saved under the video id, and a Video has no
-      // `shares` field: asking for it errors. That error used to throw the
-      // whole read away, so video posts never refreshed. Shares are now
-      // optional; reactions and comments are read either way.
-      const core = await jget(`${FB_GRAPH}/${encodeURIComponent(remoteId)}?fields=shares&access_token=${tok}`);
-      const out: Stats = { ...ZERO, shares: core?.error ? 0 : num(core?.shares?.count) };
-      let denied = false;
       const id = encodeURIComponent(remoteId);
-      // Every reaction type, not just Like. viewer_reaction is the Page's own
+      // One read with the edges nested (was three calls per post). Every
+      // reaction type, not just Like; viewer_reaction is the Page's own
       // reaction (we read with its token), which is not audience engagement.
-      const reactions = async () => {
-        const j = await jget(`${FB_GRAPH}/${id}/reactions?summary=total_count,viewer_reaction&limit=0&access_token=${tok}`);
-        if (j?.error) {
-          denied = true;
-          return;
-        }
-        const mine = String(j?.summary?.viewer_reaction ?? 'NONE').toUpperCase() !== 'NONE' ? 1 : 0;
-        out.likes = Math.max(0, num(j?.summary?.total_count) - mine);
-      };
-      // filter=stream counts replies too, matching what the comment sync
+      // filter(stream) counts replies too, matching what the comment sync
       // stores; our own replies come off in snapshotChannel.
-      const comments = async () => {
-        const j = await jget(`${FB_GRAPH}/${id}/comments?filter=stream&summary=total_count&limit=0&access_token=${tok}`);
-        if (j?.error) {
-          denied = true;
-          return;
-        }
-        out.comments = num(j?.summary?.total_count);
+      const edges =
+        'reactions.summary(total_count,viewer_reaction).limit(0),comments.filter(stream).summary(total_count).limit(0)';
+      let j = await jget(`${FB_GRAPH}/${id}?fields=${encodeURIComponent(`shares,${edges}`)}&access_token=${tok}`);
+      let note: string | undefined;
+      if (j?.error) {
+        // Videos and reels are saved under the video id, and a Video has no
+        // `shares` field: asking for it errors the whole read. Retry without.
+        j = await jget(`${FB_GRAPH}/${id}?fields=${encodeURIComponent(edges)}&access_token=${tok}`);
+        note = 'Facebook reports no share count for videos and reels.';
+      }
+      if (j?.error) {
+        // The login may lack the permission for reactions/comments; shares
+        // alone still say something. Nothing readable at all (deleted post,
+        // expired token) is a real failure.
+        const bare = await jget(`${FB_GRAPH}/${id}?fields=shares&access_token=${tok}`);
+        if (bare?.error) throw new Error(j.error.message ?? 'Could not read post.');
+        return {
+          ...ZERO,
+          shares: num(bare?.shares?.count),
+          note: 'Reaction/comment counts need the pages_read_user_content permission on this login.',
+        };
+      }
+      const mine = String(j?.reactions?.summary?.viewer_reaction ?? 'NONE').toUpperCase() !== 'NONE' ? 1 : 0;
+      return {
+        ...ZERO,
+        likes: Math.max(0, num(j?.reactions?.summary?.total_count) - mine),
+        comments: num(j?.comments?.summary?.total_count),
+        shares: num(j?.shares?.count),
+        note,
       };
-      await Promise.all([reactions(), comments()]);
-      // Nothing readable at all (deleted post, expired token): a real failure.
-      if (core?.error && denied) throw new Error(core.error.message ?? 'Could not read post.');
-      if (denied) out.note = 'Reaction/comment counts need the pages_read_user_content permission on this login.';
-      else if (core?.error) out.note = 'Facebook reports no share count for videos and reels.';
-      return out;
     }
     case 'instagram': {
       const tok = encodeURIComponent(await accessToken(c, t));
@@ -557,8 +560,16 @@ interface TargetRow {
   post_id: string;
   remote_id: string | null;
   provider: string;
+  sent_at?: string | null;
   posts?: { chain_id: string | null; chain_position: number | null } | null;
+  /** One-to-one embed; older PostgREST returns it as a one-row array. */
+  post_stats?: { fetched_at: string | null } | { fetched_at: string | null }[] | null;
 }
+
+const lastFetched = (tg: TargetRow): string | null => {
+  const s = Array.isArray(tg.post_stats) ? tg.post_stats[0] : tg.post_stats;
+  return s?.fetched_at ?? null;
+};
 
 /**
  * Public metrics for many X posts in one call per 100 ids. Posts X leaves
@@ -576,6 +587,7 @@ async function xMetrics(c: ChannelRow, t: TokenRow, targets: TargetRow[]): Promi
         { headers: { Authorization: `Bearer ${token}` } },
       );
       const j: any = await r.json().catch(() => ({}));
+      noteResponse(r.status, r.headers, j);
       if (!r.ok) {
         out.problem = `X ${r.status}: ${j?.detail ?? j?.title ?? 'post read failed'}`;
         break;
@@ -590,6 +602,47 @@ async function xMetrics(c: ChannelRow, t: TokenRow, targets: TargetRow[]): Promi
           views: num(pm.impression_count) || null,
           shares: num(pm.retweet_count) + num(pm.quote_count),
           saves: num(pm.bookmark_count),
+        });
+      }
+    }
+  } catch (e: any) {
+    out.problem = String(e?.message ?? e).slice(0, 160);
+  }
+  return out;
+}
+
+/**
+ * YouTube statistics for many videos in one call per 50 ids, plus one
+ * getRating call for our own likes: 2 quota units for the batch instead of
+ * 2 per video.
+ */
+async function youtubeMetrics(c: ChannelRow, t: TokenRow, targets: TargetRow[]): Promise<Map<string, Stats> & { problem?: string }> {
+  const out: Map<string, Stats> & { problem?: string } = new Map();
+  const ids = [...new Set(targets.map((tg) => String(tg.remote_id ?? '').split(',')[0].trim()).filter(Boolean))];
+  try {
+    const auth = { Authorization: `Bearer ${await accessToken(c, t)}` };
+    for (let i = 0; i < ids.length; i += 50) {
+      const list = encodeURIComponent(ids.slice(i, i + 50).join(','));
+      const [vs, ratings] = await Promise.all([
+        jget(`${YT_API}/videos?part=statistics&id=${list}`, auth),
+        jget(`${YT_API}/videos/getRating?id=${list}`, auth).catch(() => null),
+      ]);
+      if (!Array.isArray(vs?.items)) {
+        out.problem = vs?.error?.message ?? 'Could not read video.';
+        break;
+      }
+      // A like from the channel itself is not audience engagement.
+      const liked = new Set<string>(
+        (ratings?.items ?? []).filter((r: any) => r?.rating === 'like').map((r: any) => String(r.videoId)),
+      );
+      for (const v of vs.items) {
+        const s = v?.statistics ?? {};
+        const id = String(v?.id ?? '');
+        out.set(id, {
+          ...ZERO,
+          likes: Math.max(0, num(s.likeCount) - (liked.has(id) ? 1 : 0)),
+          comments: num(s.commentCount),
+          views: num(s.viewCount) || null,
         });
       }
     }
@@ -650,6 +703,7 @@ export async function snapshotChannelFollowers(channelId: string): Promise<{ ok:
   if (!got) return { ok: false, skipped: 'channel gone' };
   const { c, t } = got;
   if (c.status !== 'connected') return { ok: false, skipped: `channel ${c.status}` };
+  if (inBackoff(c.api_backoff_until)) return { ok: false, skipped: `API backoff until ${c.api_backoff_until}` };
   try {
     await snapshotFollowers(c, t);
     return { ok: true, skipped: null };
@@ -696,6 +750,7 @@ export async function snapshotChannel(
   if (!got) return { updated: 0, failed: 0, skipped: 'channel gone' };
   const { c, t } = got;
   if (c.status !== 'connected') return { updated: 0, failed: 0, skipped: `channel ${c.status}` };
+  if (inBackoff(c.api_backoff_until)) return { updated: 0, failed: 0, skipped: `API backoff until ${c.api_backoff_until}` };
 
   // Follower/profile snapshot first, independent of post history, so brand
   // new channels and post-read-less providers (TikTok) still report audience.
@@ -710,28 +765,42 @@ export async function snapshotChannel(
     return { updated: 0, failed: 0, skipped: 'tiktok has no post stats API' };
   }
 
-  const since = new Date(Date.now() - WINDOW_DAYS * 86400000).toISOString();
+  const now = Date.now();
+  const since = new Date(now - STATS_MAX_AGE).toISOString();
   const targets = await rest<TargetRow[]>(
     `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(c.id)}` +
-      `&status=eq.sent&remote_id=not.is.null&select=id,post_id,remote_id,provider,posts(chain_id,chain_position)` +
+      `&status=eq.sent&remote_id=not.is.null` +
+      `&select=id,post_id,remote_id,provider,sent_at,posts(chain_id,chain_position),post_stats(fetched_at)` +
+      // Older posts are never read one by one (cadence.ts); undated old rows
+      // still get their daily read.
+      `&or=(sent_at.gte.${encodeURIComponent(`"${since}"`)},sent_at.is.null)` +
       // nullslast: Postgres sorts NULL first on DESC, so targets without a
       // sent_at could crowd real recent posts out of the window.
       `&order=sent_at.desc.nullslast&limit=${MAX_TARGETS}`,
   );
-  if (!targets?.length) return { updated: 0, failed: 0, skipped: 'no sent posts yet' };
+  if (!targets?.length) return { updated: 0, failed: 0, skipped: 'no sent posts in the last 30 days' };
 
   let updated = 0;
   let failed = 0;
-  const due = targets.filter((tg) => !fresh.has(tg.id));
-  // X: one batched lookup (up to 100 ids) instead of a read per post, which
-  // tripped the per-endpoint rate limit and failed the whole snapshot.
-  const xBatch = c.provider === 'x' && due.length ? await xMetrics(c, t, due) : null;
+  // Read only what is due by age: every tick under 48 hours, then daily,
+  // then weekly (cadence.ts). This used to re-read the 30 newest posts on
+  // every tick, however old.
+  const due = targets.filter((tg) => !fresh.has(tg.id) && statsDue(tg.sent_at, lastFetched(tg), now));
+  // X and YouTube: one batched lookup (100 / 50 ids) instead of a read per
+  // post. Per-post X reads tripped the per-endpoint rate limit.
+  const batch =
+    !due.length ? null
+    : c.provider === 'x' ? await xMetrics(c, t, due)
+    : c.provider === 'youtube' ? await youtubeMetrics(c, t, due)
+    : null;
   for (const target of due) {
+    // A usage header said the window is nearly full: stop spending calls.
+    if (!batch && budgetSpent()) break;
     const remoteId = String(target.remote_id ?? '').split(',')[0].trim();
     if (!remoteId) continue;
     try {
-      const s = xBatch ? xBatch.get(remoteId) : await statsFor(c, t, remoteId);
-      if (!s) throw new Error(xBatch?.problem ?? 'Could not read post.');
+      const s = batch ? batch.get(remoteId) : await statsFor(c, t, remoteId);
+      if (!s) throw new Error(batch?.problem ?? 'Could not read post.');
       s.comments = Math.max(0, s.comments - (await ownReplies(c, target, remoteId)));
       await writeStats({
         post_target_id: target.id,
@@ -754,7 +823,7 @@ export async function snapshotChannel(
       warn(`stats ${c.provider}/${c.external_id} target ${target.id}: ${String(e?.message ?? e).slice(0, 160)}`);
     }
   }
-  info(`snapshot ${c.provider}/${c.external_id}: ${updated} updated, ${failed} failed, ${targets.length - due.length} already fresh`);
+  info(`snapshot ${c.provider}/${c.external_id}: ${updated} updated, ${failed} failed, ${targets.length - due.length} not due`);
   // Only a total failure is a job failure, a systematic breakage (expired
   // token, API change) should back off and retry.
   if (updated === 0 && failed > 0) {
