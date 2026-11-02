@@ -32,6 +32,7 @@ import {
   jget,
   num,
   statsFor,
+  writeStats,
 } from './stats';
 
 /** How many recent posts one run reads per account. */
@@ -369,17 +370,23 @@ const READERS: Record<string, (c: ChannelRow, t: TokenRow) => Promise<OwnPost[]>
 
 /* ------------------------------ the job ------------------------------ */
 
+interface SosialTarget {
+  id: string;
+  post_id: string;
+}
+
 /** remote_id (and each comma-joined part) → the Sosial target that owns it. */
-async function sosialTargets(channelId: string): Promise<Map<string, string>> {
-  const rows = await rest<{ id: string; remote_id: string | null }[]>(
-    `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(channelId)}&remote_id=not.is.null&select=id,remote_id&limit=1000`,
+async function sosialTargets(channelId: string): Promise<Map<string, SosialTarget>> {
+  const rows = await rest<{ id: string; post_id: string; remote_id: string | null }[]>(
+    `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(channelId)}&remote_id=not.is.null&select=id,post_id,remote_id&limit=1000`,
   ).catch(() => []);
-  const map = new Map<string, string>();
+  const map = new Map<string, SosialTarget>();
   for (const r of rows ?? []) {
     const full = String(r.remote_id ?? '').trim();
     if (!full) continue;
-    map.set(full, r.id);
-    for (const part of full.split(',')) if (part.trim()) map.set(part.trim(), r.id);
+    const target = { id: r.id, post_id: r.post_id };
+    map.set(full, target);
+    for (const part of full.split(',')) if (part.trim()) map.set(part.trim(), target);
   }
   return map;
 }
@@ -423,7 +430,8 @@ export async function snapshotOwnPosts(channelId: string): Promise<{ saved: numb
         channel_id: c.id,
         provider: c.provider,
         external_id: p.externalId,
-        post_target_id: target,
+        post_target_id: target?.id ?? null,
+        post_id: target?.post_id ?? null,
         url: p.url,
         body: p.body,
         thumbnail: p.thumbnail,
@@ -442,9 +450,39 @@ export async function snapshotOwnPosts(channelId: string): Promise<{ saved: numb
     await rest('/rest/v1/channel_posts?on_conflict=channel_id,external_id', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(rows),
+      body: JSON.stringify(rows.map(({ post_id: _postId, ...row }) => row)),
     });
-    info(`own posts ${c.provider}/${c.external_id}: ${rows.length} saved`);
+
+    // Posts Sosial published: this list reaches the latest 50 in one call,
+    // while the per-post refresh only re-reads the 30 most recent targets. A
+    // post that went out a while ago and then took off (an 890-like Facebook
+    // post) never refreshed. Save the fresh numbers as its post_stats too;
+    // the per-post read still runs after this for the newest ones.
+    let refreshed = 0;
+    for (const r of rows) {
+      if (!r.post_target_id || !r.post_id) continue;
+      try {
+        await writeStats({
+          post_target_id: r.post_target_id,
+          workspace_id: r.workspace_id,
+          post_id: r.post_id,
+          channel_id: r.channel_id,
+          provider: r.provider,
+          likes: r.likes,
+          comments: r.comments,
+          shares: r.shares,
+          saves: r.saves,
+          clicks: r.clicks,
+          views: r.views,
+          note: r.note,
+          fetched_at: r.fetched_at,
+        });
+        refreshed += 1;
+      } catch (e: any) {
+        warn(`own posts ${c.provider}/${c.external_id} target ${r.post_target_id}: ${String(e?.message ?? e).slice(0, 120)}`);
+      }
+    }
+    info(`own posts ${c.provider}/${c.external_id}: ${rows.length} saved, ${refreshed} Sosial posts refreshed`);
     return { saved: rows.length, skipped: null };
   } catch (e: any) {
     // Before migration p120 the table is missing; a provider may refuse. Either
