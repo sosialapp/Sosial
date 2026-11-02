@@ -213,8 +213,11 @@ function videoMimeFor(path: string, declared: string | null): string {
   return 'video/mp4';
 }
 
-/** Poll one publish until terminal (bounded, see POLL_MS). */
-async function pollStatus(publishId: string, token: string, kind: string): Promise<void> {
+/** Poll one publish until terminal (bounded, see POLL_MS). Resolves to the
+ *  id Sosial stores: "videoId,publishId" when TikTok names the public post
+ *  (its video list, and so the analytics, only know the video id), else the
+ *  publish id alone (private posts get no public id). */
+async function pollStatus(publishId: string, token: string, kind: string): Promise<string> {
   const start = Date.now();
   let delay = 3000;
   for (;;) {
@@ -225,7 +228,12 @@ async function pollStatus(publishId: string, token: string, kind: string): Promi
     });
     const sj: any = await s.json().catch(() => ({}));
     const status = String(sj?.data?.status ?? '');
-    if (status === 'PUBLISH_COMPLETE') return;
+    if (status === 'PUBLISH_COMPLETE') {
+      // TikTok's own spelling.
+      const ids = sj?.data?.publicaly_available_post_id;
+      const videoId = Array.isArray(ids) && ids.length ? String(ids[0]) : '';
+      return videoId ? `${videoId},${publishId}` : publishId;
+    }
     if (status === 'FAILED') {
       const code = String(sj?.error?.code ?? '');
       // TikTok puts the human-readable cause in data.fail_reason (error.code is
@@ -317,8 +325,7 @@ async function publishVideo(
   if (sent !== totalBytes) {
     throw new Error(`TikTok upload delivered ${sent}/${totalBytes} bytes, the job will retry shortly.`);
   }
-  await pollStatus(publishId, token, 'video');
-  return publishId;
+  return pollStatus(publishId, token, 'video');
 }
 
 /**
@@ -361,8 +368,7 @@ async function publishVideoFromUrl(token: string, url: string, title: string, tt
   if (!ok(j) || !publishId) {
     throw new Error(ttFail(j, 'TikTok video post failed.'));
   }
-  await pollStatus(publishId, token, 'video');
-  return publishId;
+  return pollStatus(publishId, token, 'video');
 }
 
 /** Upload one photo's bytes to the user's verified host (same contract as the app). */
@@ -398,8 +404,7 @@ async function publishPhotos(token: string, urls: string[], title: string, tt: T
   if (!ok(j) || !publishId) {
     throw new Error(ttFail(j, 'TikTok photo post failed.'));
   }
-  await pollStatus(publishId, token, 'photos');
-  return publishId;
+  return pollStatus(publishId, token, 'photos');
 }
 
 /** Who posts, what TikTok lets them pick, and what their account disallows. */

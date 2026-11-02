@@ -391,6 +391,42 @@ async function sosialTargets(channelId: string): Promise<Map<string, SosialTarge
   return map;
 }
 
+/**
+ * TikTok posts Sosial sent before it kept the video id carry only TikTok's
+ * publish id, which the video list never shows, so they were counted twice
+ * (once as a Sosial post with no stats, once as a post made on TikTok). Pair
+ * those by time instead: TikTok stamps the video when the publish completes,
+ * the moment Sosial marks the target sent. Closest within 20 minutes wins,
+ * each target at most once.
+ */
+async function pairByTime(channelId: string, posts: OwnPost[], byId: Map<string, SosialTarget>): Promise<Map<string, SosialTarget>> {
+  const out = new Map<string, SosialTarget>();
+  const unmatched = posts.filter((p) => p.postedAt && ![p.externalId, ...(p.aliases ?? [])].some((id) => byId.has(id)));
+  if (!unmatched.length) return out;
+  const rows = await rest<{ id: string; post_id: string; sent_at: string }[]>(
+    `/rest/v1/post_targets?channel_id=eq.${encodeURIComponent(channelId)}&status=eq.sent&sent_at=not.is.null` +
+      '&select=id,post_id,sent_at&order=sent_at.desc&limit=200',
+  ).catch(() => []);
+  const taken = new Set([...byId.values()].map((tg) => tg.id));
+  const free = (rows ?? []).filter((r) => !taken.has(r.id));
+  const pairs: { post: string; target: (typeof free)[number]; gap: number }[] = [];
+  for (const p of unmatched) {
+    const at = Date.parse(p.postedAt as string);
+    for (const r of free) {
+      const gap = Math.abs(Date.parse(r.sent_at) - at);
+      if (gap <= 20 * 60_000) pairs.push({ post: p.externalId, target: r, gap });
+    }
+  }
+  pairs.sort((a, b) => a.gap - b.gap);
+  const used = new Set<string>();
+  for (const { post, target } of pairs) {
+    if (out.has(post) || used.has(target.id)) continue;
+    out.set(post, { id: target.id, post_id: target.post_id });
+    used.add(target.id);
+  }
+  return out;
+}
+
 /** Our own replies per post, from the comment sync (is_own rows). Direct-reply
  *  platforms only count replies to the post itself. */
 async function ownRepliesByPost(c: ChannelRow): Promise<Map<string, number>> {
@@ -423,11 +459,12 @@ export async function snapshotOwnPosts(
 
     const [posts, targets, own] = await Promise.all([read(c, t), sosialTargets(c.id), ownRepliesByPost(c)]);
     if (!posts.length) return { saved: 0, skipped: 'no posts', fresh };
+    const byTime = c.provider === 'tiktok' ? await pairByTime(c.id, posts, targets) : new Map<string, SosialTarget>();
 
     const now = new Date().toISOString();
     const rows = posts.map((p) => {
       const ids = [p.externalId, ...(p.aliases ?? [])];
-      const target = ids.map((id) => targets.get(id)).find(Boolean) ?? null;
+      const target = ids.map((id) => targets.get(id)).find(Boolean) ?? byTime.get(p.externalId) ?? null;
       return {
         workspace_id: c.workspace_id,
         channel_id: c.id,
