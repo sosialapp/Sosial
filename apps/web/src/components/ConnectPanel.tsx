@@ -1366,7 +1366,6 @@ export default function ConnectPanel({
                             provider="facebook"
                             avatar={pg.picture ?? `/api/oauth/fb-page-avatar?page_id=${encodeURIComponent(pg.id)}`}
                             size={32}
-                            badge={false}
                           />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold">{pg.name}</span>

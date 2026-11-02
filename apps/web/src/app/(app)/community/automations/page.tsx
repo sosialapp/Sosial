@@ -46,7 +46,7 @@ export default async function AutomationsPage() {
       .order('created_at', { ascending: true }),
     sb
       .from('connected_channels')
-      .select('id,provider,handle,display_name,status')
+      .select('id,provider,handle,display_name,status,metadata')
       .eq('workspace_id', ctx.workspace.id)
       .in('provider', REPLY_PROVIDERS)
       .order('provider'),

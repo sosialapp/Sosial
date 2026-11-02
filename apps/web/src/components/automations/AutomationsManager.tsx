@@ -39,6 +39,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import SegmentedPills from '@/components/ui/segmented-pills';
 import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
+import ChannelAvatar from '@/components/ChannelAvatar';
+import { channelAvatar } from '@/lib/channelAvatar';
 import {
   channelLabel,
   matchesKeywords,
@@ -501,7 +503,7 @@ export default function AutomationsManager({
                             <span aria-hidden="true">·</span>
                             {ch ? (
                               <span className="flex min-w-0 items-center gap-1">
-                                <BrandIcon provider={ch.provider as BrandProvider} className="h-3.5 w-3.5 shrink-0" />
+                                <ChannelAvatar provider={ch.provider} avatar={channelAvatar(ch.metadata)} size={16} />
                                 <span className="truncate">{channelLabel(ch)}</span>
                               </span>
                             ) : (
@@ -656,7 +658,7 @@ export default function AutomationsManager({
                         disabled={!canEdit}
                         onClick={() => patch('channel_id', ch.id)}
                       >
-                        <BrandIcon provider={ch.provider as BrandProvider} className="h-4 w-4" />
+                        <ChannelAvatar provider={ch.provider} avatar={channelAvatar(ch.metadata)} size={20} />
                         {channelLabel(ch)}
                       </ChannelChip>
                     ))}
@@ -897,7 +899,7 @@ export default function AutomationsManager({
                 <li key={event.id} className="flex gap-3 px-5 py-3.5">
                   <span className="mt-0.5 shrink-0">
                     {ch ? (
-                      <BrandIcon provider={ch.provider as BrandProvider} className="h-7 w-7" />
+                      <ChannelAvatar provider={ch.provider} avatar={channelAvatar(ch.metadata)} size={28} />
                     ) : (
                       <span className="flex h-7 w-7 items-center justify-center rounded-full bg-surface">
                         {event.target_kind === 'comment' ? <MessageCircle className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}

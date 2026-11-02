@@ -66,6 +66,8 @@ export interface AutoReplyChannel {
   handle: string | null;
   display_name: string | null;
   status: string;
+  /** Avatar sync output (metadata.avatar), for ChannelAvatar. */
+  metadata?: Record<string, unknown> | null;
 }
 
 const COMMENT_PROVIDERS = new Set([

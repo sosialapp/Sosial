@@ -26,7 +26,6 @@ import ChannelAvatar from '@/components/ChannelAvatar';
 import {
   ChannelStrip, Face, InboxShell, PaneEmpty, Segmented, composerText, dayLabel, errorBox, grow, isWide, paneFoot, paneHead, useSeen, when,
 } from '@/components/community/parts';
-import { BrandIcon, type BrandProvider } from '@/components/BrandIcon';
 import { channelAvatar } from '@/lib/channelAvatar';
 import { createClient } from '@/lib/supabase/client';
 import { edgeErrorMessage } from '@/lib/functions';
@@ -651,7 +650,7 @@ export default function CommentsFeed({
               <PostThumb post={post} size={40} />
               <div className="min-w-0 flex-1">
                 <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-faint">
-                  <BrandIcon provider={g.platform as BrandProvider} className="h-3.5 w-3.5 shrink-0" />
+                  <ChannelAvatar provider={g.platform} avatar={ch ? channelAvatar(ch.metadata) : undefined} size={16} />
                   {meta} post{ch?.display_name ? ` · ${ch.display_name}` : ''}
                   {post?.posted_at ? ` · ${when(post.posted_at)}` : ''}
                 </p>
@@ -897,7 +896,7 @@ export default function CommentsFeed({
                   </span>
                 </div>
                 <div className="flex items-end gap-2 rounded-2xl border border-line bg-paper py-1.5 pr-1.5 pl-2 transition focus-within:border-accent">
-                  <ChannelAvatar provider={g.platform} avatar={ch ? channelAvatar(ch.metadata) : undefined} size={28} badge={false} />
+                  <ChannelAvatar provider={g.platform} avatar={ch ? channelAvatar(ch.metadata) : undefined} size={28} />
                   <textarea
                     ref={composerRef}
                     value={draft}

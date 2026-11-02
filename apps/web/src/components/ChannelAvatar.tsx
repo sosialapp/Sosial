@@ -5,12 +5,14 @@ import { BrandIcon, type BrandProvider } from './BrandIcon';
 import { providerMeta } from '@/lib/providers';
 
 /**
- * Channel avatar, same as the mobile app: the account's profile picture
- * leads as a circular tile; the social logo rides as a larger circular disc
- * stacked in the corner. Brand disc alone when there's no avatar.
- * Small account rows pass badge={false} (mobile parity) so the mini logo
- * never swallows the photo. Plain <img>, avatar hosts are arbitrary, so
- * next/image can't preallow them.
+ * THE way a connected account is shown, everywhere on web (and the same rule
+ * as ChannelAvatar in the mobile src/components/ui.tsx): the account's
+ * profile picture as a circle with the platform logo as a small badge in the
+ * corner; the brand disc alone when there is no picture. Every place that
+ * shows or picks an account uses this (or ChannelAvatarStack below).
+ * badge={false} is only for mock-ups of a platform's own UI (studio post
+ * previews), where the platform itself would not draw a badge.
+ * Plain <img>, avatar hosts are arbitrary, so next/image can't preallow them.
  */
 export default function ChannelAvatar({
   provider,
@@ -21,7 +23,7 @@ export default function ChannelAvatar({
   provider: string;
   avatar?: string;
   size?: number;
-  /** Corner brand disc over a photo. Off in dense rows, the disc alone shows. */
+  /** Corner brand disc over a photo. Off only in platform-native mock-ups. */
   badge?: boolean;
 }) {
   const meta = providerMeta(provider);
@@ -72,6 +74,50 @@ export default function ChannelAvatar({
           aria-hidden="true"
         >
           <BrandIcon provider={provider as BrandProvider} mono className="block text-white" style={{ width: badgeGlyph, height: badgeGlyph }} />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * The accounts a post went out on, as overlapping ChannelAvatars (badge on
+ * each), +n past `max`. Mirrors AccountAvatars in the mobile ui.tsx.
+ */
+export function ChannelAvatarStack({
+  accounts,
+  size = 24,
+  max = 3,
+  ring = 'card',
+}: {
+  accounts: { provider: string; avatar?: string }[];
+  size?: number;
+  max?: number;
+  /** Background the stack sits on, so each avatar's ring blends into it. */
+  ring?: 'card' | 'paper';
+}) {
+  if (accounts.length === 0) return null;
+  const shown = accounts.slice(0, max);
+  const extra = accounts.length - shown.length;
+  const ringClass = ring === 'paper' ? 'ring-paper' : 'ring-card';
+  const overlap = -Math.round(size * 0.3);
+  return (
+    <span className="flex shrink-0 items-center">
+      {shown.map((a, i) => (
+        <span
+          key={`${a.provider}-${i}`}
+          className={`rounded-full ring-2 ${ringClass}`}
+          style={{ marginLeft: i ? overlap : 0, zIndex: shown.length - i }}
+        >
+          <ChannelAvatar provider={a.provider} avatar={a.avatar} size={size} />
+        </span>
+      ))}
+      {extra > 0 ? (
+        <span
+          className={`flex items-center justify-center rounded-full bg-surface font-bold text-soft ring-2 ${ringClass}`}
+          style={{ marginLeft: overlap, width: size, height: size, fontSize: Math.max(9, Math.round(size * 0.38)) }}
+        >
+          +{extra}
         </span>
       ) : null}
     </span>
