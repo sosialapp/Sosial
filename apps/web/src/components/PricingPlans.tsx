@@ -35,7 +35,7 @@ const CHANNELS: BrandProvider[] = [
   'wordpress', 'devto', 'hashnode', 'ghost', 'vk', 'gmb',
 ];
 
-const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
+const INTEGRATIONS = ['canva', 'unsplash', 'drive', 'gphotos', 'dropbox', 'onedrive', 'notion', 'zapier'] as const;
 
 /** Channel marks offered to the background field (matches the hero). */
 const GRID_LOGOS: BrandProvider[] = [

@@ -113,7 +113,7 @@ export const TERMS: LegalDoc = {
       blocks: [
         {
           t: 'p',
-          c: 'You can bring content in from Dropbox, Canva, Unsplash and OneDrive. We only download the file you pick, and we never change, move or delete anything in those accounts. Notion and Google Sheets imports only go one way, into your drafts. Zapier and AI agents (through MCP) can create posts using an API key you make and can delete whenever you like. Google Drive and Google Photos are marked "Soon" until Google finishes reviewing our access.',
+          c: 'You can bring content in from Dropbox, Canva, Unsplash and OneDrive. We only download the file you pick, and we never change, move or delete anything in those accounts. Notion imports only go one way, into your drafts. Zapier and AI agents (through MCP) can create posts using an API key you make and can delete whenever you like. Google Drive and Google Photos are marked "Soon" until Google finishes reviewing our access.',
         },
         {
           t: 'p',
@@ -265,7 +265,6 @@ export const PRIVACY: LegalDoc = {
             'Canva: browse your designs and download the one you pick.',
             'Unsplash: search for photos and add the one you pick, with its credit.',
             'Notion: turn pages you have shared with Sosial into drafts. Nothing is written back to Notion.',
-            'Google Sheets: turn rows from a sheet you share into scheduled posts. Nothing is written back to the sheet.',
             'Zapier and MCP: let your own automations and AI agents create posts, using an API key you make and can delete at any time.',
           ],
         },
@@ -355,7 +354,7 @@ export const PRIVACY: LegalDoc = {
             'Resend, which sends our emails.',
             'OpenAI, for the AI features you choose to use.',
             'Stripe and the app stores, for payments.',
-            'The import sources you connect (Dropbox, Canva, Unsplash, OneDrive, Notion, Google Sheets), only to fetch what you pick, and Zapier or an AI agent, only through an API key you created.',
+            'The import sources you connect (Dropbox, Canva, Unsplash, OneDrive, Notion), only to fetch what you pick, and Zapier or an AI agent, only through an API key you created.',
           ],
         },
         {

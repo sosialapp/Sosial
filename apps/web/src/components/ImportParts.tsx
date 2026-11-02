@@ -1,6 +1,6 @@
 'use client';
 
-/** Pieces shared by the Notion and Google Sheets import flows. */
+/** Pieces of the Notion import flow. */
 import { Check } from 'lucide-react';
 import { SourceMark } from './SourceMarks';
 import { useT } from '@/lib/i18n/client';

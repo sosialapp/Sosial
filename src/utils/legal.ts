@@ -16,7 +16,7 @@ export const TERMS_TEXT =
   'What you create belongs to you, and so does the responsibility for it. Only publish things you own or have the right to use. We do not check posts before they go out, so if a post is hateful, explicit, defamatory, misleading or illegal, the consequences are yours, not Sosial’s. We can remove content or close accounts that break these terms or the law.\n\n' +
   'On some channels you can answer direct messages and comments inside Sosial (direct messages on Facebook Pages, Instagram, X, Mastodon and Bluesky, and comments on Facebook, Instagram, Threads, X, Mastodon, Bluesky and YouTube). Replies go out from your own account. Nothing is sent unless you write it and press send, and you are responsible for what you send.\n\n' +
   'In a shared workspace, the owner decides who joins and what role they get. Members can be asked to send posts for approval, and an owner or admin then approves them before they publish. Whoever approves a post shares responsibility for it.\n\n' +
-  'You can bring media in from Dropbox, Canva, Unsplash and OneDrive (we only download the file you pick and never change anything in your storage), import drafts from Notion and Google Sheets, and let your own automations post through Zapier or MCP with an API key you control. The AI writer sends your brief to OpenAI to write a draft. We never train AI on what you send, and you should read the result before you post it.\n\n' +
+  'You can bring media in from Dropbox, Canva, Unsplash and OneDrive (we only download the file you pick and never change anything in your storage), import drafts from Notion, and let your own automations post through Zapier or MCP with an API key you control. The AI writer sends your brief to OpenAI to write a draft. We never train AI on what you send, and you should read the result before you post it.\n\n' +
   'We only send product news if you opt in, and every email has an unsubscribe link that works right away. Account emails, like security alerts and receipts, keep coming either way.\n\n' +
   'If nobody signs in for six months, we may delete the account and its data. We email you a month before, and signing in stops it. Shared workspaces stay while any member is active, and paid accounts are never deleted for inactivity.\n\n' +
   'We work hard to keep Sosial running, but it is provided "as is", without warranties. If we are ever liable for something, the most we will pay is what you paid us in the 12 months before the claim.\n\n' +
@@ -30,7 +30,7 @@ export interface LegalSection {
 export const PRIVACY_SECTIONS: LegalSection[] = [
   {
     title: 'What we collect',
-    body: 'Your email address and a password (stored encrypted), or the account you signed in with. Your workspace: posts, captions, schedules, media, templates, approvals and your team’s roles. For each connected channel, its name, handle and the key that lets us publish for you. The messages and comments we load for channels where you use the inbox. A push token for each device where you turned notifications on. The Notion pages and Google Sheets you import from, and any API keys you create. Stripe or the app store handles payments, so we only keep a subscription reference and never see your card number.',
+    body: 'Your email address and a password (stored encrypted), or the account you signed in with. Your workspace: posts, captions, schedules, media, templates, approvals and your team’s roles. For each connected channel, its name, handle and the key that lets us publish for you. The messages and comments we load for channels where you use the inbox. A push token for each device where you turned notifications on. The Notion pages you import from, and any API keys you create. Stripe or the app store handles payments, so we only keep a subscription reference and never see your card number.',
   },
   {
     title: 'Your connected social accounts',
@@ -46,7 +46,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
   },
   {
     title: 'Media and import sources',
-    body: 'Dropbox, OneDrive and Canva let you browse your files and pick one, and we download only that file. Unsplash photos come with the photographer’s credit added to your caption. Notion and Google Sheets imports only go one way, into Sosial. Zapier and AI agents can create posts with an API key you make and can delete. We never change, move, share or delete anything in your accounts, and login tokens for these sources stay on your phone. Google Drive and Google Photos are marked "Soon" while Google reviews our access.',
+    body: 'Dropbox, OneDrive and Canva let you browse your files and pick one, and we download only that file. Unsplash photos come with the photographer’s credit added to your caption. Notion imports only go one way, into Sosial. Zapier and AI agents can create posts with an API key you make and can delete. We never change, move, share or delete anything in your accounts, and login tokens for these sources stay on your phone. Google Drive and Google Photos are marked "Soon" while Google reviews our access.',
   },
   {
     title: 'How we use your data',

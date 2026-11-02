@@ -36,7 +36,7 @@ const CHANNELS: BrandProvider[] = [
 /** Listed but not connectable yet, mirrors ConnectPanel's COMING_SOON. */
 const SOON_CHANNELS: BrandProvider[] = ['gmb', 'linkedin'];
 
-const INTEGRATIONS = ['canva', 'unsplash', 'dropbox', 'onedrive', 'notion', 'zapier', 'sheets'] as const;
+const INTEGRATIONS = ['canva', 'unsplash', 'dropbox', 'onedrive', 'notion', 'zapier'] as const;
 
 /** Media sources still pending Google's verification (GOOGLE_MEDIA_DISABLED). */
 const SOON_TOOLS = ['drive', 'gphotos'] as const;

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 /**
- * Guarded media fetch shared by content-source imports (Notion, Sheets):
+ * Guarded media fetch shared by content-source imports (Notion):
  * https only, no private/loopback hosts, streamed 25 MB cap, image/video
  * type allowlist, 30s timeout. Failures return {error}, callers flag the
  * row and continue, per the import contract.
