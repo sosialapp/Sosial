@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, CalendarClock, Loader2, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowUp, CalendarClock, Loader2, RefreshCw, SlidersHorizontal, Sparkles, Wand2 } from 'lucide-react';
 import { generateSocial, rewritePosts, withHashtags, SOCIAL_PLATFORMS, THREAD_PLATFORM_IDS, THREAD_POST_MIN, capFor, platformLabel, type AiVariant, type RewriteOp } from '@/lib/ai';
 import { MAX_PARTS, MAX_POSTS, MAX_PROMPT, MIN_PARTS, angleFor, creditsFor, readPromptHints } from '@/lib/aiPrompt';
 import { STUDIO_TONES, WRITER_LANGUAGES } from '@/lib/aiStudio';
@@ -279,22 +279,21 @@ export default function AiCard({
   const credits = creditsFor(total, thread);
 
   return (
-    <section
-      aria-label={t('aiTitle')}
-      className="rounded-3xl border border-[#D9CCFA] bg-[#F5F0FF] p-5 dark:border-[#5B3DF0]/40 dark:bg-[#17122B]"
-    >
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-[#5B3DF0] dark:text-[#B9A6F7]" aria-hidden="true" />
-        <div>
+    <section aria-label={t('aiTitle')} className="space-y-4">
+      <div className="flex items-center gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent-soft text-accent-ink" aria-hidden="true">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
           <p className="font-display text-base font-extrabold tracking-tight">{t('aiTitle')}</p>
-          <p className="text-[11px] text-muted">{t('aiSub')}</p>
+          <p className="text-xs text-muted">{t('aiSub')}</p>
         </div>
       </div>
 
       {/* The prompt box: type, pick nothing, press send. A div, not a form:
           the card renders inside the composer's form. */}
       <div
-        className="mt-3 rounded-2xl border border-[#E3D9FA] bg-white/90 shadow-sm focus-within:ring-2 focus-within:ring-[#5B3DF0]/40 dark:border-white/10 dark:bg-white/5"
+        className="rounded-2xl border border-line bg-card transition focus-within:border-ink/35 focus-within:shadow-[0_0_0_3px_rgba(255,198,46,0.18)]"
       >
         <textarea
           ref={boxRef}
@@ -310,145 +309,149 @@ export default function AiCard({
           rows={2}
           maxLength={MAX_PROMPT}
           aria-label={t('aiPromptLbl')}
-          className="block max-h-60 min-h-[64px] w-full resize-none bg-transparent px-3.5 pb-1 pt-3 text-sm leading-relaxed text-ink placeholder:text-muted focus:outline-none"
+          className="block max-h-72 min-h-[96px] w-full resize-none bg-transparent px-4 pb-2 pt-3.5 text-base leading-relaxed text-ink placeholder:text-faint focus:outline-none sm:text-[15px]"
         />
-        <div className="flex flex-wrap items-center gap-1.5 px-2.5 pb-2.5 pt-1">
-          <Chip
-            label={
-              <>
-                {destinations.length === 1 && destinations[0] !== 'any' ? <PlatformGlyph id={destinations[0]} /> : null}
-                {channelsLabel}
-              </>
-            }
-            open={menu === 'channels'}
-            onOpen={() => toggleMenu('channels')}
-          >
-            <p className="px-2.5 pb-1 pt-0.5 text-[11px] font-bold text-muted">{t('aiChannels')}</p>
-            <div className="max-h-64 overflow-y-auto">
-              {channelChoices.map((p) => (
-                <MenuRow key={p.id} on={destinations.includes(p.id)} onClick={() => togglePlatform(p.id)}>
-                  {p.id === 'any' ? null : <PlatformGlyph id={p.id} />}
-                  <span className="truncate">{labelOf(p.id)}</span>
+        <div className="flex items-start gap-1 border-t border-line-soft px-2 py-1.5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5">
+            <Chip
+              label={
+                <>
+                  {destinations.length === 1 && destinations[0] !== 'any' ? <PlatformGlyph id={destinations[0]} /> : null}
+                  {channelsLabel}
+                </>
+              }
+              open={menu === 'channels'}
+              onOpen={() => toggleMenu('channels')}
+            >
+              <p className="px-3 pb-1 pt-1 text-xs font-semibold text-faint">{t('aiChannels')}</p>
+              <div className="max-h-64 overflow-y-auto">
+                {channelChoices.map((p) => (
+                  <MenuRow key={p.id} on={destinations.includes(p.id)} onClick={() => togglePlatform(p.id)}>
+                    {p.id === 'any' ? null : <PlatformGlyph id={p.id} />}
+                    <span className="truncate">{labelOf(p.id)}</span>
+                  </MenuRow>
+                ))}
+              </div>
+              {thread ? <p className="px-3 pb-1 pt-2 text-xs text-faint">{t('aiThreadOnly')}</p> : null}
+            </Chip>
+
+            <Chip label={shapeLabel} open={menu === 'shape'} onOpen={() => toggleMenu('shape')} active={thread || count > 1}>
+              <SegmentedPills
+                ariaLabel={t('aiHowMany')}
+                size="sm"
+                buttonClassName="flex-1"
+                value={thread ? 'thread' : 'post'}
+                onChange={(v) => {
+                  touched.current.shape = true;
+                  setThread(v === 'thread');
+                }}
+                options={[
+                  { value: 'post', label: t('aiFmtPost') },
+                  { value: 'thread', label: t('aiFmtThread') },
+                ]}
+              />
+              <p className="px-1 pb-1.5 pt-3 text-xs font-semibold text-faint">{thread ? t('aiThreadLen') : t('aiHowMany')}</p>
+              <div className="flex flex-wrap gap-1">
+                {(thread
+                  ? Array.from({ length: MAX_PARTS - MIN_PARTS + 1 }, (_, i) => MIN_PARTS + i)
+                  : Array.from({ length: MAX_POSTS }, (_, i) => i + 1)
+                ).map((n) => {
+                  const on = (thread ? parts : count) === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => {
+                        touched.current.shape = true;
+                        if (thread) setParts(n);
+                        else setCount(n);
+                      }}
+                      className={`h-9 w-9 rounded-full text-sm font-bold transition ${on ? 'bg-ink text-paper' : 'bg-surface text-soft hover:text-ink'}`}
+                    >
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
+            </Chip>
+
+            <Chip
+              label={tone === 'auto' ? t('aiTone') : toneLabel(tone)}
+              open={menu === 'tone'}
+              onOpen={() => toggleMenu('tone')}
+              active={tone !== 'auto'}
+            >
+              {STUDIO_TONES.map((o) => (
+                <MenuRow
+                  key={o.id}
+                  on={tone === o.id}
+                  onClick={() => {
+                    setTone(o.id);
+                    setMenu(null);
+                  }}
+                >
+                  {toneLabel(o.id)}
                 </MenuRow>
               ))}
-            </div>
-            {thread ? <p className="px-2.5 pt-1.5 text-[11px] text-muted">{t('aiThreadOnly')}</p> : null}
-          </Chip>
+              <p className="px-3 pb-1 pt-2 text-xs text-faint">{t('aiAutoHint')}</p>
+            </Chip>
 
-          <Chip label={shapeLabel} open={menu === 'shape'} onOpen={() => toggleMenu('shape')} active={thread || count > 1}>
-            <SegmentedPills
-              ariaLabel={t('aiHowMany')}
-              size="sm"
-              buttonClassName="flex-1"
-              value={thread ? 'thread' : 'post'}
-              onChange={(v) => {
-                touched.current.shape = true;
-                setThread(v === 'thread');
-              }}
-              options={[
-                { value: 'post', label: t('aiFmtPost') },
-                { value: 'thread', label: t('aiFmtThread') },
-              ]}
-            />
-            <p className="px-1 pb-1 pt-2.5 text-[11px] font-bold text-muted">{thread ? t('aiThreadLen') : t('aiHowMany')}</p>
-            <div className="flex flex-wrap gap-1">
-              {(thread
-                ? Array.from({ length: MAX_PARTS - MIN_PARTS + 1 }, (_, i) => MIN_PARTS + i)
-                : Array.from({ length: MAX_POSTS }, (_, i) => i + 1)
-              ).map((n) => {
-                const on = (thread ? parts : count) === n;
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => {
-                      touched.current.shape = true;
-                      if (thread) setParts(n);
-                      else setCount(n);
-                    }}
-                    className={`h-8 w-8 rounded-lg text-xs font-extrabold transition ${on ? 'bg-ink text-paper' : 'bg-paper-dim text-soft hover:text-ink'}`}
+            <Chip
+              label={<SlidersHorizontal className="h-3.5 w-3.5" aria-label={t('aiMoreOpts')} />}
+              open={menu === 'more'}
+              onOpen={() => toggleMenu('more')}
+              active={moreActive}
+              align="right"
+            >
+              <div className="space-y-3 p-1">
+                <label className="block">
+                  <span className="block text-sm font-semibold">{t('aiLanguage')}</span>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="field mt-1 !py-1.5 !text-xs"
                   >
-                    {n}
-                  </button>
-                );
-              })}
-            </div>
-          </Chip>
-
-          <Chip
-            label={`${t('aiTone')}: ${toneLabel(tone)}`}
-            open={menu === 'tone'}
-            onOpen={() => toggleMenu('tone')}
-            active={tone !== 'auto'}
-          >
-            {STUDIO_TONES.map((o) => (
-              <MenuRow
-                key={o.id}
-                on={tone === o.id}
-                onClick={() => {
-                  setTone(o.id);
-                  setMenu(null);
-                }}
-              >
-                {toneLabel(o.id)}
-              </MenuRow>
-            ))}
-            <p className="px-2.5 pt-1.5 text-[11px] text-muted">{t('aiAutoHint')}</p>
-          </Chip>
-
-          <Chip label={t('aiMoreOpts')} open={menu === 'more'} onOpen={() => toggleMenu('more')} active={moreActive}>
-            <div className="space-y-3 p-1">
-              <label className="block">
-                <span className="block text-xs font-bold">{t('aiLanguage')}</span>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="field mt-1 !py-1.5 !text-xs"
-                >
-                  <option value="auto">{t('aiLangAuto')}</option>
-                  {WRITER_LANGUAGES.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-xs font-bold">{t('aiHashtags')}</span>
-                <Switch on={hashtags} onToggle={() => setHashtags((v) => !v)} label={t('aiHashtags')} />
+                    <option value="auto">{t('aiLangAuto')}</option>
+                    {WRITER_LANGUAGES.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 text-sm font-semibold">{t('aiHashtags')}</span>
+                  <Switch on={hashtags} onToggle={() => setHashtags((v) => !v)} label={t('aiHashtags')} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">{t('aiEmoji')}</p>
+                  <SegmentedPills
+                    ariaLabel={t('aiEmoji')}
+                    className="mt-1"
+                    size="sm"
+                    buttonClassName="flex-1"
+                    value={emoji}
+                    onChange={setEmoji}
+                    options={(['auto', 'on', 'off'] as EmojiMode[]).map((o) => ({ value: o, label: t(EMOJI_KEY[o]) }))}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="flex-1 text-sm font-semibold">{t('aiCta')}</span>
+                  <Switch on={cta} onToggle={() => setCta((v) => !v)} label={t('aiCta')} />
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold">{t('aiEmoji')}</p>
-                <SegmentedPills
-                  ariaLabel={t('aiEmoji')}
-                  className="mt-1"
-                  size="sm"
-                  buttonClassName="flex-1"
-                  value={emoji}
-                  onChange={setEmoji}
-                  options={(['auto', 'on', 'off'] as EmojiMode[]).map((o) => ({ value: o, label: t(EMOJI_KEY[o]) }))}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="flex-1 text-xs font-bold">{t('aiCta')}</span>
-                <Switch on={cta} onToggle={() => setCta((v) => !v)} label={t('aiCta')} />
-              </div>
-            </div>
-          </Chip>
+            </Chip>
 
-          <span className="flex-1" />
-          <span className="text-[11px] font-bold tabular-nums text-faint" title={t('aiCreditsHint')}>
-            {fill(t('aiCreditsN'), { n: credits })}
-          </span>
+          </div>
           <button
             type="button"
             onClick={run}
             disabled={anyBusy}
             aria-label={t('aiGenerate')}
-            title={t('aiEnterHint')}
-            className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-              prompt.trim() ? 'bg-ink text-paper hover:opacity-85' : 'bg-line text-muted'
+            title={`${t('aiEnterHint')} · ${fill(t('aiCreditsN'), { n: credits })}`}
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition ${
+              prompt.trim() ? 'bg-bolt text-on-accent hover:bg-bolt-deep' : 'bg-surface text-faint'
             } disabled:opacity-60`}
           >
             {anyBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowUp className="h-4 w-4" aria-hidden="true" />}
@@ -457,16 +460,16 @@ export default function AiCard({
       </div>
 
       {prompt.length > MAX_PROMPT - 60 ? (
-        <p className="mt-1 text-right text-[11px] font-bold tabular-nums text-muted">
+        <p className="-mt-2 text-right text-xs tabular-nums text-faint">
           {fill(t('aiPromptLeft'), { n: MAX_PROMPT - prompt.length })}
         </p>
       ) : null}
-      {err ? <p className="mt-2 text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{err}</p> : null}
+      {err ? <p className="text-sm font-semibold text-[#9F2F2D] dark:text-[#F2A8A8]">{err}</p> : null}
 
       {/* Empty state: a few prompts to tap. */}
       {drafts.length === 0 && !prompt ? (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <span className="text-[11px] font-bold text-muted">{t('aiTry')}</span>
+        <div>
+          <p className="px-1 pb-1 text-xs font-semibold text-faint">{t('aiTry')}</p>
           {EXAMPLES.map((k) => (
             <button
               key={k}
@@ -475,9 +478,11 @@ export default function AiCard({
                 onPrompt(t(k));
                 boxRef.current?.focus();
               }}
-              className="rounded-full border border-[#E3D9FA] bg-white/70 px-3 py-1 text-left text-[11px] font-bold text-soft transition hover:text-ink dark:border-white/10 dark:bg-white/5"
+              className="group flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm text-soft transition hover:bg-surface hover:text-ink"
             >
-              {t(k)}
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-faint group-hover:text-ink" aria-hidden="true" />
+              <span className="min-w-0 flex-1">{t(k)}</span>
+              <ArrowUp className="h-3.5 w-3.5 shrink-0 rotate-45 opacity-0 transition group-hover:opacity-100" aria-hidden="true" />
             </button>
           ))}
         </div>
@@ -485,9 +490,9 @@ export default function AiCard({
 
       {/* Results */}
       {drafts.length > 0 ? (
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-extrabold text-soft">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <p className="text-sm font-bold text-ink">
               {drafts.length === 1 ? t('aiResult') : fill(t('aiNDrafts'), { n: drafts.length })}
             </p>
             <span className="flex-1" />
@@ -496,9 +501,9 @@ export default function AiCard({
                 type="button"
                 onClick={run}
                 disabled={anyBusy}
-                className="flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1 text-[11px] font-bold text-muted transition hover:text-ink disabled:opacity-50"
+                className="inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold text-soft transition hover:bg-surface hover:text-ink disabled:opacity-50"
               >
-                <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                 {t('aiRegenAll')}
               </button>
             ) : null}
@@ -518,17 +523,18 @@ export default function AiCard({
               <article
                 key={d.id}
                 aria-busy={d.busy}
-                className="rounded-2xl border border-[#E3D9FA] bg-white/70 p-3 dark:border-white/10 dark:bg-white/5"
+                className="rounded-2xl border border-line bg-card"
               >
-                <div className="flex items-center gap-2">
-                  <p className="text-xs font-extrabold text-[#5B3DF0] dark:text-[#B9A6F7]">{title}</p>
+                <div className="flex items-center gap-1 border-b border-line-soft py-1.5 pl-4 pr-2">
+                  <p className="text-xs font-bold text-faint">{title}</p>
                   <span className="flex-1" />
                   {hasCopy ? (
                     <Chip
                       align="right"
+                      side="bottom"
                       label={
                         <>
-                          <Wand2 className="h-3 w-3" aria-hidden="true" />
+                          <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />
                           {t('aiRefine')}
                         </>
                       }
@@ -548,9 +554,9 @@ export default function AiCard({
                     disabled={d.busy}
                     aria-label={t('aiRegenOne')}
                     title={t('aiRegenOne')}
-                    className="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-paper text-muted transition hover:text-ink disabled:opacity-50"
+                    className="grid h-8 w-8 place-items-center rounded-full text-soft transition hover:bg-surface hover:text-ink disabled:opacity-50"
                   >
-                    <RefreshCw className={`h-3 w-3 ${d.busy ? 'animate-spin' : ''}`} aria-hidden="true" />
+                    <RefreshCw className={`h-3.5 w-3.5 ${d.busy ? 'animate-spin' : ''}`} aria-hidden="true" />
                   </button>
                 </div>
 
@@ -558,7 +564,7 @@ export default function AiCard({
                   <SegmentedPills
                     ariaLabel={t('aiChannelDrafts')}
                     role="tablist"
-                    className="mt-2"
+                    className="mx-4 mt-3"
                     trackClassName="flex-wrap overflow-visible rounded-2xl"
                     size="sm"
                     value={d.tab}
@@ -576,23 +582,23 @@ export default function AiCard({
                 ) : null}
 
                 {d.busy && !hasCopy ? (
-                  <div className="mt-2 space-y-1.5" aria-label={t('aiWriting')}>
-                    <div className="h-3 w-11/12 animate-pulse rounded bg-[#E3D9FA] dark:bg-white/10" />
-                    <div className="h-3 w-4/5 animate-pulse rounded bg-[#E3D9FA] dark:bg-white/10" />
-                    <div className="h-3 w-2/3 animate-pulse rounded bg-[#E3D9FA] dark:bg-white/10" />
+                  <div className="space-y-2 px-4 py-4" aria-label={t('aiWriting')}>
+                    <div className="h-3.5 w-11/12 animate-pulse rounded-full bg-surface" />
+                    <div className="h-3.5 w-4/5 animate-pulse rounded-full bg-surface" />
+                    <div className="h-3.5 w-2/3 animate-pulse rounded-full bg-surface" />
                   </div>
                 ) : null}
 
                 {active ? (
-                  <div className={`mt-2 space-y-2 ${d.busy ? 'opacity-60' : ''}`}>
+                  <div className={`divide-y divide-line-soft ${d.busy ? 'opacity-60' : ''}`}>
                     {active.posts.map((seg, i) => {
                       const over = seg.length > limit;
                       const tooShort = isThreadView && seg.length < THREAD_POST_MIN;
                       const what = active.posts.length > 1 ? fill(t('aiPostWord'), { n: i + 1 }) : t('aiCaption');
                       return (
-                        <div key={i}>
+                        <div key={i} className="px-4 pb-2 pt-3">
                           {active.posts.length > 1 ? (
-                            <p className="px-0.5 text-[11px] font-bold text-muted">{fill(t('aiPostN'), { n: i + 1 })}</p>
+                            <p className="text-xs font-semibold text-faint">{fill(t('aiPostN'), { n: i + 1 })}</p>
                           ) : null}
                           <textarea
                             value={seg}
@@ -600,9 +606,9 @@ export default function AiCard({
                             disabled={d.busy}
                             rows={Math.min(8, Math.max(3, Math.ceil(seg.length / 70)))}
                             aria-label={fill(t('aiEditPost'), { what })}
-                            className="mt-0.5 w-full resize-y rounded-lg border border-line-soft bg-paper px-2.5 py-2 text-xs leading-relaxed text-ink focus:outline-none focus:ring-2 focus:ring-[#5B3DF0]/40"
+                            className="block w-full resize-y bg-transparent text-[15px] leading-relaxed text-ink focus:outline-none"
                           />
-                          <p className={`text-right text-[11px] font-bold tabular-nums ${over ? 'text-[#9F2F2D] dark:text-[#F2A8A8]' : tooShort ? 'text-[#B98A1C] dark:text-[#E8C162]' : 'text-faint'}`}>
+                          <p className={`text-right text-xs tabular-nums ${over ? 'text-[#9F2F2D] dark:text-[#F2A8A8]' : tooShort ? 'text-[#B98A1C] dark:text-[#E8C162]' : 'text-faint'}`}>
                             {seg.length}/{limit}
                             {tooShort ? ` · ${fill(t('aiMin'), { n: THREAD_POST_MIN })}` : ''}
                           </p>
@@ -613,9 +619,9 @@ export default function AiCard({
                 ) : null}
 
                 {active && hashtags && active.hashtags.length > 0 ? (
-                  <div className="mt-1 flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 px-4 pb-3">
                     {active.hashtags.map((h) => (
-                      <span key={h} className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent-ink">
+                      <span key={h} className="rounded-full bg-surface px-2.5 py-1 text-xs font-semibold text-soft">
                         #{h}
                       </span>
                     ))}
@@ -623,16 +629,16 @@ export default function AiCard({
                 ) : null}
 
                 {d.err ? (
-                  <p className="mt-2 text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{d.err}</p>
+                  <p className="px-4 py-3 text-sm font-semibold text-[#9F2F2D] dark:text-[#F2A8A8]">{d.err}</p>
                 ) : null}
 
                 {hasCopy ? (
-                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 border-t border-line-soft px-3 py-2.5">
                     <button
                       type="button"
                       onClick={() => apply(d)}
                       disabled={d.busy}
-                      className="btn btn-primary !py-1.5 !text-xs"
+                      className="btn btn-bolt btn-sm"
                     >
                       {t('aiUse')}
                     </button>
@@ -641,14 +647,14 @@ export default function AiCard({
                         type="button"
                         onClick={() => apply(d, true)}
                         disabled={d.busy}
-                        className="btn btn-ghost flex items-center gap-1.5 !py-1.5 !text-xs"
+                        className="btn btn-ghost btn-sm"
                       >
                         <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
                         {t('aiSchedule')}
                       </button>
                     ) : null}
                     {appliedId === d.id ? (
-                      <span className="text-[11px] font-bold text-[#346538] dark:text-[#9BD49B]">{appliedNote}</span>
+                      <span className="text-xs font-semibold text-[#346538] dark:text-[#9BD49B]">{appliedNote}</span>
                     ) : null}
                   </div>
                 ) : null}

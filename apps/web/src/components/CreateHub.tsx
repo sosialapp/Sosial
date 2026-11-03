@@ -1093,7 +1093,7 @@ export default function CreateHub({
             )}
           </div>
 
-          <div className="min-w-0 xl:col-span-2" id="ai-card">
+          <div className="card min-w-0 p-4 sm:p-5 xl:col-span-2" id="ai-card">
             <AiCard
               providers={channels.filter((c) => c.status === 'connected').map((c) => c.provider)}
               thread={ideaThread}

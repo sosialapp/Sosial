@@ -33,6 +33,7 @@ export function Chip({
   onOpen,
   children,
   align = 'left',
+  side = 'top',
   active = false,
 }: {
   label: ReactNode;
@@ -40,6 +41,8 @@ export function Chip({
   onOpen: () => void;
   children: ReactNode;
   align?: 'left' | 'right';
+  /** Chips in the prompt's footer open upward; chips in a card header open down. */
+  side?: 'top' | 'bottom';
   active?: boolean;
 }) {
   return (
@@ -48,18 +51,16 @@ export function Chip({
         type="button"
         onClick={onOpen}
         aria-expanded={open}
-        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
-          active
-            ? 'border-[#5B3DF0]/40 bg-[#5B3DF0]/10 text-[#4A2FD6] dark:text-[#C9B9FA]'
-            : 'border-line bg-paper text-soft hover:text-ink'
+        className={`inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-bold transition hover:bg-surface hover:text-ink ${
+          active || open ? 'bg-surface text-ink' : 'text-soft'
         }`}
       >
         {label}
-        <ChevronDown className={`h-3 w-3 text-muted transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+        <ChevronDown className={`h-3 w-3 text-faint transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       {open ? (
         <div
-          className={`absolute top-full z-30 mt-1.5 w-64 rounded-xl border border-line bg-card p-2 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)] ${align === 'right' ? 'right-0' : 'left-0'}`}
+          className={`absolute z-30 w-64 rounded-2xl border border-line bg-card p-2 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)] ${side === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} ${align === 'right' ? 'right-0' : 'left-0'}`}
         >
           {children}
         </div>
@@ -74,14 +75,13 @@ export function MenuRow({ on, onClick, children }: { on: boolean; onClick: () =>
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs font-bold transition hover:bg-paper-dim ${on ? 'bg-accent-soft text-accent-ink' : ''}`}
+      className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition hover:bg-surface ${on ? 'text-ink' : 'text-soft'}`}
     >
       <span className="flex min-w-0 flex-1 items-center gap-2">{children}</span>
       {on ? <Check className="h-3.5 w-3.5 shrink-0" aria-hidden="true" /> : null}
     </button>
   );
 }
-
 
 /** Close an open chip popover on an outside click or Escape. */
 export function useMenuDismiss(open: boolean, close: () => void) {

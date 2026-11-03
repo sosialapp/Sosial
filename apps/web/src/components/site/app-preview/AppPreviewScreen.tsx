@@ -60,14 +60,16 @@ function Screen({ screen }: { screen: PreviewScreen }) {
       return <QuickPost channels={SAMPLE_CHANNELS} workspaceId="sample" userId="sample" role="owner" />;
     case 'ai-writer':
       return (
-        <AiCard
-          providers={['instagram', 'x', 'linkedin']}
-          thread={false}
-          onThreadChange={() => {}}
-          parts={3}
-          onPartsChange={() => {}}
-          onResult={() => {}}
-        />
+        <div className="card p-5">
+          <AiCard
+            providers={['instagram', 'x', 'linkedin']}
+            thread={false}
+            onThreadChange={() => {}}
+            parts={3}
+            onPartsChange={() => {}}
+            onResult={() => {}}
+          />
+        </div>
       );
     case 'team':
       return (
