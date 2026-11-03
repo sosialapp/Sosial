@@ -1,7 +1,7 @@
 // @ts-expect-error The app tsconfig carries no Node types; vitest runs in Node.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { angleFor, creditsFor, readPromptHints } from './prompt';
+import { angleFor, creditsFor, readCardCount, readPromptHints } from './prompt';
 
 describe('aiPrompt mirror', () => {
   it('web and mobile copies are identical', () => {
@@ -53,5 +53,17 @@ describe('angleFor / creditsFor', () => {
   it('matches the credit gate costs', () => {
     expect(creditsFor(3, false)).toBe(6);
     expect(creditsFor(1, true)).toBe(3);
+  });
+});
+
+describe('readCardCount', () => {
+  it('reads the carousel size', () => {
+    expect(readCardCount('5 habits for better sleep, one per card', 10)).toBe(5);
+    expect(readCardCount('a 6-slide guide to pricing', 10)).toBe(6);
+    expect(readCardCount('seven tips for remote teams', 10)).toBe(7);
+    expect(readCardCount('20 cards on everything', 10)).toBe(10);
+    expect(readCardCount('睡眠のコツを5枚で', 10)).toBe(5);
+    expect(readCardCount('카드 4장으로 정리', 10)).toBe(4);
+    expect(readCardCount('why small habits beat big goals', 10)).toBeUndefined();
   });
 });

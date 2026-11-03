@@ -1,33 +1,47 @@
 'use client';
 
 /**
- * AiStudioPanel, web port of the mobile AIGenerateSheet for the canvas
- * studio: idea, language, card count and the per-card budget. Generates through
- * the generate-studio edge function, clamps with the shared rules, then swaps
- * the whole page list (keeping the template's design) on Apply.
+ * AiStudioPanel, the canvas studio's AI: one prompt box, like the post writer.
+ * The prompt is the brief ("5 habits for better sleep, one per card"); card
+ * count, length and language are optional chips that default to Auto and follow
+ * what the prompt says. Generates through the generate-studio edge function,
+ * clamps with the shared rules, then swaps the whole page list (keeping the
+ * template's design) on Use. Mirrors mobile AIGenerateSheet.
  */
-import { useMemo, useState } from 'react';
-import { ChevronLeft, Sparkles } from 'lucide-react';
-import { Field, Stepper } from './controls';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowUp, ChevronLeft, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import {
   DEFAULT_BRIEF,
   RULES,
   applyGenResult,
   generateStudio,
-  rulesSummary,
-  type ContentBrief,
   type GenResult,
 } from '@/lib/studio/ai';
 import { WRITER_LANGUAGES } from '@/lib/aiStudio';
+import { CAROUSEL_CREDITS, MAX_PROMPT, readCardCount } from '@/lib/aiPrompt';
 import { newBlock, type BlockType, type PostPage } from '@/lib/studio/model';
+import { useMessages } from '@/lib/i18n/client';
+import { fill } from '@/lib/i18n/locales';
+import { Chip, MenuRow, useMenuDismiss } from '@/components/AiPromptBits';
 
 /** Extra starter blocks the user can append to every generated card. */
-const EXTRAS: { id: BlockType; label: string; hint: string }[] = [
-  { id: 'image', label: 'Image', hint: 'Photo slot' },
-  { id: 'table', label: 'Table', hint: 'Comparison' },
-  { id: 'bar', label: 'Chart', hint: 'Bars' },
-  { id: 'vbar', label: 'Columns', hint: 'Columns' },
+const EXTRAS: { id: BlockType; key: string }[] = [
+  { id: 'image', key: 'aisExImage' },
+  { id: 'table', key: 'aisExTable' },
+  { id: 'bar', key: 'aisExChart' },
+  { id: 'vbar', key: 'aisExColumns' },
 ];
+
+const EXAMPLES = ['aisEx1', 'aisEx2', 'aisEx3'];
+
+type Length = 'standard' | 'short';
+type Menu = 'cards' | 'length' | 'more';
+
+/** Short halves the per-card budget and keeps one block; standard is the default brief. */
+const LENGTHS: Record<Length, { words: number; blocks: number }> = {
+  standard: { words: DEFAULT_BRIEF.maxWordsPerPage, blocks: DEFAULT_BRIEF.maxBlocksPerPage },
+  short: { words: Math.round(DEFAULT_BRIEF.maxWordsPerPage / 2), blocks: 1 },
+};
 
 export default function AiStudioPanel({
   template,
@@ -39,160 +53,235 @@ export default function AiStudioPanel({
   onApply: (pages: PostPage[]) => void;
   onClose: () => void;
 }) {
-  const [brief, setBrief] = useState<ContentBrief>({ ...DEFAULT_BRIEF });
+  const t = useMessages();
+  const boxRef = useRef<HTMLTextAreaElement>(null);
+  const [prompt, setPrompt] = useState('');
+  const [pages, setPages] = useState(DEFAULT_BRIEF.pages);
+  const [length, setLength] = useState<Length>('standard');
+  const [language, setLanguage] = useState('auto');
+  const [menu, setMenu] = useState<Menu | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [result, setResult] = useState<GenResult | null>(null);
-  const [langOpen, setLangOpen] = useState(false);
-  const [langQuery, setLangQuery] = useState('');
   const [extras, setExtras] = useState<BlockType[]>([]);
+  /** Set once the user picks a card count; the prompt no longer moves it. */
+  const pagesTouched = useRef(false);
 
-  const patch = (p: Partial<ContentBrief>) => setBrief((b) => ({ ...b, ...p }));
+  useMenuDismiss(menu !== null, () => setMenu(null));
+  const toggleMenu = (m: Menu) => setMenu((cur) => (cur === m ? null : m));
 
-  const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
-  const langMatches = useMemo(() => {
-    const q = langQuery.trim().toLowerCase();
-    const list = q
-      ? WRITER_LANGUAGES.filter((l) => l.id.toLowerCase().includes(q) || l.label.toLowerCase().includes(q))
-      : WRITER_LANGUAGES;
-    return list.slice(0, 60);
-  }, [langQuery]);
+  // The box grows with the prompt, like a chat input.
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [prompt]);
 
-  const toggleExtra = (t: BlockType) =>
-    setExtras((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  function onPrompt(text: string) {
+    setPrompt(text.slice(0, MAX_PROMPT));
+    if (pagesTouched.current) return;
+    setPages(readCardCount(text, RULES.maxPages) ?? DEFAULT_BRIEF.pages);
+  }
+
+  const toggleExtra = (id: BlockType) =>
+    setExtras((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   async function run() {
+    setMenu(null);
     setErr(null);
-    setResult(null);
-    const prompt = brief.prompt.trim();
-    if (!prompt) {
-      setErr('Describe the topic first.');
+    const idea = prompt.trim();
+    if (!idea) {
+      setErr(t('aiGiveIdea'));
+      boxRef.current?.focus();
       return;
     }
+    if (busy) return;
     setBusy(true);
     try {
       const { createClient } = await import('@/lib/supabase/client');
-      const sb = createClient();
-      setResult(await generateStudio(sb, { ...brief, prompt }));
+      setResult(
+        await generateStudio(createClient(), {
+          prompt: idea,
+          language,
+          pages,
+          maxWordsPerPage: LENGTHS[length].words,
+          maxBlocksPerPage: LENGTHS[length].blocks,
+        }),
+      );
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'AI generation failed.');
+      setErr(e instanceof Error ? e.message : t('aiErr'));
     } finally {
       setBusy(false);
     }
   }
 
   const usable = result?.pages ?? [];
-  const canApply = usable.length > 0 && result !== null;
+  const langName = (id: string) => WRITER_LANGUAGES.find((l) => l.id === id)?.label ?? id;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-start gap-2">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink" aria-hidden="true">
           <Sparkles className="h-4 w-4" aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-display text-sm font-extrabold tracking-tight">AI generate</p>
-          <p className="text-xs text-muted">Fill this design with card copy from an idea.</p>
+          <p className="font-display text-sm font-extrabold tracking-tight">{t('aiTitle')}</p>
+          <p className="text-xs text-muted">{t('aisSub')}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          aria-label="Back to steps"
+          aria-label={t('aisBack')}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line bg-paper text-soft transition hover:text-ink"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 
-      <Field label="Your idea">
+      {/* The prompt box: type, pick nothing, press send. */}
+      <div className="rounded-2xl border border-line bg-card shadow-sm focus-within:ring-2 focus-within:ring-accent/40">
         <textarea
-          value={brief.prompt}
-          onChange={(e) => patch({ prompt: e.target.value })}
-          placeholder="e.g. Why small habits beat big goals, 3 cards"
-          rows={3}
-          aria-label="Your idea"
-          className="field min-h-[76px] resize-y !text-xs"
+          ref={boxRef}
+          value={prompt}
+          onChange={(e) => onPrompt(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+              e.preventDefault();
+              void run();
+            }
+          }}
+          placeholder={t('aisPromptPh')}
+          rows={2}
+          maxLength={MAX_PROMPT}
+          aria-label={t('aiPromptLbl')}
+          className="block max-h-52 min-h-[64px] w-full resize-none bg-transparent px-3 pb-1 pt-2.5 text-sm leading-relaxed text-ink placeholder:text-muted focus:outline-none"
         />
-      </Field>
-
-      <Field label="Language">
-        <div className="relative">
+        <div className="flex flex-wrap items-center gap-1.5 px-2 pb-2 pt-1">
+          <Chip
+            label={pages === 1 ? t('aisCard1') : fill(t('aisCardsN'), { n: pages })}
+            open={menu === 'cards'}
+            onOpen={() => toggleMenu('cards')}
+          >
+            <p className="px-1 pb-1.5 text-[11px] font-bold text-muted">{t('aisHowMany')}</p>
+            <div className="flex flex-wrap gap-1">
+              {Array.from({ length: RULES.maxPages - RULES.minPages + 1 }, (_, i) => RULES.minPages + i).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={pages === n}
+                  onClick={() => {
+                    pagesTouched.current = true;
+                    setPages(n);
+                  }}
+                  className={`h-8 w-8 rounded-lg text-xs font-extrabold transition ${pages === n ? 'bg-ink text-paper' : 'bg-paper-dim text-soft hover:text-ink'}`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </Chip>
+          <Chip
+            label={`${t('aisLength')}: ${t(length === 'short' ? 'aisLenShort' : 'aisLenStandard')}`}
+            open={menu === 'length'}
+            onOpen={() => toggleMenu('length')}
+            active={length !== 'standard'}
+          >
+            {(['standard', 'short'] as Length[]).map((l) => (
+              <MenuRow
+                key={l}
+                on={length === l}
+                onClick={() => {
+                  setLength(l);
+                  setMenu(null);
+                }}
+              >
+                {t(l === 'short' ? 'aisLenShort' : 'aisLenStandard')}
+              </MenuRow>
+            ))}
+          </Chip>
+          <Chip
+            label={language === 'auto' ? t('aiMoreOpts') : langName(language)}
+            open={menu === 'more'}
+            onOpen={() => toggleMenu('more')}
+            active={language !== 'auto'}
+            align="right"
+          >
+            <label className="block p-1">
+              <span className="block text-xs font-bold">{t('aiLanguage')}</span>
+              <select value={language} onChange={(e) => setLanguage(e.target.value)} className="field mt-1 !py-1.5 !text-xs">
+                <option value="auto">{t('aiLangAuto')}</option>
+                {WRITER_LANGUAGES.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </Chip>
+          <span className="flex-1" />
+          <span className="text-[11px] font-bold tabular-nums text-faint" title={t('aiCreditsHint')}>
+            {fill(t('aiCreditsN'), { n: CAROUSEL_CREDITS })}
+          </span>
           <button
             type="button"
-            onClick={() => setLangOpen((v) => !v)}
-            aria-expanded={langOpen}
-            className="flex w-full items-center gap-2 rounded-xl border border-line bg-card px-3 py-2 text-xs font-bold"
+            onClick={() => void run()}
+            disabled={busy}
+            aria-label={t('aiGenerate')}
+            title={t('aiEnterHint')}
+            className={`flex h-8 w-8 items-center justify-center rounded-full transition ${prompt.trim() ? 'bg-ink text-paper hover:opacity-85' : 'bg-line text-muted'} disabled:opacity-60`}
           >
-            <span className="flex-1 truncate text-left">
-              {brief.language === 'auto' ? 'Auto, match my idea' : langName(brief.language)}
-            </span>
-            <span className="text-[11px] text-faint">{WRITER_LANGUAGES.length} languages</span>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <ArrowUp className="h-4 w-4" aria-hidden="true" />}
           </button>
-          {langOpen ? (
-            <div className="absolute left-0 right-0 top-full z-30 mt-1 rounded-xl border border-line bg-card p-2 shadow-[0_18px_40px_-16px_rgba(25,21,18,0.4)]">
-              <input
-                value={langQuery}
-                onChange={(e) => setLangQuery(e.target.value)}
-                placeholder="Search languages…"
-                aria-label="Search languages"
-                className="field !py-1.5 text-xs"
-              />
-              <div className="mt-1 max-h-48 overflow-y-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    patch({ language: 'auto' });
-                    setLangOpen(false);
-                    setLangQuery('');
-                  }}
-                  className={`mt-1 flex w-full items-center rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${brief.language === 'auto' ? 'bg-accent-soft text-accent-ink' : ''}`}
-                >
-                  Auto, match my idea
-                </button>
-                {langMatches.map((l) => (
-                  <button
-                    key={l.id}
-                    type="button"
-                    onClick={() => {
-                      patch({ language: l.id });
-                      setLangOpen(false);
-                      setLangQuery('');
-                    }}
-                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-bold transition hover:bg-paper-dim ${brief.language === l.id ? 'bg-accent-soft text-accent-ink' : ''}`}
-                  >
-                    <span className="flex-1 truncate">{l.label}</span>
-                    {l.label !== l.id ? <span className="text-[11px] font-medium text-faint">{l.id}</span> : null}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </div>
-      </Field>
-
-      <Field label="Cards" hint={`${RULES.maxPages} max`}>
-        <Stepper value={brief.pages} onChange={(v) => patch({ pages: v })} min={1} max={RULES.maxPages} />
-      </Field>
-
-      <div className="flex flex-wrap gap-x-6 gap-y-3">
-        <Field label="Words / card">
-          <Stepper value={brief.maxWordsPerPage} onChange={(v) => patch({ maxWordsPerPage: v })} step={10} min={20} max={300} />
-        </Field>
-        <Field label="Blocks / card">
-          <Stepper value={brief.maxBlocksPerPage} onChange={(v) => patch({ maxBlocksPerPage: v })} min={1} max={RULES.maxBlocksPerPage} />
-        </Field>
       </div>
 
-      <p className="text-xs text-muted">{rulesSummary(brief)}</p>
+      {err ? <p className="text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{err}</p> : null}
 
-      {err ? <p className="text-xs font-bold text-[#9F2F2D]">{err}</p> : null}
+      {/* Empty state: a few prompts to tap. */}
+      {!result && !prompt && !busy ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-bold text-muted">{t('aiTry')}</span>
+          {EXAMPLES.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => {
+                onPrompt(t(k));
+                boxRef.current?.focus();
+              }}
+              className="rounded-full border border-line bg-paper px-3 py-1 text-left text-[11px] font-bold text-soft transition hover:text-ink"
+            >
+              {t(k)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {busy && !result ? (
+        <div className="space-y-1.5 rounded-2xl border border-line bg-card p-3" aria-label={t('aiWriting')}>
+          {Array.from({ length: Math.min(pages, 4) }, (_, i) => (
+            <div key={i} className="h-3 animate-pulse rounded bg-line" style={{ width: `${90 - i * 12}%` }} />
+          ))}
+        </div>
+      ) : null}
 
       {result ? (
         usable.length ? (
-          <div className="space-y-2 rounded-2xl border border-line bg-card p-3">
-            <p className="text-xs font-bold">
-              {usable.length} card{usable.length === 1 ? '' : 's'} ready
-            </p>
+          <div className={`space-y-2 rounded-2xl border border-line bg-card p-3 ${busy ? 'opacity-60' : ''}`}>
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-xs font-bold">{fill(t('aisReady'), { n: usable.length })}</p>
+              <button
+                type="button"
+                onClick={() => void run()}
+                disabled={busy}
+                aria-label={t('aisRegen')}
+                title={t('aisRegen')}
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-line bg-paper text-muted transition hover:text-ink disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3 w-3 ${busy ? 'animate-spin' : ''}`} aria-hidden="true" />
+              </button>
+            </div>
             <ul className="space-y-1 text-xs text-muted">
               {usable.map((p, i) => {
                 const head = p.blocks.find((b) => b.heading)?.heading;
@@ -201,7 +290,7 @@ export default function AiStudioPanel({
                   head ??
                   (first && 'lines' in first ? first.lines[0] : undefined) ??
                   (first && 'items' in first ? first.items[0] : undefined) ??
-                  'Card';
+                  fill(t('aisCardN'), { n: i + 1 });
                 return (
                   <li key={i} className="truncate">
                     {i + 1} · {line}
@@ -210,7 +299,7 @@ export default function AiStudioPanel({
               })}
             </ul>
             <div className="border-t border-line pt-2">
-              <p className="text-xs font-bold">Boost each card with <span className="font-medium text-faint">· optional</span></p>
+              <p className="text-[11px] font-bold text-muted">{t('aisBoost')}</p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {EXTRAS.map((x) => {
                   const on = extras.includes(x.id);
@@ -220,21 +309,17 @@ export default function AiStudioPanel({
                       type="button"
                       onClick={() => toggleExtra(x.id)}
                       aria-pressed={on}
-                      title={x.hint}
-                      className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition ${
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${
                         on
                           ? 'border-ink bg-ink text-white dark:border-white dark:bg-white dark:text-black'
                           : 'border-line bg-paper text-muted hover:text-ink'
                       }`}
                     >
-                      + {x.label}
+                      + {t(x.key)}
                     </button>
                   );
                 })}
               </div>
-              {extras.length ? (
-                <p className="mt-1 text-[11px] text-faint">Added after the AI copy, fill them in the Content step.</p>
-              ) : null}
             </div>
             {result.warnings.length ? (
               <ul className="space-y-0.5 border-t border-line pt-2 text-[11px] text-muted">
@@ -243,31 +328,26 @@ export default function AiStudioPanel({
                 ))}
               </ul>
             ) : null}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                const out = applyGenResult(result, template);
+                for (const pg of out) {
+                  for (const x of extras) pg.blocks.push(newBlock(x));
+                }
+                onApply(out);
+                onClose();
+              }}
+              className="btn btn-primary w-full !py-2 !text-xs"
+            >
+              {t('aisUse')}
+            </button>
           </div>
         ) : (
-          <p className="text-xs font-bold text-[#9F2F2D]">Nothing usable came back, try a more specific idea.</p>
+          <p className="text-xs font-bold text-[#9F2F2D] dark:text-[#F2A8A8]">{t('aisNothing')}</p>
         )
       ) : null}
-
-      {result && canApply ? (
-        <button
-          type="button"
-          onClick={() => {
-            const pages = applyGenResult(result, template);
-            for (const pg of pages) {
-              for (const t of extras) pg.blocks.push(newBlock(t));
-            }
-            onApply(pages);
-            onClose();
-          }}
-          className="btn btn-primary w-full"
-        >
-          Use these cards
-        </button>
-      ) : null}
-      <button type="button" onClick={run} disabled={busy} className="btn btn-ghost w-full">
-        {busy ? 'Writing…' : canApply ? 'Regenerate' : 'Generate'}
-      </button>
     </div>
   );
 }

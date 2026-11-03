@@ -64,6 +64,33 @@ export function readPromptHints(text: string): PromptHints {
   return out;
 }
 
+const CARD_UNIT = '(?:cards?|slides?|pages?|tips?|steps?|habits?|reasons?|ways?|ideas?|lessons?|mistakes?|facts?|things?|rules?|tarjetas?|diapositivas?|consejos?|pasos?|cartes?|diapos?|conseils?|[ée]tapes?|karten?|folien?|tipps?|schritte?)';
+const CARD_COUNT_RE = new RegExp(
+  `(?:^|[^A-Za-zÀ-ÿ\\d])(\\d{1,2}|${Object.keys(WORD_NUMBERS).join('|')})(?:\\s*-\\s*|\\s+)(?:\\S+\\s+){0,2}?${CARD_UNIT}\\b`,
+  'i',
+);
+const CJK_CARD_RE = /(\d{1,2})\s*(?:枚|ページ|つの|個の|장|개의|개|张|張|页|頁|个|條|条)/;
+const CJK_CARD_AFTER_RE = /(?:カード|スライド|카드|슬라이드|卡片|幻灯片)\s*(?:を|은|을|를)?\s*(\d{1,2})\s*(?:枚|つ|장|개|张|張|页|个)?/;
+
+/** Carousel size the prompt names ("5 habits…", "a 6-slide…"), clamped to 1..max. */
+export function readCardCount(text: string, max: number): number | undefined {
+  const s = text.trim();
+  if (!s) return undefined;
+  const latin = CARD_COUNT_RE.exec(s);
+  let n: number | undefined;
+  if (latin) {
+    const raw = latin[1].toLowerCase();
+    n = /^\d+$/.test(raw) ? Number(raw) : WORD_NUMBERS[raw];
+  } else {
+    const cjk = CJK_CARD_RE.exec(s) ?? CJK_CARD_AFTER_RE.exec(s);
+    if (cjk) n = Number(cjk[1]);
+  }
+  return n && n > 0 ? clamp(n, 1, max) : undefined;
+}
+
+/** AI credits one carousel run spends (generate-studio / generate-social longform: 5). */
+export const CAROUSEL_CREDITS = 5;
+
 /** Distinct openings so a set of posts on one brief never reads alike. */
 const ANGLES = [
   'Lead with the main point or offer, stated plainly.',
