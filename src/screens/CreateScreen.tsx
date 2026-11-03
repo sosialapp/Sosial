@@ -242,7 +242,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
   const s = makeS(C);
   const tourTabs = useTourTarget('tour-post-tabs', { insetX: 20, radius: 999 });
   const tourCompose = useTourTarget('tour-post-compose', { insetX: 20, radius: 22 });
-  const { openComposer, draftBody, setDraftBody, draftThread, setDraftThread, draftThreadMedia, setDraftThreadMedia, pickDraftThreadMedia, removeDraftThreadMedia, moveDraftThreadMedia, draftMedia, pickDraftMedia, removeDraftMedia, moveDraftMedia, saveDraftPost, stashDraftPost, postDraftNow, clearDraft, openAi, beginInline, endInline } = useComposer();
+  const { openComposer, draftBody, setDraftBody, draftThread, setDraftThread, draftThreadMedia, setDraftThreadMedia, pickDraftThreadMedia, removeDraftThreadMedia, moveDraftThreadMedia, draftMedia, pickDraftMedia, removeDraftMedia, moveDraftMedia, saveDraftPost, stashDraftPost, postDraftNow, clearDraft, openAi, aiScheduleSignal, beginInline, endInline } = useComposer();
   // Fresh inline composer mount (remount resets its channel/schedule picks).
   const [formKey, setFormKey] = useState(0);
   const [tab, setTab] = useState<'ideas' | 'templates' | 'post' | 'publish'>('post');
@@ -814,6 +814,7 @@ export default function CreateScreen({ onConnect, onTemplate, onOpenProject, pos
               }}
               onClose={() => {}}
               onAi={openAi}
+              scheduleSignal={aiScheduleSignal}
               onSegDragChange={setSegScrollLock}
               onConnect={onConnect}
             />

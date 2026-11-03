@@ -116,12 +116,14 @@ interface ComposerCtx {
   clearDraft: () => void;
   /** open the AI caption/thread writer onto the live draft */
   openAi: () => void;
+  /** Bumped when the AI sheet's "Schedule" applies a draft; the inline form opens its time picker. */
+  aiScheduleSignal: number;
   /** mark the inline Post-pill form active (lets sheet-gated saves run sheetless) */
   beginInline: () => void;
   endInline: () => void;
 }
 
-const Ctx = createContext<ComposerCtx>({ refreshedAt: 0, openComposer: () => {}, openPostById: async () => {}, publishPostById: async () => {}, submitForApproval: async () => {}, approvePost: async () => {}, rejectPost: async () => {}, draftBody: '', setDraftBody: () => {}, draftThread: null, setDraftThread: () => {}, draftThreadMedia: [], setDraftThreadMedia: () => {}, pickDraftThreadMedia: async () => {}, removeDraftThreadMedia: () => {}, moveDraftThreadMedia: () => {}, draftMedia: [], pickDraftMedia: () => {}, removeDraftMedia: () => {}, moveDraftMedia: () => {}, saveDraftPost: async () => false, stashDraftPost: async () => false, postDraftNow: async () => false, importDraft: () => {}, clearDraft: () => {}, openAi: () => {}, beginInline: () => {}, endInline: () => {} });
+const Ctx = createContext<ComposerCtx>({ refreshedAt: 0, openComposer: () => {}, openPostById: async () => {}, publishPostById: async () => {}, submitForApproval: async () => {}, approvePost: async () => {}, rejectPost: async () => {}, draftBody: '', setDraftBody: () => {}, draftThread: null, setDraftThread: () => {}, draftThreadMedia: [], setDraftThreadMedia: () => {}, pickDraftThreadMedia: async () => {}, removeDraftThreadMedia: () => {}, moveDraftThreadMedia: () => {}, draftMedia: [], pickDraftMedia: () => {}, removeDraftMedia: () => {}, moveDraftMedia: () => {}, saveDraftPost: async () => false, stashDraftPost: async () => false, postDraftNow: async () => false, importDraft: () => {}, clearDraft: () => {}, openAi: () => {}, aiScheduleSignal: 0, beginInline: () => {}, endInline: () => {} });
 
 export function useComposer(): ComposerCtx {
   return useContext(Ctx);
@@ -383,6 +385,9 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   /** AI writer sheet (new + edit composer alike) → straight into the live draft. */
   const [aiOpen, setAiOpen] = useState(false);
   const openAi = useCallback(() => setAiOpen(true), []);
+  // Separate counters so only the form the AI sheet was opened over reacts.
+  const [aiScheduleSignal, setAiScheduleSignal] = useState(0);
+  const [sheetScheduleSignal, setSheetScheduleSignal] = useState(0);
   const applyAiResult = useCallback((r: SocialResult) => {
     const tags = r.hashtags.length ? '\n\n' + r.hashtags.join(' ') : '';
     if (r.thread.length > 1) {
@@ -1569,7 +1574,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ refreshedAt, openComposer, openPostById, publishPostById, submitForApproval, approvePost, rejectPost, draftBody: tBody, setDraftBody: setTBody, draftThread: tThread, setDraftThread: onThread, draftThreadMedia: tThreadMedia, setDraftThreadMedia: onThreadMedia, pickDraftThreadMedia: pickThreadMedia, removeDraftThreadMedia: removeThreadMedia, moveDraftThreadMedia: moveThreadMedia, draftMedia: tMedia, pickDraftMedia: pickMedia, removeDraftMedia: removeMedia, moveDraftMedia: moveMedia, saveDraftPost: save, stashDraftPost: saveDraft, postDraftNow: postNow, importDraft, clearDraft, openAi, beginInline, endInline }}>
+    <Ctx.Provider value={{ refreshedAt, openComposer, openPostById, publishPostById, submitForApproval, approvePost, rejectPost, draftBody: tBody, setDraftBody: setTBody, draftThread: tThread, setDraftThread: onThread, draftThreadMedia: tThreadMedia, setDraftThreadMedia: onThreadMedia, pickDraftThreadMedia: pickThreadMedia, removeDraftThreadMedia: removeThreadMedia, moveDraftThreadMedia: moveThreadMedia, draftMedia: tMedia, pickDraftMedia: pickMedia, removeDraftMedia: removeMedia, moveDraftMedia: moveMedia, saveDraftPost: save, stashDraftPost: saveDraft, postDraftNow: postNow, importDraft, clearDraft, openAi, aiScheduleSignal, beginInline, endInline }}>
       {children}
       <ScheduleSheet
         visible={sheet !== null}
@@ -1596,6 +1601,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         onDelete={sheet?.post ? remove : undefined}
         onClose={() => { setSheet(null); setNotice(null); }}
         onAi={openAi}
+        scheduleSignal={sheetScheduleSignal}
         publishing={publishing}
         progress={notice?.rows}
         statusTitle={notice?.title}
@@ -1631,6 +1637,7 @@ export function ComposerProvider({ children }: { children: React.ReactNode }) {
         initialPrompt={tBody}
         onClose={() => setAiOpen(false)}
         onApply={applyAiResult}
+        onSchedule={() => (sheet !== null ? setSheetScheduleSignal : setAiScheduleSignal)((n) => n + 1)}
       />
     </Ctx.Provider>
   );

@@ -433,6 +433,8 @@ interface Props {
   /** Jump to the Connect screen from the reconnect hint. Absent = the hint
    *  renders without a tap target. */
   onConnect?: () => void;
+  /** Bumped by the host (AI sheet "Schedule") to switch the form to a picked time. */
+  scheduleSignal?: number;
 }
 
 /**
@@ -440,7 +442,7 @@ interface Props {
  * `bare` renders the same form inline (Create → Post pill) instead of in the
  * bottom-sheet Modal, state and submit paths are identical either way.
  */
-export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialTtExtras, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange, onConnect }: Props & { bare?: boolean }) {
+export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatforms, initialAccountIds, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialTtExtras, initialYtPrivacy, title, bulkCount, composer, media, onDelete, draftLabel, onDraft, onSave, onPostNow, onClose, onAi, readOnly, readOnlyNote, remoteIds, publishing, progress, statusTitle, statusMessage, bare, onSegDragChange, onConnect, scheduleSignal }: Props & { bare?: boolean }) {
   const { C, mode: themeMode } = useTheme();
   const st = makeSt(C);
   const [plats, setPlats] = useState<string[]>(['any']);
@@ -625,6 +627,20 @@ export function ScheduleForm({ visible, initialAt, initialTimezone, initialPlatf
       setMode('date');
     }
   }, [visible, initialAt, initialTimezone, initialPlatforms, initialTypes, initialSourceUrl, initialThreadsTopic, initialTtPrivacy, initialTtExtras, initialYtPrivacy, initialAccountIds]);
+
+  // AI sheet "Schedule": same as tapping Custom, the date picker opens.
+  // Only a bump after mount counts, never the value the form mounted with.
+  const seenSignal = useRef(scheduleSignal ?? 0);
+  useEffect(() => {
+    const sig = scheduleSignal ?? 0;
+    if (sig <= seenSignal.current) return;
+    seenSignal.current = sig;
+    setPreset('custom');
+    setCustom((c) => (c.getTime() < minQueueTime() ? new Date(minQueueTime()) : c));
+    setMode('date');
+    setPickingTime(false);
+    setShowPicker(true);
+  }, [scheduleSignal]);
 
   // TikTok creator info drives the panel: nickname/avatar, the privacy levels
   // the account accepts and whether it still allows comments/duets/stitches.

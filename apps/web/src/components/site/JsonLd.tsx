@@ -14,6 +14,11 @@ const OFFERS = PLAN_ORDER.map((k) => ({
     : {}),
 }));
 
+/** Sosial's own profiles elsewhere (app stores, social accounts, review
+ *  sites). Organization `sameAs` tells search and AI engines these are all
+ *  the same Sosial. Add each official profile URL here as it goes live. */
+const SAME_AS = ['https://play.google.com/store/apps/details?id=com.sosial.app'];
+
 /** Raw JSON-LD script. `id` keeps React from duplicating it on navigation. */
 export function JsonLd({ id, data }: { id: string; data: Record<string, unknown> }) {
   return (
@@ -42,6 +47,7 @@ export function SiteJsonLd() {
             url: BASE,
             logo: { '@type': 'ImageObject', url: `${BASE}/bolt.png`, width: 288, height: 384 },
             email: 'support@sosial.app',
+            sameAs: SAME_AS,
             contactPoint: { '@type': 'ContactPoint', contactType: 'customer support', email: 'support@sosial.app', availableLanguage: ['English'] },
             description:
               'Social media scheduler and management for Instagram, TikTok, X, Facebook, Threads, LinkedIn, YouTube, Pinterest, Bluesky, Mastodon, blogs and communities.',

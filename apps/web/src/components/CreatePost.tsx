@@ -1464,6 +1464,12 @@ export default function CreatePost({
                     return next;
                   });
                 }}
+                onSchedule={() => {
+                  if (!whenIso || queueTooSoon(whenIso)) {
+                    setWhenIso(new Date(minQueueTime()).toISOString());
+                  }
+                  setMode('schedule');
+                }}
                 appliedNote={t('cpAppliedNote')}
               />
             }

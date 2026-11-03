@@ -29,6 +29,11 @@
   - `docs.sosial.app/sitemap.xml` lists every docs page, including Terms and Privacy.
 - **Robots**: each host serves its own `robots.txt` pointing at its own sitemap. App routes are disallowed on the main host.
 - **Install metadata**: `manifest.webmanifest` and a square `apple-icon`.
+- **AI answer engines (AEO)**:
+  - `sosial.app/llms.txt` is a markdown map of the site (what Sosial is, plans from the price book, channels, comparisons, resources, blog). `docs.sosial.app/llms.txt` indexes the docs, and `/llms-full.txt` there has every docs page's full text.
+  - `robots.txt` names the AI crawlers (GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Google-Extended and others) and allows them on the public site, with the same app-route exclusions. Check that the CDN or proxy doesn't block them with bot protection.
+  - Organization `sameAs` (`SAME_AS` in `components/site/JsonLd.tsx`) lists Sosial's own profiles elsewhere. Add each official social, app store and review-site profile there.
+  - Head-to-head pages at `/compare/<tool>` (`content/competitors.ts`) answer "Sosial vs X" and "X alternative" searches. Claims about other tools stay structural (pricing model, what they are known for), never exact prices. Re-check them against each tool's pricing page every few months and bump `reviewed`.
 
 ## Do these once (off-site)
 
@@ -46,7 +51,7 @@
 
 ## Content that would move rankings most
 
-- **Comparison pages** for high-intent searches: "Buffer alternative", "Hootsuite alternative", "Later alternative", "Sosial vs Buffer". Keep them factual, with a table like `/compare`.
+- **More comparison pages**: Buffer, Hootsuite and Later are live under `/compare/`. Next candidates: Metricool, Sprout Social, SocialPilot, Publer. Add an entry to `content/competitors.ts`.
 - **Blog descriptions**: several posts have descriptions under 70 characters. Write fuller ones in Admin → Blog, 120–155 characters with the main keyword. The shortest:
   - "Client approvals for agencies"
   - "Automation vs scheduling"
