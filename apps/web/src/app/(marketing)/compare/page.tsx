@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import { seo } from '@/lib/seo';
 import { BreadcrumbJsonLd } from '@/components/site/JsonLd';
 import Image from 'next/image';
-import { Building2, Check, Compass, Hand, Minus, Scale, Smartphone } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Building2, Check, Compass, Hand, Minus, Scale, Smartphone } from 'lucide-react';
+import { COMPETITORS, competitorHref } from '@/content/competitors';
 import Reveal from '@/components/anim/Reveal';
 import { FaqList } from '@/components/site/PageBlocks';
 import { Hero, IconGrid, Section, SectionHead } from '@/components/site/Marketing';
@@ -120,6 +122,22 @@ export default async function ComparePage() {
             </table>
           </div>
           <p className="mt-5 max-w-3xl text-sm leading-relaxed text-ink/50">{c.note}</p>
+          <div className="mt-10">
+            <h2 className="font-display text-xl font-extrabold tracking-tight">{c.headToHead}</h2>
+            {/* Named comparisons are English-only, so these links skip href(). */}
+            <div className="mt-4 flex flex-wrap gap-2.5">
+              {COMPETITORS.map((o) => (
+                <Link
+                  key={o.slug}
+                  href={competitorHref(o.slug)}
+                  className="group inline-flex items-center gap-1.5 rounded-full border border-line px-4 py-2 text-sm font-bold text-ink/75 transition hover:bg-surface hover:text-ink"
+                >
+                  Sosial vs {o.name}
+                  <ArrowRight className="h-3.5 w-3.5 transition group-hover:translate-x-0.5" aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
+          </div>
         </Reveal>
       </Section>
 

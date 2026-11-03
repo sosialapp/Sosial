@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { allArticles } from '@/lib/blog';
 import { CHANNEL_GUIDES } from '@/content/channels';
+import { COMPETITORS, competitorHref } from '@/content/competitors';
 import { allResources } from '@/content/resources';
 import { allCustomPages } from '@/lib/sitePages';
 import { LOCALES } from '@/lib/i18n/locales';
@@ -65,6 +66,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
+  const comparisons: MetadataRoute.Sitemap = COMPETITORS.map((c) => ({
+    url: `${BASE}${competitorHref(c.slug)}`,
+    lastModified: new Date(`${c.reviewed}T00:00:00Z`),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }));
+
   const custom: MetadataRoute.Sitemap = (await allCustomPages()).map((p) => ({
     url: `${BASE}/${p.slug}`,
     ...(p.updatedAt ? { lastModified: new Date(p.updatedAt) } : {}),
@@ -72,5 +80,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...localized, ...staticRoutes,...channels, ...posts, ...resources, ...custom];
+  return [...localized, ...staticRoutes, ...channels, ...comparisons, ...posts, ...resources, ...custom];
 }

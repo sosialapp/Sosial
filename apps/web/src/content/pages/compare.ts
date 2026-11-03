@@ -11,6 +11,7 @@ const en = {
   title: 'Where Sosial fits.',
   lede: 'Suites do a lot and charge for the lot. Single-network apps are light and stay in one lane. Posting by hand is free until it is 11pm. Here is the honest shape of each.',
   capability: 'Capability',
+  headToHead: 'Head to head',
   headers: ['Sosial', 'Suites', 'Single-network apps', 'By hand'],
   rows: [
     'Ten networks in one composer',
@@ -69,6 +70,7 @@ const es: CompareCopy = {
   title: 'Dónde encaja Sosial.',
   lede: 'Las suites hacen mucho y cobran por todo. Las apps de una sola red son ligeras y se quedan en su carril. Publicar a mano es gratis hasta que son las 11 de la noche. Así es, con honestidad, cada opción.',
   capability: 'Capacidad',
+  headToHead: 'Cara a cara',
   headers: ['Sosial', 'Suites', 'Apps de una red', 'A mano'],
   rows: [
     'Diez redes en un solo editor',
@@ -107,6 +109,7 @@ const fr: CompareCopy = {
   title: 'Où se situe Sosial.',
   lede: 'Les suites font beaucoup et facturent tout. Les applis mono-réseau sont légères et restent dans leur couloir. Publier à la main est gratuit jusqu’à 23 h. Voici, honnêtement, ce que vaut chacune.',
   capability: 'Fonction',
+  headToHead: 'Face à face',
   headers: ['Sosial', 'Suites', 'Applis mono-réseau', 'À la main'],
   rows: [
     'Dix réseaux dans un seul éditeur',
@@ -145,6 +148,7 @@ const de: CompareCopy = {
   title: 'Wo Sosial hinpasst.',
   lede: 'Suiten können viel und berechnen alles. Apps für ein Netzwerk sind schlank und bleiben auf ihrer Spur. Von Hand posten kostet nichts, bis es 23 Uhr ist. Hier ist die ehrliche Form von jedem.',
   capability: 'Funktion',
+  headToHead: 'Direkter Vergleich',
   headers: ['Sosial', 'Suiten', 'Apps für ein Netzwerk', 'Von Hand'],
   rows: [
     'Zehn Netzwerke in einem Editor',
@@ -183,6 +187,7 @@ const ja: CompareCopy = {
   title: 'Sosialの立ち位置。',
   lede: 'スイートは多機能で、そのすべてに料金がかかります。単一ネットワーク向けアプリは軽快ですが、1つの用途にとどまります。手動投稿は夜11時までは無料です。それぞれの実際の姿を正直にまとめました。',
   capability: '機能',
+  headToHead: '個別比較',
   headers: ['Sosial', 'スイート', '単一ネットワーク向けアプリ', '手動'],
   rows: [
     '1つのエディターで10のネットワーク',
@@ -221,6 +226,7 @@ const ko: CompareCopy = {
   title: 'Sosial이 맞는 자리.',
   lede: '스위트는 많은 일을 하고 그 모두에 요금을 받습니다. 단일 네트워크 앱은 가볍지만 한 가지 길에만 머뭅니다. 직접 게시는 밤 11시가 되기 전까진 공짜죠. 각각의 실제 모습을 솔직하게 정리했습니다.',
   capability: '기능',
+  headToHead: '1:1 비교',
   headers: ['Sosial', '스위트', '단일 네트워크 앱', '직접 게시'],
   rows: [
     '작성기 하나로 10개 네트워크',
@@ -258,6 +264,7 @@ const zh: CompareCopy = {
   title: 'Sosial 的定位。',
   lede: '套件功能多，收费也全包。单一网络应用轻巧，但只走一条路。手动发帖是免费的，直到深夜 11 点。下面如实呈现每种方式。',
   capability: '能力',
+  headToHead: '逐一对比',
   headers: ['Sosial', '套件', '单一网络应用', '手动'],
   rows: [
     '一个编辑器覆盖十个网络',
