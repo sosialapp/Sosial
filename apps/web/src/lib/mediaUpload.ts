@@ -213,6 +213,7 @@ export async function uploadMedia(
         const chunk = file.slice(start, end);
         const { urls } = await invoke<{ urls: { partNumber: number; url: string }[] }>(sb, {
           action: 'sign-parts',
+          userId: actingUserId,
           mediaId: init.mediaId,
           partNumbers: [partNumber],
         });
@@ -221,7 +222,7 @@ export async function uploadMedia(
         onProgress?.((done + 1) / totalParts);
         return { partNumber, etag };
       });
-      await invoke(sb, { action: 'complete', mediaId: init.mediaId, parts });
+      await invoke(sb, { action: 'complete', userId: actingUserId, mediaId: init.mediaId, parts });
     }
 
     if (thumb && init.thumbUpload) {
@@ -229,7 +230,7 @@ export async function uploadMedia(
     }
 
     if (init.upload.mode === 'single') {
-      await invoke(sb, { action: 'complete', mediaId: init.mediaId });
+      await invoke(sb, { action: 'complete', userId: actingUserId, mediaId: init.mediaId });
     }
     onProgress?.(1);
     return {
@@ -241,7 +242,7 @@ export async function uploadMedia(
       durationMs,
     };
   } catch (e) {
-    await invoke(sb, { action: 'abort', mediaId: init.mediaId }).catch(() => {});
+    await invoke(sb, { action: 'abort', userId: actingUserId, mediaId: init.mediaId }).catch(() => {});
     throw e instanceof Error ? e : new Error('Upload failed.');
   }
 }
