@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MissingScope } from './http';
 import { youtube } from './youtube';
 
 const realFetch = globalThis.fetch;
@@ -187,5 +188,18 @@ describe('youtube adapter', () => {
     await expect(
       youtube.replyToComment(account, 'c_top', { text: 'x'.repeat(10001) }),
     ).rejects.toThrow(/limited to 10000/);
+  });
+});
+describe('youtube missing scope', () => {
+  it('reports a token without the comments scope as MissingScope', async () => {
+    stubRoutes(() => [{ error: { code: 403, message: 'Request had insufficient authentication scopes.' } }, 403]);
+    await expect(youtube.listComments(account, 'vid1', null)).rejects.toBeInstanceOf(MissingScope);
+  });
+
+  it('keeps other 403s as plain errors', async () => {
+    stubRoutes(() => [{ error: { code: 403, message: 'The request cannot be completed because you have exceeded your quota.' } }, 403]);
+    const e = await youtube.listComments(account, 'vid1', null).catch((x) => x);
+    expect(e).not.toBeInstanceOf(MissingScope);
+    expect(String(e.message)).toMatch(/quota exhausted/);
   });
 });

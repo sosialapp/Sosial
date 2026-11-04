@@ -14,6 +14,7 @@ import type { Job } from './db';
 import { rest, readSecret } from './db';
 import { restPatch } from './rest';
 import { adapterFor } from './adapters';
+import { MissingScope } from './adapters/http';
 import { facebookCommentExtras } from './adapters/facebook';
 import { instagramCommentExtras } from './adapters/instagram';
 import type { Account, InboxAdapter, NormalizedComment, OwnPost } from './adapters/types';
@@ -573,6 +574,10 @@ async function syncNewReplies(c: DbChannel, adapter: InboxAdapter, account: Acco
   }
 }
 
+/** A token without the comments scope stays that way until a new sign-in, so
+ *  one read a day is enough to notice the channel was reconnected. */
+const COMMENTS_BLOCK_MS = 24 * 60 * 60 * 1000;
+
 export async function handleSyncComments(job: Job): Promise<void> {
   const channelId = String(job.payload?.channel_id ?? '');
   if (!channelId) throw new Error(`job ${job.id}: missing channel_id`);
@@ -589,6 +594,11 @@ export async function handleSyncComments(job: Job): Promise<void> {
     throw new Error(
       `Unified comments for ${c.provider} are coming in the next release.`,
     );
+  }
+  const commentsBlockedAt = Date.parse(String(c.metadata?.commentsBlockedAt ?? '')) || 0;
+  if (c.metadata?.commentsBlocked && Date.now() - commentsBlockedAt < COMMENTS_BLOCK_MS) {
+    debug(`sync_comments channel ${channelId}: ${c.provider} comments permission missing, backing off`);
+    return;
   }
   const adapter = adapterFor(c.provider);
   const account = accountOf(c, await channelToken(c));
@@ -681,6 +691,17 @@ export async function handleSyncComments(job: Job): Promise<void> {
         flat = flat.concat(more.items);
       }
     } catch (e: any) {
+      // Every other thread would be refused the same way, and retrying the
+      // job cannot add the scope. Publishing is unaffected, so the channel
+      // stays connected.
+      if (e instanceof MissingScope) {
+        await restPatch('connected_channels', c.id, {
+          metadata: { ...(c.metadata ?? {}), commentsBlocked: true, commentsBlockedAt: new Date().toISOString() },
+          last_error: e.message,
+        });
+        warn(`sync_comments channel ${channelId}: ${c.provider} token lacks the comments scope, needs a reconnect, backing off 24h`);
+        return;
+      }
       // A post deleted on the platform (or one we lost access to) must not
       // kill the sweep for every other thread on the channel.
       failed++;
@@ -696,6 +717,10 @@ export async function handleSyncComments(job: Job): Promise<void> {
     debug(`sync_comments channel ${channelId} post ${remoteId}: ${flat.length} seen, ${added} new`);
   }
   await markThreadsRead(c, read);
+  if (c.metadata?.commentsBlocked && read.length) {
+    const { commentsBlocked: _blocked, commentsBlockedAt: _blockedAt, ...restMeta } = c.metadata;
+    await restPatch('connected_channels', c.id, { metadata: restMeta, last_error: null });
+  }
 
   // Nothing readable at all is an auth/permission failure, not a dead post.
   if (failed && failed === due.length) throw firstError;

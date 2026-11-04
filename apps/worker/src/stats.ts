@@ -292,50 +292,93 @@ async function snapshotFollowers(c: ChannelRow, t: TokenRow): Promise<void> {
  *  reels under the bare video id. */
 export const isFacebookVideoId = (remoteId: string): boolean => /^\d+$/.test(remoteId.trim());
 
-export async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<Stats> {
-  switch (c.provider) {
-    case 'facebook': {
-      const tok = encodeURIComponent(await accessToken(c, t));
-      const id = encodeURIComponent(remoteId);
-      // One read with the edges nested (was three calls per post). Every
-      // reaction type, not just Like; viewer_reaction is the Page's own
-      // reaction (we read with its token), which is not audience engagement.
-      // filter(stream) counts replies too, matching what the comment sync
-      // stores; our own replies come off in snapshotChannel.
-      const edges =
-        'reactions.summary(total_count,viewer_reaction).limit(0),comments.filter(stream).summary(total_count).limit(0)';
-      // Videos and reels are saved under the video id, and a Video has no
-      // `shares` field: asking for it errors the whole read. Page posts are
-      // `{page-id}_{post-id}`, so a bare id is a video and skips shares.
-      const video = isFacebookVideoId(remoteId);
-      const videoNote = 'Facebook reports no share count for videos and reels.';
-      let j = await jget(`${FB_GRAPH}/${id}?fields=${encodeURIComponent(video ? edges : `shares,${edges}`)}&access_token=${tok}`);
-      let note: string | undefined = video ? videoNote : undefined;
-      if (j?.error && !video) {
-        // A post id that turned out to be a video after all: retry without.
-        j = await jget(`${FB_GRAPH}/${id}?fields=${encodeURIComponent(edges)}&access_token=${tok}`);
-        note = videoNote;
+/** Facebook no longer serves this object (deleted, or the Page lost access).
+ *  Retrying cannot help, so it is not a job failure. */
+export class PostUnreadable extends Error {}
+
+const FB_FIELDS: Record<string, string> = {
+  shares: 'shares',
+  // viewer_reaction / has_liked are the Page's own, since we read with its
+  // token, and that is not audience engagement.
+  reactions: 'reactions.summary(total_count,viewer_reaction).limit(0)',
+  likes: 'likes.summary(true).limit(0)',
+  // filter(stream) counts replies too, matching what the comment sync stores;
+  // our own replies come off in snapshotChannel.
+  comments: 'comments.filter(stream).summary(total_count).limit(0)',
+};
+
+/** Objects Facebook said have no `reactions` field, so later reads of them
+ *  (for the life of this process) skip the call that would only error. */
+const fbNoReactions = new Set<string>();
+
+/**
+ * One nested read of a Facebook object. Not every node type has every field,
+ * and one missing field errors the whole read ("(#100) Tried accessing
+ * nonexisting field"). Facebook names the field, so drop just that one and
+ * read again, falling back from reactions to likes. Any other error is not
+ * retried here.
+ */
+export async function facebookStats(remoteId: string, read: (fields: string) => Promise<any>): Promise<Stats> {
+  const fields = new Set<string>(['comments', fbNoReactions.has(remoteId) ? 'likes' : 'reactions']);
+  if (!isFacebookVideoId(remoteId)) fields.add('shares');
+  for (;;) {
+    if (!fields.size) throw new PostUnreadable('Facebook reports no engagement for this object.');
+    const j = await read([...fields].map((f) => FB_FIELDS[f]).join(','));
+    const e = j?.error;
+    if (!e) {
+      const reaction = fields.has('reactions');
+      const summary = reaction ? j?.reactions?.summary : j?.likes?.summary;
+      const mine = reaction
+        ? String(summary?.viewer_reaction ?? 'NONE').toUpperCase() !== 'NONE'
+        : summary?.has_liked === true;
+      const notes = [
+        fields.has('shares') ? '' : 'Facebook reports no share count for videos and reels.',
+        reaction ? '' : 'Facebook reports likes, not all reactions, for this post.',
+      ].filter(Boolean);
+      return {
+        ...ZERO,
+        likes: Math.max(0, num(summary?.total_count) - (mine ? 1 : 0)),
+        comments: num(j?.comments?.summary?.total_count),
+        shares: num(j?.shares?.count),
+        note: notes.length ? notes.join(' ') : undefined,
+      };
+    }
+    const message = String(e.message ?? 'Could not read post.');
+    const missing = /nonexisting field \(([a-z_]+)/i.exec(message)?.[1]?.toLowerCase();
+    if (missing && fields.delete(missing)) {
+      if (missing === 'reactions') {
+        fbNoReactions.add(remoteId);
+        fields.add('likes');
       }
-      if (j?.error) {
-        // The login may lack the permission for reactions/comments; shares
-        // alone still say something. Nothing readable at all (deleted post,
-        // expired token) is a real failure.
-        const bare = await jget(`${FB_GRAPH}/${id}?fields=shares&access_token=${tok}`);
-        if (bare?.error) throw new Error(j.error.message ?? 'Could not read post.');
+      continue;
+    }
+    if (Number(e.code) === 100 && Number(e.error_subcode) === 33) {
+      throw new PostUnreadable('Facebook no longer returns this post, it may have been deleted.');
+    }
+    // The login may lack the permission for reactions/comments; shares alone
+    // still say something.
+    if (fields.has('shares') && (Number(e.code) === 10 || Number(e.code) === 200 || /permission/i.test(message))) {
+      const bare = await read('shares');
+      if (!bare?.error) {
         return {
           ...ZERO,
           shares: num(bare?.shares?.count),
           note: 'Reaction/comment counts need the pages_read_user_content permission on this login.',
         };
       }
-      const mine = String(j?.reactions?.summary?.viewer_reaction ?? 'NONE').toUpperCase() !== 'NONE' ? 1 : 0;
-      return {
-        ...ZERO,
-        likes: Math.max(0, num(j?.reactions?.summary?.total_count) - mine),
-        comments: num(j?.comments?.summary?.total_count),
-        shares: num(j?.shares?.count),
-        note,
-      };
+    }
+    throw new Error(message);
+  }
+}
+
+export async function statsFor(c: ChannelRow, t: TokenRow, remoteId: string): Promise<Stats> {
+  switch (c.provider) {
+    case 'facebook': {
+      const tok = encodeURIComponent(await accessToken(c, t));
+      const id = encodeURIComponent(remoteId);
+      return facebookStats(remoteId, (fields) =>
+        jget(`${FB_GRAPH}/${id}?fields=${encodeURIComponent(fields)}&access_token=${tok}`),
+      );
     }
     case 'instagram': {
       const tok = encodeURIComponent(await accessToken(c, t));
@@ -767,6 +810,9 @@ export async function snapshotChannel(
   } catch (e: any) {
     warn(`followers ${c.provider}/${c.external_id}: ${String(e?.message ?? e).slice(0, 160)}`);
   }
+  // The profile read already said to stop (limit or unpaid API): the post
+  // reads would only be refused too.
+  if (budgetSpent()) return { updated: 0, failed: 0, skipped: 'API budget spent' };
 
   if (c.provider === 'tiktok') {
     // TikTok has no post-read API, skip with a clean no-op (mobile shows zeros).
@@ -790,6 +836,7 @@ export async function snapshotChannel(
 
   let updated = 0;
   let failed = 0;
+  let gone = 0;
   // Read only what is due by age: every tick under 48 hours, then daily,
   // then weekly (cadence.ts). This used to re-read the 30 newest posts on
   // every tick, however old.
@@ -827,11 +874,28 @@ export async function snapshotChannel(
       });
       updated += 1;
     } catch (e: any) {
+      if (e instanceof PostUnreadable) {
+        // Keeps the last numbers. fetched_at moves so the post follows the
+        // normal cadence instead of being treated as never read.
+        const saved = await writeStats({
+          post_target_id: target.id,
+          workspace_id: c.workspace_id,
+          post_id: target.post_id,
+          channel_id: c.id,
+          provider: c.provider,
+          note: e.message,
+          fetched_at: new Date().toISOString(),
+        }).then(() => true, () => false);
+        if (saved) {
+          gone += 1;
+          continue;
+        }
+      }
       failed += 1;
       warn(`stats ${c.provider}/${c.external_id} target ${target.id}: ${String(e?.message ?? e).slice(0, 160)}`);
     }
   }
-  info(`snapshot ${c.provider}/${c.external_id}: ${updated} updated, ${failed} failed, ${targets.length - due.length} not due`);
+  info(`snapshot ${c.provider}/${c.external_id}: ${updated} updated, ${failed} failed, ${gone} unreadable, ${targets.length - due.length} not due`);
   // Only a total failure is a job failure, a systematic breakage (expired
   // token, API change) should back off and retry.
   if (updated === 0 && failed > 0) {

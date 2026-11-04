@@ -43,6 +43,10 @@ export class RateLimited extends Error {
   }
 }
 
+/** The token was granted without a scope this read needs. A refresh keeps the
+ *  same scopes, so only a new sign-in can fix it. */
+export class MissingScope extends Error {}
+
 export interface HttpOpts {
   provider: string;
   method?: string;

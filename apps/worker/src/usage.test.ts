@@ -110,3 +110,22 @@ describe('inBackoff', () => {
     expect(inBackoff(null, NOW)).toBe(false);
   });
 });
+
+describe('payment required (402)', () => {
+  it('holds six hours, whatever the rate headers say', () => {
+    const r = readUsage(402, headers({ 'x-rate-limit-reset': String(NOW / 1000 + 60) }), { title: 'CreditsDepleted' }, NOW);
+    expect(r.limited).toBe(true);
+    expect(backoffUntil(r, NOW)).toBe(NOW + 360 * MINUTE);
+  });
+
+  it('completes the job instead of retrying, and names the cause', async () => {
+    const { tracker, error } = await runTracked(async () => {
+      noteResponse(402, headers({}), { title: 'CreditsDepleted' });
+      expect(budgetSpent()).toBe(true);
+      throw new Error('X messages: request failed (402)');
+    });
+    expect(error).toBeDefined();
+    expect(tracker.limited).toBe(true);
+    expect(tracker.reason).toContain('CreditsDepleted');
+  });
+});

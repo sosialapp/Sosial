@@ -13,7 +13,7 @@
  * a bounded expansion of the threads that carry more replies than the page
  * embeds.
  */
-import { httpJson, withParams } from './http';
+import { httpJson, MissingScope, withParams } from './http';
 import { isoTime } from './graph';
 import { isoDate, previewText } from './postPreview';
 import type {
@@ -36,6 +36,9 @@ function ytError(label: string, data: any, status: number): Error {
     );
   }
   if (status === 403) {
+    if (/insufficient authentication scopes/i.test(message)) {
+      return new MissingScope(`${label}: this YouTube connection has no permission to manage comments. Reconnect the channel and allow it.`);
+    }
     if (/quota/i.test(message)) {
       return new Error(`${label}: YouTube API quota exhausted for today, it resets at midnight Pacific.`);
     }

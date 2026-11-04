@@ -23,6 +23,9 @@ export const SOFT_PCT = 80;
 const MIN_HOLD = 5 * MINUTE;
 const SOFT_HOLD = 30 * MINUTE;
 const LIMITED_HOLD = 15 * MINUTE;
+/** HTTP 402: the platform account is out of credits or over its spend cap, not
+ *  a rate window. Waiting a few minutes cannot help, so probe a few times a day. */
+const PAYMENT_HOLD = 6 * 60 * MINUTE;
 /** Never park a channel for more than a day on one reading. */
 const MAX_HOLD = 24 * 60 * MINUTE;
 
@@ -44,6 +47,8 @@ export interface UsageReading {
   remaining: number | null;
   /** The platform refused this call for rate reasons. */
   limited: boolean;
+  /** HTTP 402: refused for billing, until someone pays. */
+  payment?: boolean;
 }
 
 const json = (raw: string | null): any => {
@@ -94,8 +99,9 @@ export function readUsage(status: number, headers: HeaderLike, body?: any, now =
   if (retryAfter !== null && retryAfter > 0) resetAt = Math.max(resetAt ?? 0, now + retryAfter * 1000);
 
   const code = n(body?.error?.code);
-  const limited = status === 429 || (code !== null && META_THROTTLE_CODES.has(code));
-  return { pct, regainMs, resetAt, remaining, limited };
+  const payment = status === 402;
+  const limited = status === 429 || payment || (code !== null && META_THROTTLE_CODES.has(code));
+  return { pct, regainMs, resetAt, remaining, limited, payment };
 }
 
 /**
@@ -104,6 +110,7 @@ export function readUsage(status: number, headers: HeaderLike, body?: any, now =
  */
 export function backoffUntil(r: UsageReading, now = Date.now()): number | null {
   const clamp = (t: number) => Math.min(now + MAX_HOLD, Math.max(now + MIN_HOLD, t));
+  if (r.payment) return now + PAYMENT_HOLD;
   if (r.limited) {
     if (r.resetAt !== null && r.resetAt > now) return clamp(r.resetAt);
     if (r.regainMs !== null) return clamp(now + r.regainMs);
@@ -130,7 +137,9 @@ export class Tracker {
     const t = backoffUntil(r, now);
     if (t !== null && (this.until === null || t > this.until)) {
       this.until = t;
-      this.reason = r.limited ? `rate limited (HTTP ${status})` : r.pct !== null ? `usage at ${Math.round(r.pct)}%` : 'window used up';
+      this.reason = r.payment
+        ? `payment required (HTTP 402: ${String(body?.title ?? body?.detail ?? 'no detail').slice(0, 120)}), check the platform's API billing`
+        : r.limited ? `rate limited (HTTP ${status})` : r.pct !== null ? `usage at ${Math.round(r.pct)}%` : 'window used up';
     }
   }
 
