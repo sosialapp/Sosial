@@ -7,7 +7,7 @@ import { SOCIAL_META } from '../constants';
 import { META_APP_ID, IG_APP_ID } from '../utils/metaConfig';
 import { loadAccounts, removeAccount, saveProviderFields, makeAccount, onAccountsChanged } from '../utils/metaStore';
 import { canConnectProvider } from '../utils/plans';
-import { accountName, accountAvatar, accountExpired, accountExternalId, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
+import { accountName, accountAvatar, accountExpired, accountCommentsBlocked, accountExternalId, isCloudOnly, metaFromAccounts, type ConnectedAccount, type ProviderKey } from '../utils/socialAccounts';
 import {
   loginFacebook, exchangeFacebookCode, fetchPages, pickPage, FbPage,
   loginInstagram, exchangeInstagramCode, fetchInstagramProfile,
@@ -1740,7 +1740,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                       {cfg.soon ? (
                         <View style={s.soonBadge}><Text style={s.soonBadgeT}>{tr('uSoon')}</Text></View>
                       ) : null}
-                      {expiredHere.length > 0 ? (
+                      {expiredHere.length > 0 || list.some(accountCommentsBlocked) ? (
                         <View style={s.reconnectBadge}>
                           <Ionicons name="warning" size={10} color="#8a6100" />
                           <Text style={s.reconnectBadgeT}>{tr('uReconnect')}</Text>
@@ -1774,6 +1774,7 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                       const isSel = selectedAccountFor(p)?.id === a.id;
                       const cloud = isCloudOnly(a);
                       const deadReason = accountExpired(a);
+                      const blocked = !deadReason && accountCommentsBlocked(a);
                       return (
                         <View key={a.id} style={s.acctRow}>
                           <TouchableOpacity onPress={() => selectAccount(p, a)} activeOpacity={0.7} style={s.acctSel}>
@@ -1782,9 +1783,11 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                               <Text style={s.acctT} numberOfLines={1}>{accountLabel(a)}</Text>
                               {deadReason ? (
                                 <Text style={s.acctErr} numberOfLines={2}>{deadReason}</Text>
+                              ) : blocked ? (
+                                <Text style={s.acctErr} numberOfLines={3}>{tr('uCommentsBlocked')}</Text>
                               ) : null}
                             </View>
-                            {deadReason ? (
+                            {deadReason || blocked ? (
                               <Ionicons name="warning" size={16} color="#e6a417" />
                             ) : !cloud && list.length > 1 && isSel ? (
                               <Ionicons name="checkmark-circle" size={16} color={C.accent} />
@@ -1803,9 +1806,16 @@ export default function ConnectScreen({ onBack, onTeam, plan, channelCap }: { on
                             </View>
                           ) : (
                             !cloudUser || isManager ? (
-                            <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7} style={s.discBtn}>
-                              <Text style={s.discT}>{tr('uDisconnect')}</Text>
-                            </TouchableOpacity>
+                            <View style={s.cloudActions}>
+                              {blocked ? (
+                                <TouchableOpacity onPress={() => { if (needManager()) void connectCloudOnly(p, a); }} activeOpacity={0.7}>
+                                  <Text style={s.go}>{tr('uReconnect')}</Text>
+                                </TouchableOpacity>
+                              ) : null}
+                              <TouchableOpacity onPress={() => void disconnectAccount(a)} activeOpacity={0.7} style={s.discBtn}>
+                                <Text style={s.discT}>{tr('uDisconnect')}</Text>
+                              </TouchableOpacity>
+                            </View>
                             ) : null
                           )}
                         </View>

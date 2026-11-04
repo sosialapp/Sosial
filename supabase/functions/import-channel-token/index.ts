@@ -198,6 +198,53 @@ serve(async (req: Request): Promise<Response> => {
     }
   }
 
+  // A token granted without the comments scope (the worker sets
+  // metadata.commentsBlocked) stays that way, and the phone re-sends its copy
+  // every time Connect syncs. Re-sending it must not reset the worker's backoff
+  // or the prompt, and once a new sign-in has replaced it, it must not come back.
+  const { data: prior } = await admin
+    .from("connected_channels")
+    .select("id, status, metadata, channel_tokens(refresh_fingerprint)")
+    .eq("workspace_id", workspace_id)
+    .eq("provider", provider)
+    .eq("external_id", external_id)
+    .maybeSingle();
+  const priorRow = prior as
+    | {
+      id: string;
+      status: string;
+      metadata: Record<string, unknown> | null;
+      channel_tokens: { refresh_fingerprint: string | null } | { refresh_fingerprint: string | null }[] | null;
+    }
+    | null;
+  const priorMeta = priorRow?.metadata ?? {};
+  const priorTok = Array.isArray(priorRow?.channel_tokens) ? priorRow?.channel_tokens[0] : priorRow?.channel_tokens;
+  const priorFingerprint = priorTok?.refresh_fingerprint ?? null;
+  const blocked = priorMeta["commentsBlocked"] === true;
+  const retired = Array.isArray(priorMeta["retiredTokenFingerprints"])
+    ? (priorMeta["retiredTokenFingerprints"] as string[])
+    : [];
+  if (
+    priorRow?.status === "connected" && fingerprint &&
+    (retired.includes(fingerprint) || (blocked && priorFingerprint === fingerprint))
+  ) {
+    await admin
+      .from("connected_channels")
+      .update({
+        display_name: typeof body["display_name"] === "string" ? body["display_name"] : undefined,
+        handle: typeof body["handle"] === "string" ? body["handle"] : undefined,
+        metadata: { ...priorMeta, ...metadata } as never,
+      })
+      .eq("id", priorRow.id);
+    return Response.json({ channel_id: priorRow.id, kept: true });
+  }
+  // Past here the token is replaced. The incoming metadata carries no block
+  // flags, so storing it clears them, and last_error goes with the old token.
+  const nextRetired = blocked && priorFingerprint && priorFingerprint !== fingerprint
+    ? [...retired, priorFingerprint].slice(-5)
+    : retired;
+  const nextMetadata = nextRetired.length ? { ...metadata, retiredTokenFingerprints: nextRetired } : metadata;
+
   // Re-import hygiene: clear canonical names FIRST (Vault enforces unique
   // names). By-name (not by previous row) so orphan secrets from any failed
   // removal can never collide. If creation fails after this, the channel is
@@ -246,7 +293,8 @@ serve(async (req: Request): Promise<Response> => {
         instance_url: typeof body["instance_url"] === "string" ? body["instance_url"] : null,
         scopes: Array.isArray(body["scopes"]) ? body["scopes"] : [],
         status: "connected",
-        metadata: metadata as never,
+        last_error: null,
+        metadata: nextMetadata as never,
       },
       { onConflict: "workspace_id,provider,external_id" },
     )

@@ -245,6 +245,21 @@ export function accountExpired(a: ConnectedAccount): string | undefined {
   return typeof v === 'string' && v.length > 0 ? v : undefined;
 }
 
+/**
+ * The worker found this channel's token has no comments scope. The channel is
+ * live and publishes, so this is a prompt to reconnect and not an expiry.
+ */
+export function accountCommentsBlocked(a: ConnectedAccount): boolean {
+  return a.fields.cloudCommentsBlocked === true;
+}
+
+/** provider:external_id of the cloud rows the worker flagged. */
+export function commentsBlockedKeys(
+  rows: { provider: string; external_id: string; metadata: Record<string, unknown> | null }[],
+): Set<string> {
+  return new Set(rows.filter((r) => r.metadata?.commentsBlocked === true).map((r) => `${r.provider}:${r.external_id}`));
+}
+
 export function connectedAccounts(accounts: ConnectedAccount[]): ConnectedAccount[] {
   return accounts.filter(accountConnected);
 }

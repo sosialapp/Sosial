@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { channelManageError } from '@/lib/channelAccess';
+import { skipTokenImport } from '@/lib/channelReconnect';
 import { isOAuthProvider, redirectUri } from '@/lib/oauth';
 import {
   FLOW_COOKIE,
@@ -214,16 +215,16 @@ export async function GET(req: Request) {
   }
 
   // Same account twice is a no-op with a name: skip the import when the live
-  // row is already there. Expired/revoked/error rows fall through so a
-  // reconnect heals them with fresh tokens.
+  // row is already there. Expired/revoked/error rows, and a live row missing
+  // the comments scope, fall through so a reconnect heals them with fresh tokens.
   const { data: existing } = await sb
     .from('connected_channels')
-    .select('id,status')
+    .select('id,status,metadata')
     .eq('workspace_id', flow.workspace_id)
     .eq('provider', flow.provider)
     .eq('external_id', payload.external_id)
     .maybeSingle();
-  if (existing && (existing as { status?: string }).status === 'connected') {
+  if (skipTokenImport(existing)) {
     return done(`?already=${flow.provider}`);
   }
   const { error: impErr } = await sb.functions.invoke('import-channel-token', {

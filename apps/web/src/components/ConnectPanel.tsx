@@ -7,6 +7,7 @@ import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { BrandIcon, type BrandProvider } from './BrandIcon';
 import ChannelAvatar from './ChannelAvatar';
 import { channelAvatar } from '@/lib/channelAvatar';
+import { commentsBlocked } from '@/lib/channelReconnect';
 import DisconnectChannel from './DisconnectChannel';
 import PinBoardPicker from './PinBoardPicker';
 import { OAUTH_PROVIDERS, oauthLabel, type OAuthProvider } from '@/lib/oauth';
@@ -936,7 +937,7 @@ export default function ConnectPanel({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className="block text-sm font-extrabold tracking-tight">{label}</span>
-                    {list.some((c) => isDead(c)) ? (
+                    {list.some((c) => isDead(c) || commentsBlocked(c.metadata)) ? (
                       <AlertTriangle
                         aria-hidden="true"
                         className="h-3.5 w-3.5 shrink-0 text-[#8a6100] dark:text-[#e6a417]"
@@ -1002,6 +1003,27 @@ export default function ConnectPanel({
                         <p className="mt-1 truncate pl-[40px] pr-2 text-[11px] text-[#8a6100] dark:text-[#e6a417]" title={c.last_error ?? undefined}>
                           {c.last_error ?? t('cnSessionExpired')}
                         </p>
+                      ) : commentsBlocked(c.metadata) ? (
+                        <div className="mt-1 flex items-start gap-2 pl-[40px] pr-2">
+                          <p className="min-w-0 flex-1 text-[11px] leading-relaxed text-[#8a6100] dark:text-[#e6a417]">
+                            {t('cnCommentsBlocked')}
+                          </p>
+                          {canManage && !manual ? (
+                            <a
+                              href={startHref(p as OAuthProvider)}
+                              target="_blank"
+                              rel="noopener"
+                              onClick={(e) => {
+                                if (leaving) e.preventDefault();
+                                else setLeaving(p);
+                              }}
+                              aria-disabled={leaving !== null}
+                              className={`shrink-0 text-[12px] font-bold text-accent-ink ${leaving ? 'pointer-events-none opacity-50' : ''}`}
+                            >
+                              {leaving === p ? t('cnOpening') : t('cnReconnect')}
+                            </a>
+                          ) : null}
+                        </div>
                       ) : null}
                     </div>
                   ))}

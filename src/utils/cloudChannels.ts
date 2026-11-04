@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loadMetaState, loadAccounts, loadProviderFields, saveProviderFields, saveAccounts, makeAccount, readAccountsForWorkspace, writeAccountsForWorkspace, type MetaState } from './metaStore';
-import { connectedAccounts, accountExternalId, PROVIDER_KEYS, type ConnectedAccount } from './socialAccounts';
+import { connectedAccounts, accountExternalId, accountCommentsBlocked, commentsBlockedKeys, PROVIDER_KEYS, type ConnectedAccount } from './socialAccounts';
 import { getValidYt } from './ytAuth';
 import { supabase, currentSession, importChannelToken, removeChannelToken } from './supabase';
 import { activeWorkspaceId } from './activeWorkspace';
@@ -678,7 +678,10 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
           (ext ? set.has(`${provider}:${ext}`) : false) ||
           (!ext && [...set].some((k) => k.startsWith(`${provider}:`))),
       );
-    if (deadRows.length || staleKeys.size) {
+    // With no dead rows left, stamps still have to clear, but a failed read says
+    // nothing about health, so it must not clear them.
+    const healthRead = !dead.error && (health as { data: unknown }).data != null;
+    if (deadRows.length || staleKeys.size || healthRead) {
       const reasonFor = (provider: string, externalId: string): string | undefined =>
         deadRows.find((r) => r.provider === provider && r.external_id === externalId)?.last_error ??
         undefined;
@@ -702,6 +705,18 @@ export async function pullCloudChannels(force = false): Promise<PullResult> {
         }
       }
     }
+    // ---- comments blocked: live channel, needs a new sign-in for the scope ----
+    const blockedKeys = commentsBlockedKeys(rows);
+    next.forEach((a, i) => {
+      const ext = accountExternalId(a);
+      const blocked = !!ext && blockedKeys.has(`${a.provider}:${ext}`);
+      if (blocked === accountCommentsBlocked(a)) return;
+      const fields: Record<string, unknown> = { ...a.fields };
+      if (blocked) fields.cloudCommentsBlocked = true;
+      else delete fields.cloudCommentsBlocked;
+      next[i] = { ...a, fields };
+      dirty = true;
+    });
     if (dirty && (await activeWorkspaceId()) === session.workspace.id) await saveAccounts(next);
     // Remember the cloud rows we just saw (the removal allowlist).
     await AsyncStorage.setItem(`${PULL_SEEN_KEY}:${session.workspace.id}`, JSON.stringify([...cloudIds])).catch(() => {});
@@ -874,6 +889,9 @@ export async function syncCloudChannels(): Promise<CloudSyncResult> {
         if (!out.failed.some((f) => f.ch === ch)) out.failed.push({ ch, message: e?.message ?? 'Import failed.' });
       }
     }
+    // A reconnect just cleared the server's flag: pull so the prompt goes now
+    // and not on the next visit.
+    if (connAccts.some(accountCommentsBlocked)) await pullCloudChannels(true).catch(() => null);
     // Heal stale flags (e.g. a disconnect whose server cleanup failed).
     for (const ch of flags) {
       if (!wanted.includes(ch)) {
