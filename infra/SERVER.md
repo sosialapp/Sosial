@@ -11,6 +11,7 @@
 - Zone `sosial.app` on Cloudflare; records **proxied** (orange); SSL/TLS mode **Full (strict)**.
 - `db.sosial.app` → VPS IP — Supabase gateway (Envoy, pinned rev) via Caddy → `127.0.0.1:8000`
 - `status.sosial.app` → VPS IP — Uptime Kuma via Caddy → `127.0.0.1:3001`
+- `stats.sosial.app` → VPS IP — Umami website analytics via Caddy → `127.0.0.1:3003`. Proxied, Full (strict); the record is added in step 4 of the Umami runbook below.
 - `photos.sosial.app` → VPS IP, **DNS only (grey cloud)** — TikTok photo host via Caddy → `127.0.0.1:3000`. TikTok rejects 3xx redirects, so this host must bypass the Cloudflare proxy and use a **Let's Encrypt** cert (not the origin cert).
 - `sosial.app`, `www.sosial.app`, `docs.sosial.app` → VPS IP — self-hosted web app (`sosial-web`) via Caddy → `127.0.0.1:3002`. Proxied, Full (strict). `www` is a 308 to the apex and `docs.` is rewritten onto `/docs/*` by the app's middleware, so all three are the same container. **Status: the container is built and healthy on `127.0.0.1:3002`; these DNS records still point at Vercel until the cutover in the web runbook below.**
 
@@ -55,6 +56,16 @@
 - **Uptime Kuma** — `127.0.0.1:3001` → `status.sosial.app` (external up/down + status page).
 - All monitoring UIs are **loopback-only**; reach them via `ssh -L <port>:127.0.0.1:<port> sosial@23.111.15.38`, or expose `metrics.`/`logs.` through Caddy + **Cloudflare Access** (add those two hostnames to the scoped origin cert).
 - Alerts to set: hub → Settings → Notifications (Telegram/Discord/email) with disk/CPU/RAM/container-down rules; mirror the public URLs in Uptime Kuma.
+
+## Website analytics (Umami)
+Self-hosted and cookieless. Tracks the public site and docs only (`apps/web/src/components/site/UmamiScript.tsx`), never signed-in, auth or invite pages. Its Postgres is the separate `sosial-umami-db` container, dumped by `backup.sh`. Not installed until these steps have been run.
+
+1. **Secrets**: in `/opt/sosial/infra/.env`, set `UMAMI_DB_PASSWORD` and `UMAMI_APP_SECRET`, each from `openssl rand -hex 32`.
+2. **Start it**: `docker compose -f docker-compose.services.yml up -d umami-db umami`
+3. **Secure the login before it is public**: open a tunnel with `ssh -L 3003:127.0.0.1:3003 sosial@23.111.15.38`, go to `http://localhost:3003`, sign in with the default `admin` / `umami` and change the password. Then add a website for domain `sosial.app` and copy its Website ID.
+4. **Expose it**: add a proxied `stats` A record in Cloudflare, then install the Caddyfile (see Ingress).
+5. **Turn on tracking**: in `.env`, set `NEXT_PUBLIC_UMAMI_URL=https://stats.sosial.app` and `NEXT_PUBLIC_UMAMI_WEBSITE_ID`, then run `docker compose -f docker-compose.services.yml build web` and `up -d web`.
+6. **Check it**: visit `https://sosial.app/?utm_source=test` and confirm the visit and UTM appear in Umami.
 
 ## Cutover repoint list
 - **Mobile (Expo/EAS)** — `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (read in `src/utils/supabase.ts`); baked at build time → **rebuild + resubmit**.

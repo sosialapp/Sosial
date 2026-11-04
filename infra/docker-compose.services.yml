@@ -27,6 +27,9 @@ services:
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://sosial.app}
         NEXT_PUBLIC_DOCS_URL: ${NEXT_PUBLIC_DOCS_URL:-https://docs.sosial.app}
         NEXT_PUBLIC_DASHBOARD_URL: ${NEXT_PUBLIC_DASHBOARD_URL:-}
+        # Empty until Umami is set up; the site then loads no tracker.
+        NEXT_PUBLIC_UMAMI_URL: ${NEXT_PUBLIC_UMAMI_URL:-}
+        NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${NEXT_PUBLIC_UMAMI_WEBSITE_ID:-}
     restart: always
     # A slow climb past this gets a clean restart, not a fight for host memory.
     mem_limit: 3g
@@ -148,6 +151,65 @@ services:
         max-size: 20m
         max-file: "3"
 
+  # --- Website analytics (Umami, stats.sosial.app) ---
+  # Its own small Postgres, so analytics writes never touch the app database.
+  # Pinned: Umami ships security fixes, so bump this tag deliberately.
+  umami:
+    image: ghcr.io/umami-software/umami:3.4.1
+    restart: always
+    init: true
+    mem_limit: 1g
+    depends_on:
+      umami-db:
+        condition: service_healthy
+    # Loopback only; Caddy (host) is the sole public entry point.
+    ports:
+      - 127.0.0.1:3003:3000
+    environment:
+      DATABASE_URL: postgresql://umami:${UMAMI_DB_PASSWORD}@umami-db:5432/umami
+      APP_SECRET: ${UMAMI_APP_SECRET}
+      # Cloudflare sets the real visitor address; used for location lookups.
+      CLIENT_IP_HEADER: CF-Connecting-IP
+      DISABLE_TELEMETRY: "1"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/heartbeat').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "3"
+
+  umami-db:
+    image: postgres:17-alpine
+    # Fixed name: infra/backup.sh dumps this container. No published port.
+    container_name: sosial-umami-db
+    restart: always
+    mem_limit: 512m
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD}
+    volumes:
+      - umami-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: 20m
+        max-file: "3"
+
   # --- Monitoring (optional stack; all loopback-only, put behind Cloudflare Access) ---
   beszel:
     image: henrygd/beszel:latest
@@ -212,6 +274,7 @@ volumes:
   web-next-cache:
   photo-host-data:
   uptime-kuma:
+  umami-db-data:
   beszel-data:
   beszel-socket:
   beszel-agent-data:

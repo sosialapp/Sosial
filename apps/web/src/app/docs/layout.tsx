@@ -8,6 +8,7 @@ import DocsSearch from '@/components/docs/DocsSearch';
 import DocsSidebar, { DocsMobileNav } from '@/components/docs/DocsSidebar';
 import DocsFooter, { type DocsFooterColumn } from '@/components/docs/DocsFooter';
 import DocsTabs, { type DocsTab } from '@/components/docs/DocsTabs';
+import UmamiScript from '@/components/site/UmamiScript';
 import { buildNav, buildSearchIndex, docsContent, docsUrl } from '@/lib/docs';
 import '@/components/docs/docs.css';
 
@@ -71,6 +72,7 @@ export default async function DocsLayout({ children }: { children: ReactNode }) 
           <DocsFooter columns={columns} />
         </div>
       </div>
+      <UmamiScript />
     </ThemeScope>
   );
 }

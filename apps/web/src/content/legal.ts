@@ -190,7 +190,7 @@ export const TERMS: LegalDoc = {
 export const PRIVACY: LegalDoc = {
   slug: 'privacy',
   title: 'Privacy Policy',
-  updated: '2026-11-02',
+  updated: '2026-11-04',
   summary:
     'What we collect, why, who else sees it, how we keep it safe and how to delete it. In plain words.',
   sections: [
@@ -421,11 +421,15 @@ export const PRIVACY: LegalDoc = {
       ],
     },
     {
-      title: 'Cookies',
+      title: 'Cookies and website analytics',
       blocks: [
         {
           t: 'p',
           c: 'We use one cookie, to keep you signed in. There are no ad trackers and no third-party analytics following you around the web.',
+        },
+        {
+          t: 'p',
+          c: 'Our public website and docs measure visits with Umami, which we host ourselves. It sets no cookies, does not store your IP address, and shows us totals such as pages viewed, referring sites, campaign tags, country and device type. It does not run on signed-in pages.',
         },
       ],
     },

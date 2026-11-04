@@ -1,6 +1,6 @@
 # Privacy Policy — Sosial
 
-**Effective: November 2, 2026.** Operated by EGATE WORLDWIDE.
+**Effective: November 4, 2026.** Operated by EGATE WORLDWIDE.
 
 Sosial is a scheduling and publishing service for social media. You connect
 accounts, compose and schedule posts, and Sosial publishes them through each
@@ -56,9 +56,11 @@ before publishing.
 
 ## What we never do
 
-No advertising SDKs, no analytics SDKs, no cross-app trackers, no sale of your
-data, no use of your content to train models, and no use of Google user data
-for advertising.
+No advertising SDKs, no analytics SDKs in the app, no cross-app trackers, no
+sale of your data, no use of your content to train models, and no use of Google
+user data for advertising.
+
+Our public website and docs measure visits with Umami, which we host ourselves. It sets no cookies, does not store your IP address, and shows us totals such as pages viewed, referring sites, campaign tags, country and device type. It does not run on signed-in pages.
 
 ## Retention
 

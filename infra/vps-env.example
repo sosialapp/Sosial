@@ -71,6 +71,14 @@ DORMANCY_TOKEN=
 SITE_URL=https://sosial.app
 MEDIA_ENV=prod
 
+# --- website analytics (Umami) ---
+# Both from `openssl rand -hex 32`. Hex only: the password goes inside a URL.
+UMAMI_DB_PASSWORD=
+UMAMI_APP_SECRET=
+# BUILD-time: set after adding the site in Umami, then `docker compose build web`.
+NEXT_PUBLIC_UMAMI_URL=https://stats.sosial.app
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=
+
 # --- monitoring (Beszel hub "Add System" dialog → KEY + TOKEN) ---
 BESZEL_KEY=
 BESZEL_TOKEN=

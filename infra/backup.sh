@@ -33,6 +33,11 @@ echo "[backup] $(date -u +%FT%TZ) start"
 docker exec "$PG_CONTAINER" pg_dumpall -U supabase_admin --globals-only > "$BACKUP_DIR/globals-$STAMP.sql"
 docker exec "$PG_CONTAINER" pg_dump -U supabase_admin -d postgres -Fc > "$BACKUP_DIR/pg-$STAMP.dump"
 
+# Website analytics (Umami) has its own Postgres. Skipped until it is running.
+if docker ps --format '{{.Names}}' | grep -qx sosial-umami-db; then
+  docker exec sosial-umami-db pg_dump -U umami -d umami -Fc > "$BACKUP_DIR/umami-$STAMP.dump"
+fi
+
 # 2. Supabase Storage files (avatars etc. are on disk, not in R2)
 tar czf "$BACKUP_DIR/storage-$STAMP.tgz" -C "$SB_DIR/volumes" storage
 

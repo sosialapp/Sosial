@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import ScrollProgress from '@/components/anim/ScrollProgress';
 import SiteFooter from '@/components/site/SiteFooter';
 import SiteNav from '@/components/site/SiteNav';
+import UmamiScript from '@/components/site/UmamiScript';
 import { SiteJsonLd } from '@/components/site/JsonLd';
 import { MessagesProvider } from '@/lib/i18n/client';
 import { landingMessages } from '@/lib/i18n/landing';
@@ -20,6 +21,7 @@ export default async function MarketingLayout({ children }: { children: ReactNod
         <SiteNav />
         <main className="flex-1">{children}</main>
         <SiteFooter />
+        <UmamiScript />
       </div>
     </MessagesProvider>
   );

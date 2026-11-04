@@ -9,6 +9,7 @@
 #   docs.sosial.app   -> 127.0.0.1:3002  same app, docs host           [Cloudflare proxied]
 #   db.sosial.app     -> 127.0.0.1:8000  Supabase gateway (Envoy)      [Cloudflare proxied]
 #   status.sosial.app -> 127.0.0.1:3001  Uptime Kuma                   [Cloudflare proxied]
+#   stats.sosial.app  -> 127.0.0.1:3003  Umami website analytics       [Cloudflare proxied]
 #   photos.sosial.app -> 127.0.0.1:3000  TikTok photo host             [DNS only, grey cloud]
 #
 # TLS: the proxied hosts terminate with a Cloudflare Origin Certificate that
@@ -34,6 +35,12 @@ db.sosial.app {
 status.sosial.app {
 	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
 	reverse_proxy 127.0.0.1:3001
+}
+
+stats.sosial.app {
+	tls /etc/caddy/certs/origin.pem /etc/caddy/certs/origin.key
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3003
 }
 
 photos.sosial.app {
