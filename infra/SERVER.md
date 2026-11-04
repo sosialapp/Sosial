@@ -19,7 +19,8 @@
 - `/opt/sosial/infra` — this repo's infra/ (services compose, .env, backup.sh)
 - `/opt/sosial/apps` — `web/` and `worker/` build contexts (shipped in the same tar as `infra/`; the compose file builds them by relative path)
 - `/var/backups/sosial` — local dumps (pruned, R2 is the real copy)
-- Realtime + Studio: OFF (verified zero realtime usage; Studio via psql/CLI)
+- Realtime: ON, used by `apps/web/src/lib/realtime.ts` and `src/utils/community.ts`
+- Studio + meta: stopped since 2026-11-04 (no real requests in 72 h; use psql/CLI). `docker start supabase-meta supabase-studio` brings them back, and a `docker compose up` of the Supabase stack starts them again
 
 ## Auth keys
 - Gateway: Envoy (Lua `apikey` check). Protected routes require the `apikey` header — including `/auth/v1/`, `/rest/v1/*`, `/storage/v1/*`, `/graphql/v1`, `/pg/*`. `/rest/v1/` (bare) is the OpenAPI route, service_role only. **Both** the anon and service-role keys are accepted as `apikey` (verified 200), so the worker's `apikey: SERVICE_ROLE_KEY` headers work unchanged.
@@ -36,6 +37,8 @@
 - Sosial services join the Supabase Docker network **`supabase_default`** and reach the gateway as `api-gw:8000` (no host-published port needed).
 - **Docker publishing bypasses UFW.** Supabase's `:8000/:5432/:6543` binds were changed to `127.0.0.1` in `docker-compose.yml` (backup `docker-compose.yml.bak-ports`) — verified closed from the internet. Never bind a Supabase port to `0.0.0.0`.
 - Log caps on every service (no disk-eating json logs)
+- `sosial-web` has `mem_limit: 3g`; it restarts if it climbs past that
+- Envoy `rest` health check in `/opt/sosial/supabase/docker/volumes/api/envoy/cds.yaml` (server only, not in this repo) is `/__health` with `expected_statuses` 200 to 404. PostgREST answers that 404 from its schema cache in about 5 ms, and a 503 still counts as unhealthy. The upstream `/` built the 288 KB OpenAPI document every 5 s. Re-apply this after any Supabase compose update.
 
 ## Ingress (Caddy)
 - `caddy` (apt, cloudsmith repo, **≥ 2.11** — `tls force_automate` is 2.11+) with a Cloudflare **Origin Certificate** covering `sosial.app` + `*.sosial.app` at `/etc/caddy/certs/origin.{pem,key}` (key `600 caddy:caddy`). The canonical config is `infra/caddy/Caddyfile`; `/etc/caddy/Caddyfile` is root-owned so it is installed by hand (see below).
@@ -94,6 +97,8 @@ Self-hosted web gotchas:
 - The web container reaches Supabase through the public `https://db.sosial.app` (it needs to work from the browser too). Do not swap `NEXT_PUBLIC_SUPABASE_URL` for `http://api-gw:8000`: signed storage URLs would then point at an unreachable Docker hostname.
 
 ## Gotchas
+- `infra/backup.sh` runs from root cron (`/etc/cron.d/sosial-backup`), so it must stay executable with LF endings. Ship it with `git archive`; a Windows tar left it CRLF and mode 664, which stopped backups on 2026-11-03. Never test it with a different `BACKUP_DIR` while R2 sync is on: `aws s3 sync --delete` would remove every off-site backup not in that folder.
+
 - Postgres data is a **bind mount** (`docker/volumes/db/data`), not a named volume. `docker compose down -v` does NOT clear it. After changing `POSTGRES_PASSWORD`, delete that dir before `up`, or roles keep the old password and every service crash-loops with `password authentication failed`.
 
 - Auth schema drift (self-hosted `gotrue:v2.196.0` vs cloud, newer): cloud-only tables `mfa_recovery_code_sets`, `mfa_recovery_codes`, `scim_tokens`, `scim_users` (all 0 rows) and `auth.one_time_tokens.expires_at` column. Exclude these from data restore — no real data affected (1 transient one-time token dropped).

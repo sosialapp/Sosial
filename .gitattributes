@@ -1,0 +1,2 @@
+# Shell scripts run on the Linux VPS, so a Windows checkout must not turn them CRLF.
+*.sh text eol=lf

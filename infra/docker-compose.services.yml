@@ -28,6 +28,8 @@ services:
         NEXT_PUBLIC_DOCS_URL: ${NEXT_PUBLIC_DOCS_URL:-https://docs.sosial.app}
         NEXT_PUBLIC_DASHBOARD_URL: ${NEXT_PUBLIC_DASHBOARD_URL:-}
     restart: always
+    # A slow climb past this gets a clean restart, not a fight for host memory.
+    mem_limit: 3g
     # Loopback only; Caddy (host) is the sole public entry point.
     ports:
       - 127.0.0.1:3002:3000
