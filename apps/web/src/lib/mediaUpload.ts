@@ -10,6 +10,7 @@
  * asset's `thumb_path`, so grids never download the full-size original.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { edgeErrorBody } from './functions';
 import { IMAGE_MAX_BYTES, VIDEO_MAX_BYTES } from './mediaLimits';
 
 const MULTIPART_OVER = 100 * 1024 * 1024;
@@ -38,8 +39,10 @@ interface InitResponse {
 async function invoke<T>(sb: SupabaseClient, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await sb.functions.invoke('media', { body });
   if (error) {
-    // functions.invoke surfaces non-2xx in `data.error` too.
-    const msg = (data as { error?: string } | null)?.error ?? error.message;
+    // functions.invoke returns data=null on non-2xx; the edge's real reason is
+    // in the Response on error.context (else the caller only sees "Edge
+    // Function returned a non-2xx status code").
+    const msg = (data as { error?: string } | null)?.error ?? (await edgeErrorBody(error)) ?? error.message;
     throw new Error(msg || 'Media request failed.');
   }
   const err = (data as { error?: string } | null)?.error;
