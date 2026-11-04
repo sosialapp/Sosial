@@ -5,17 +5,27 @@ import { uploadMedia } from './mediaUpload';
 const USER = '11111111-1111-1111-1111-111111111111';
 const WS = '22222222-2222-2222-2222-222222222222';
 
+/** A non-2xx as supabase-js reports it: no data, a generic message, and the
+ *  edge's own reason only in the Response on error.context. */
+function rejected(status: number, reason: string) {
+  return {
+    data: null,
+    error: Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+      context: new Response(JSON.stringify({ error: reason }), { status }),
+    }),
+  };
+}
+
 /**
  * Stands in for the `media` edge function as seen by the service_role client:
  * like the real one, it rejects any action that doesn't name the acting user.
  */
-function fakeServiceEdge(multipart = false) {
+function fakeServiceEdge(multipart = false, initRejection?: { status: number; error: string }) {
   const actions: string[] = [];
   const invoke = vi.fn(async (_fn: string, { body }: { body: Record<string, unknown> }) => {
-    if (body.userId !== USER) {
-      return { data: { error: 'Service calls must include a valid userId.' }, error: new Error('400') };
-    }
+    if (body.userId !== USER) return rejected(400, 'Service calls must include a valid userId.');
     actions.push(String(body.action)); // accepted calls only
+    if (body.action === 'init' && initRejection) return rejected(initRejection.status, initRejection.error);
     switch (body.action) {
       case 'init':
         return {
@@ -63,6 +73,13 @@ describe('uploadMedia as a service_role caller (public API)', () => {
     const { sb, actions } = fakeServiceEdge(true);
     await uploadMedia(sb, WS, file(), 'video', undefined, USER);
     expect(actions).toEqual(['init', 'sign-parts', 'sign-parts', 'complete']);
+  });
+
+  it("reports the edge's own reason, not the generic non-2xx message", async () => {
+    const { sb } = fakeServiceEdge(false, { status: 413, error: 'Not enough storage left on this plan.' });
+    await expect(uploadMedia(sb, WS, file(), 'video', undefined, USER)).rejects.toThrow(
+      'Not enough storage left on this plan.',
+    );
   });
 
   it('names the user on abort when the PUT fails', async () => {

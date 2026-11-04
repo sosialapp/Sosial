@@ -10,6 +10,7 @@
  * asset's `thumb_path`, so grids never download the full-size original.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { edgeErrorBody } from './functions';
 import { IMAGE_MAX_BYTES, VIDEO_MAX_BYTES } from './mediaLimits';
 
 const MULTIPART_OVER = 100 * 1024 * 1024;
@@ -38,8 +39,10 @@ interface InitResponse {
 async function invoke<T>(sb: SupabaseClient, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await sb.functions.invoke('media', { body });
   if (error) {
-    // functions.invoke surfaces non-2xx in `data.error` too.
-    const msg = (data as { error?: string } | null)?.error ?? error.message;
+    // On a non-2xx, functions.invoke returns data=null and error.message is
+    // only "Edge Function returned a non-2xx status code". The edge's real
+    // reason is in the Response on error.context.
+    const msg = (data as { error?: string } | null)?.error ?? (await edgeErrorBody(error)) ?? error.message;
     throw new Error(msg || 'Media request failed.');
   }
   const err = (data as { error?: string } | null)?.error;
@@ -258,7 +261,7 @@ export async function uploadBlogMedia(sb: SupabaseClient, path: string, file: Fi
   const { data, error } = await sb.functions.invoke('media', {
     body: { action: 'put', bucket: 'blog-media', path: key, contentType },
   });
-  if (error) throw new Error(error.message || 'Blog media request failed.');
+  if (error) throw new Error((await edgeErrorBody(error)) || error.message || 'Blog media request failed.');
   const url = (data as { url?: string; error?: string } | null)?.url;
   if (!url) throw new Error((data as { error?: string } | null)?.error || 'Blog media request failed.');
   await putWithRetry(url, file, false, contentType);
