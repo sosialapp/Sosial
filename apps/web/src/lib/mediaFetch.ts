@@ -17,7 +17,7 @@ export async function safeFetchFile(url: string): Promise<{ bytes: Uint8Array; m
     if (PRIVATE_HOST.test(u.hostname)) return { error: 'Media URL points at a private address.' };
     const res = await fetch(u, { signal: AbortSignal.timeout(30000), redirect: 'follow' });
     if (!res.ok) return { error: `Media download failed (HTTP ${res.status}).` };
-    const mime = (res.headers.get('content-type') ?? '').split(';')[0].trim();
+    const mime = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
     if (!/^(image|video)\//.test(mime)) return { error: `Unsupported media type (${mime || 'unknown'}).` };
     const declared = Number(res.headers.get('content-length') ?? '0');
     if (declared > MAX_FILE_BYTES) return { error: 'Media file is larger than 25 MB.' };

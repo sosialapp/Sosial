@@ -353,6 +353,27 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
     }
   }
 
+  // Media first, uploaded straight to R2 via the `media` edge function, which
+  // creates the media_assets row (service role) and marks it ready on complete.
+  // Ordering matches mobile (media before targets) so the worker never sees a
+  // queued target whose media is still missing. It also runs before the post
+  // row: a failed upload must not leave an empty post behind, which an API
+  // retry with the same idempotency_key would then return as a success.
+  //
+  // Draft edits pass the original media ids back in `media`: linking them
+  // again keeps the bytes and previews intact without a download/re-upload
+  // round-trip (and survives short-lived signed URLs expiring mid-edit).
+  const linked: string[] = [];
+  for (const item of media) {
+    if ('mediaId' in item) {
+      linked.push(item.mediaId);
+      continue;
+    }
+    // userId is only consumed by the edge when the caller is service_role.
+    const res = await uploadMedia(sb, workspaceId, item.file, item.kind, undefined, userId);
+    linked.push(res.mediaId);
+  }
+
   const { data: prow, error: pErr } = await sb
     .from('posts')
     .upsert(
@@ -374,25 +395,6 @@ export async function createPost(sb: SupabaseClient, args: ComposeArgs): Promise
     .single();
   if (pErr || !prow) throw new Error(`Could not save the post: ${pErr?.message ?? 'no row'}`);
   const postId = String((prow as { id: string }).id);
-
-  // Media first, uploaded straight to R2 via the `media` edge function, which
-  // creates the media_assets row (service role) and marks it ready on complete.
-  // Ordering matches mobile (media before targets) so the worker never sees a
-  // queued target whose media is still missing.
-  //
-  // Draft edits pass the original media ids back in `media`: linking them
-  // again keeps the bytes and previews intact without a download/re-upload
-  // round-trip (and survives short-lived signed URLs expiring mid-edit).
-  const linked: string[] = [];
-  for (const item of media) {
-    if ('mediaId' in item) {
-      linked.push(item.mediaId);
-      continue;
-    }
-    // userId is only consumed by the edge when the caller is service_role.
-    const res = await uploadMedia(sb, workspaceId, item.file, item.kind, undefined, userId);
-    linked.push(res.mediaId);
-  }
 
   // Always reset links, even when the edit removed every attachment; otherwise
   // an upsert would keep the old post_media rows and "remove media" would not

@@ -166,6 +166,10 @@ export async function uploadMedia(
   if (kind === 'image' && file.size > IMAGE_MAX_BYTES) throw new Error(`${file.name} is over 10 MB.`);
   if (kind === 'video' && file.size > VIDEO_MAX_BYTES) throw new Error(`${file.name} is over 10 GB.`);
 
+  // A service_role caller has no JWT to identify it, so the edge requires
+  // `userId` on EVERY action, not just init. Undefined drops out of the JSON.
+  const call = <T>(body: Record<string, unknown>) => invoke<T>(sb, { ...body, userId: actingUserId });
+
   // Client-side metadata + thumbnail before we open the session.
   let thumb: { blob: Blob; width: number; height: number } | null = null;
   let width: number | null = null;
@@ -184,10 +188,9 @@ export async function uploadMedia(
     durationMs = probe.durationMs;
   }
 
-  const init = await invoke<InitResponse>(sb, {
+  const init = await call<InitResponse>({
     action: 'init',
     workspaceId,
-    userId: actingUserId,
     kind,
     filename: file.name,
     size: file.size,
@@ -208,7 +211,7 @@ export async function uploadMedia(
         const start = (partNumber - 1) * partSize;
         const end = Math.min(file.size, start + partSize);
         const chunk = file.slice(start, end);
-        const { urls } = await invoke<{ urls: { partNumber: number; url: string }[] }>(sb, {
+        const { urls } = await call<{ urls: { partNumber: number; url: string }[] }>({
           action: 'sign-parts',
           mediaId: init.mediaId,
           partNumbers: [partNumber],
@@ -218,7 +221,7 @@ export async function uploadMedia(
         onProgress?.((done + 1) / totalParts);
         return { partNumber, etag };
       });
-      await invoke(sb, { action: 'complete', mediaId: init.mediaId, parts });
+      await call({ action: 'complete', mediaId: init.mediaId, parts });
     }
 
     if (thumb && init.thumbUpload) {
@@ -226,7 +229,7 @@ export async function uploadMedia(
     }
 
     if (init.upload.mode === 'single') {
-      await invoke(sb, { action: 'complete', mediaId: init.mediaId });
+      await call({ action: 'complete', mediaId: init.mediaId });
     }
     onProgress?.(1);
     return {
@@ -238,7 +241,7 @@ export async function uploadMedia(
       durationMs,
     };
   } catch (e) {
-    await invoke(sb, { action: 'abort', mediaId: init.mediaId }).catch(() => {});
+    await call({ action: 'abort', mediaId: init.mediaId }).catch(() => {});
     throw e instanceof Error ? e : new Error('Upload failed.');
   }
 }

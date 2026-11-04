@@ -70,6 +70,19 @@ describe('draft media reuse', () => {
     expect(postMedia).toEqual([{ post_id: 'p1', media_id: 'm1', position: 0 }]);
   });
 
+  it('leaves no post row behind when an upload fails', async () => {
+    vi.mocked(uploadMedia).mockRejectedValue(new Error('upload failed'));
+    const { sb } = fakeSb([]);
+    const from = vi.spyOn(sb, 'from');
+    await expect(
+      createPost(sb, {
+        ...base,
+        media: [{ file: new File(['x'], 'a.jpg', { type: 'image/jpeg' }), kind: 'image' }],
+      }),
+    ).rejects.toThrow('upload failed');
+    expect(from).not.toHaveBeenCalledWith('posts');
+  });
+
   it('rejects media ids outside the workspace', async () => {
     const { sb, postMedia } = fakeSb([]);
     await expect(

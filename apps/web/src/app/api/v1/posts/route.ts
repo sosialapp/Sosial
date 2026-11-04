@@ -2,6 +2,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { unauthorized, verifyApiKey } from '@/lib/apiAuth';
 import { apiClientId, isValidIdempotencyKey } from '@/lib/apiKeys';
 import { ALL_PROVIDERS } from '@/lib/providers';
+import { safeFetchFile } from '@/lib/mediaFetch';
 import { createPost, fetchLiveChannels, friendlyLimit, mediaBlock } from '@/lib/posts';
 
 export const dynamic = 'force-dynamic';
@@ -43,7 +44,6 @@ export async function GET(req: Request) {
 }
 
 const MAX_MEDIA_FILES = 5;
-const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
 
 function bad(msg: string): Response {
   return Response.json({ error: msg }, { status: 400 });
@@ -67,33 +67,13 @@ async function workspaceOwner(
 async function fetchMedia(urls: string[]): Promise<{ file: File; kind: 'image' | 'video' }[]> {
   const out: { file: File; kind: 'image' | 'video' }[] = [];
   for (let i = 0; i < urls.length; i++) {
-    let u: URL;
-    try {
-      u = new URL(String(urls[i]));
-    } catch {
-      throw new Error(`media_urls[${i}] is not a valid URL.`);
-    }
-    if (u.protocol !== 'https:') throw new Error(`media_urls[${i}] must be an https URL.`);
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 30000);
-    let res: Response;
-    try {
-      res = await fetch(u, { signal: ctrl.signal });
-    } catch {
-      clearTimeout(timer);
-      throw new Error(`media_urls[${i}] could not be downloaded.`);
-    }
-    clearTimeout(timer);
-    if (!res.ok) throw new Error(`media_urls[${i}] returned HTTP ${res.status}.`);
-    const ct = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
-    const kind = ct.startsWith('image/') ? 'image' : ct.startsWith('video/') ? 'video' : null;
-    if (!kind) throw new Error(`media_urls[${i}] must be an image or a video.`);
-    const declared = Number(res.headers.get('content-length') ?? 0);
-    if (declared > MAX_MEDIA_BYTES) throw new Error(`media_urls[${i}] exceeds 25 MB.`);
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length > MAX_MEDIA_BYTES) throw new Error(`media_urls[${i}] exceeds 25 MB.`);
-    const base = u.pathname.split('/').pop() || `media-${i}`;
-    out.push({ file: new File([buf], base, { type: ct }), kind });
+    if (!URL.canParse(urls[i])) throw new Error(`media_urls[${i}] is not a valid URL.`);
+    // Shared guard: https only, no private hosts, streamed 25 MB cap (a server
+    // omitting content-length can't make us buffer an unbounded body).
+    const got = await safeFetchFile(urls[i]);
+    if ('error' in got) throw new Error(`media_urls[${i}]: ${got.error}`);
+    const kind = got.mime.startsWith('video/') ? 'video' : 'image';
+    out.push({ file: new File([Buffer.from(got.bytes)], got.name, { type: got.mime }), kind });
   }
   return out;
 }
