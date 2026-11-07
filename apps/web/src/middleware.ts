@@ -1,44 +1,15 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { isGated, needsSession } from '@/lib/authRoutes';
 import { DEFAULT_LOCALE, LOCALE_COOKIE } from '@/lib/i18n/locales';
 import { LOCALE_HEADER, isLocalizedPath, splitLocalePath } from '@/lib/i18n/routing';
 import { publicOrigin } from '@/lib/site';
-
-/** App UI that requires a session. Everything else is public: marketing pages
- *  (including the custom CMS pages at the root), auth flows and API routes.
- *  API routes authenticate themselves (401 or Stripe signature), so this gate
- *  is a UX layer only, every page and RLS policy still re-verifies with
- *  getUser() server-side. */
-const GATED_PREFIXES = [
-  '/admin',
-  '/analytics',
-  '/billing',
-  '/calendar',
-  '/calendar-line',
-  '/calendar-month',
-  '/channels',
-  '/composer',
-  '/dashboard',
-  '/new',
-  '/post',
-  '/post-ideas',
-  '/post-publish',
-  '/post-templates',
-  '/profile',
-  '/queue',
-  '/reports',
-  '/team',
-];
 
 /** A redirect target on the address people actually use. Self-hosted, nextUrl
  *  can carry the server's own bind address (https://0.0.0.0:3000), so a
  *  cloned nextUrl sent browsers there. Keeps the query string. */
 function publicUrl(request: NextRequest, pathname: string): URL {
   return new URL(`${pathname}${request.nextUrl.search}`, publicOrigin(request));
-}
-
-function isGated(path: string): boolean {
-  return GATED_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
 /** Paths the docs host serves as-is instead of mapping into /docs: framework
@@ -133,8 +104,9 @@ export async function middleware(request: NextRequest) {
 
   // Marketing + public pages need nothing from Supabase here, skip the
   // client and the getSession round-trip entirely (this runs on EVERY
-  // navigation). /login stays on the slow path (signed-in redirect).
-  if (path !== '/login' && !isGated(path)) {
+  // navigation). Everything else is public too: API routes authenticate
+  // themselves (401 or Stripe signature), and this gate is a UX layer only.
+  if (!needsSession(path)) {
     return NextResponse.next({ request });
   }
 
@@ -164,7 +136,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getSession();
   const user = session?.user ?? null;
 
-  if (!user && path !== '/login') {
+  if (!user && isGated(path)) {
     return NextResponse.redirect(publicUrl(request, '/login'));
   }
   if (user && path === '/login') {
